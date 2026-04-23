@@ -1,0 +1,588 @@
+'use client';
+
+import React, { useEffect, useMemo, useState } from 'react';
+import {
+  Calendar,
+  ChevronLeft,
+  ChevronRight,
+  Landmark,
+  LayoutDashboard,
+  LogOut,
+  Moon,
+  Plus,
+  Receipt,
+  Shield,
+  Sparkles,
+  Sun,
+  TrendingUp,
+} from 'lucide-react';
+import ExpenseForm from './ExpenseForm';
+import ExpenseList from './ExpenseList';
+import Subscriptions from './Subscriptions';
+import SubscriptionForm from './SubscriptionForm';
+import Loans from './Loans';
+import LoanForm from './LoanForm';
+import Insurance from './Insurance';
+import Dashboard from './Dashboard';
+import MonthlyReport from './MonthlyReport';
+import YearEndProjection from './YearEndProjection';
+import SIPTracker from './SIPTracker';
+import StockTracker from './StockTracker';
+
+type Expense = {
+  id: number;
+  date: string;
+  description: string;
+  amount: number;
+  category: string;
+  note?: string;
+};
+
+type Subscription = {
+  id: number;
+  name: string;
+  amount: number;
+  billing_type: string;
+  renewal_date?: string;
+  category?: string;
+  status?: string;
+  last_paid_date?: string;
+  comments?: string;
+};
+
+type Loan = {
+  id: number;
+  name: string;
+  amount: number;
+  due_day: number;
+  start_date?: string;
+  end_date?: string;
+  category?: string;
+  status: string;
+  comments?: string;
+};
+
+type MonthlySummary = {
+  month: number;
+  year: number;
+  salary: number;
+  previous_month_remaining: number;
+  total_expenses?: number;
+  totalExpenses?: number;
+  remaining_amount: number;
+  interest_income: number;
+  savings_fd: number;
+  savings_sip: number;
+  savings_shares: number;
+  savings_nps: number;
+  savings_pf: number;
+  cash_equivalents: number;
+};
+
+type ViewId =
+  | 'dashboard'
+  | 'expenses'
+  | 'subscriptions'
+  | 'loans'
+  | 'insurance'
+  | 'reports'
+  | 'projection'
+  | 'sip'
+  | 'stocks';
+
+const NAV_SECTIONS: Array<{
+  label: string;
+  items: Array<{ id: ViewId; label: string; icon: React.ComponentType<{ size?: number; className?: string }> }>;
+}> = [
+  {
+    label: 'Overview',
+    items: [
+      { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+      { id: 'expenses', label: 'Expenses', icon: Receipt },
+    ],
+  },
+  {
+    label: 'Commitments',
+    items: [
+      { id: 'subscriptions', label: 'Subscriptions', icon: Calendar },
+      { id: 'loans', label: 'Loans & EMIs', icon: Landmark },
+    ],
+  },
+  {
+    label: 'Wealth',
+    items: [
+      { id: 'sip', label: 'SIP Tracker', icon: TrendingUp },
+      { id: 'stocks', label: 'Stocks', icon: Sparkles },
+    ],
+  },
+  {
+    label: 'Health',
+    items: [{ id: 'insurance', label: 'Insurance', icon: Shield }],
+  },
+  {
+    label: 'Reports',
+    items: [
+      { id: 'reports', label: 'Monthly Report', icon: Receipt },
+    ],
+  },
+];
+
+const MONTHS_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+function getStoredNumber(key: string, fallback: number) {
+  if (typeof window === 'undefined') return fallback;
+  const raw = window.localStorage.getItem(key);
+  const parsed = raw ? Number.parseInt(raw, 10) : Number.NaN;
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function AppShell() {
+  const now = new Date();
+  const [darkMode, setDarkMode] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return window.localStorage.getItem('darkMode') === 'true';
+  });
+  const [mounted, setMounted] = useState(false);
+  const [currentView, setCurrentView] = useState<ViewId>('dashboard');
+  const [currentMonth, setCurrentMonth] = useState(now.getMonth() + 1);
+  const [currentYear, setCurrentYear] = useState(now.getFullYear());
+
+  useEffect(() => {
+    // Load preferences on mount
+    const savedView = window.localStorage.getItem('activeView');
+    const savedMonth = window.localStorage.getItem('selectedMonth');
+    const savedYear = window.localStorage.getItem('selectedYear');
+
+    if (savedView) setCurrentView(savedView as ViewId);
+    if (savedMonth) setCurrentMonth(Number(savedMonth));
+    if (savedYear) setCurrentYear(Number(savedYear));
+    
+    setMounted(true);
+  }, []);
+  const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
+  const [monthlySummary, setMonthlySummary] = useState<MonthlySummary | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [showExpenseForm, setShowExpenseForm] = useState(false);
+  const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
+  const [showSubscriptionForm, setShowSubscriptionForm] = useState(false);
+  const [editingSubscription, setEditingSubscription] = useState<Subscription | null>(null);
+  const [showLoanForm, setShowLoanForm] = useState(false);
+  const [editingLoan, setEditingLoan] = useState<Loan | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const loadCoreData = async () => {
+    setLoading(true);
+    setErrorMessage(null);
+    try {
+      const [expensesRes, subscriptionsRes, monthlySummaryRes] = await Promise.all([
+        fetch(`/api/expenses?month=${currentMonth}&year=${currentYear}`),
+        fetch('/api/subscriptions'),
+        fetch(`/api/monthly-summary/${currentMonth}/${currentYear}`),
+      ]);
+
+      if (!expensesRes.ok || !subscriptionsRes.ok || !monthlySummaryRes.ok) {
+        throw new Error('Failed to load webapp data');
+      }
+
+      const [expensesData, subscriptionsData, monthlySummaryData] = await Promise.all([
+        expensesRes.json(),
+        subscriptionsRes.json(),
+        monthlySummaryRes.json(),
+      ]);
+
+      setExpenses(expensesData ?? []);
+      setSubscriptions(subscriptionsData ?? []);
+      setMonthlySummary(monthlySummaryData ?? null);
+    } catch (error) {
+      console.error(error);
+      setErrorMessage(error instanceof Error ? error.message : 'Failed to load data');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    const root = document.documentElement;
+    if (darkMode) {
+      root.classList.add('dark');
+      root.setAttribute('data-theme', 'dark');
+    } else {
+      root.classList.remove('dark');
+      root.removeAttribute('data-theme');
+    }
+    window.localStorage.setItem('darkMode', String(darkMode));
+  }, [darkMode]);
+
+  useEffect(() => {
+    if (!mounted) return;
+    window.localStorage.setItem('activeView', currentView);
+  }, [currentView, mounted]);
+
+  useEffect(() => {
+    if (!mounted) return;
+    window.localStorage.setItem('selectedMonth', currentMonth.toString());
+    window.localStorage.setItem('selectedYear', currentYear.toString());
+    loadCoreData();
+  }, [currentMonth, currentYear, refreshKey, mounted]);
+
+  const filteredExpenses = useMemo(() => expenses, [expenses]);
+  
+  // Use stable defaults during hydration
+  const displayMonth = mounted ? currentMonth : now.getMonth() + 1;
+  const displayYear = mounted ? currentYear : now.getFullYear();
+  const displayView = mounted ? currentView : 'dashboard';
+
+  const periodLabel = `${MONTHS_SHORT[displayMonth - 1]} ${displayYear}`;
+  const currentLabel = NAV_SECTIONS.flatMap((section) => section.items).find((item) => item.id === displayView)?.label || 'Dashboard';
+
+  const triggerRefresh = () => setRefreshKey((value) => value + 1);
+
+  const handleExpenseSubmit = async (payload: Omit<Expense, 'id'>) => {
+    const res = await fetch('/api/expenses', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      alert(`Failed to save expense: ${err?.error ?? res.statusText}`);
+      return;
+    }
+    setShowExpenseForm(false);
+    setEditingExpense(null);
+    triggerRefresh();
+  };
+
+  const handleExpenseUpdate = async (expense: Expense) => {
+    const res = await fetch(`/api/expenses/${expense.id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        date: expense.date,
+        description: expense.description,
+        amount: Number(expense.amount),
+        category: expense.category,
+        note: expense.note ?? '',
+      }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      alert(`Failed to update expense: ${err?.error ?? res.statusText}`);
+      return;
+    }
+    setShowExpenseForm(false);
+    setEditingExpense(null);
+    triggerRefresh();
+  };
+
+  const handleExpenseDelete = async (id: number) => {
+    await fetch(`/api/expenses/${id}`, { method: 'DELETE' });
+    triggerRefresh();
+  };
+
+  const handleSubscriptionSubmit = async (payload: Omit<Subscription, 'id'>) => {
+    await fetch('/api/subscriptions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    setShowSubscriptionForm(false);
+    setEditingSubscription(null);
+    triggerRefresh();
+  };
+
+  const handleSubscriptionUpdate = async (payload: Subscription) => {
+    await fetch(`/api/subscriptions/${payload.id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    setShowSubscriptionForm(false);
+    setEditingSubscription(null);
+    triggerRefresh();
+  };
+
+  const handleSubscriptionDelete = async (id: number) => {
+    await fetch(`/api/subscriptions/${id}`, { method: 'DELETE' });
+    triggerRefresh();
+  };
+
+  const handleLoanSubmit = async (payload: Omit<Loan, 'id'>) => {
+    await fetch('/api/loans', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    setShowLoanForm(false);
+    setEditingLoan(null);
+    triggerRefresh();
+  };
+
+  const handleLoanUpdate = async (payload: Loan) => {
+    await fetch(`/api/loans/${payload.id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    setShowLoanForm(false);
+    setEditingLoan(null);
+    triggerRefresh();
+  };
+
+  return (
+    <>
+      <div className="bg-ambient" />
+
+      <div className="app">
+        <aside className="sidebar">
+          <div className="sidebar-brand">
+            <div className="sidebar-brand-mark">MET</div>
+            <div className="sidebar-brand-text">
+              <strong>MyExpenseTracker</strong>
+              <span>Did I MET my expectations?</span>
+            </div>
+          </div>
+
+          {NAV_SECTIONS.map((section) => (
+            <React.Fragment key={section.label}>
+              <div className="nav-section-label">{section.label}</div>
+              {section.items.map(({ id, label, icon: Icon }) => {
+                // Stable check for hydration: on first pass (mounted=false), only 'dashboard' is active
+                const active = mounted ? currentView === id : id === 'dashboard';
+                return (
+                  <div key={id} className={`nav-item ${active ? 'active' : ''}`} onClick={() => setCurrentView(id)}>
+                    <span className="nav-icon">
+                      <Icon size={16} />
+                    </span>
+                    {label}
+                    {active && <span className="nav-active-dot" />}
+                  </div>
+                );
+              })}
+            </React.Fragment>
+          ))}
+
+          <div className="sidebar-footer">
+            <div className="period-card">
+              <div className="period-card-eyebrow">Current Period</div>
+              <div className="period-card-value">{periodLabel}</div>
+              <div className="period-card-sub">{expenses.length} transactions</div>
+            </div>
+          </div>
+        </aside>
+
+        <div className="main">
+          <header className="topbar">
+            <div className="topbar-title">{currentLabel}</div>
+            <div style={{ flex: 1 }} />
+
+            <div className="scrubber">
+              {MONTHS_SHORT.map((month, index) => (
+                <div
+                  key={index + 1}
+                  className={`scrubber-item ${index + 1 === displayMonth ? 'active' : ''}`}
+                  onClick={() => setCurrentMonth(index + 1)}
+                >
+                  {month}
+                </div>
+              ))}
+              <div className="scrubber-divider" />
+              <div className="scrubber-item" style={{ padding: '0 6px' }} onClick={() => setCurrentYear((value) => value - 1)}>
+                <ChevronLeft size={12} />
+              </div>
+              <div className="scrubber-year">{displayYear}</div>
+              <div className="scrubber-item" style={{ padding: '0 6px' }} onClick={() => setCurrentYear((value) => value + 1)}>
+                <ChevronRight size={12} />
+              </div>
+            </div>
+
+            <button className="icon-btn" title={darkMode ? 'Light mode' : 'Dark mode'} onClick={() => setDarkMode((value) => !value)}>
+              {darkMode ? <Sun size={16} /> : <Moon size={16} />}
+            </button>
+
+            <button
+              className="icon-btn"
+              title="Logout"
+              onClick={async () => {
+                if (confirm('Are you sure you want to logout?')) {
+                  await fetch('/api/auth/logout', { method: 'POST' });
+                  window.location.href = '/login';
+                }
+              }}
+            >
+              <LogOut size={16} />
+            </button>
+
+            <button className="btn btn-accent" onClick={() => { setEditingExpense(null); setShowExpenseForm(true); }}>
+              <Plus size={14} />
+              Quick add
+            </button>
+          </header>
+
+          <main className="content fade-in">
+            {errorMessage ? (
+              <div className="pane" style={{ padding: 24 }}>
+                <div className="serif" style={{ fontSize: 24, marginBottom: 8 }}>Unable to load the webapp</div>
+                <p style={{ color: 'var(--ink-muted)' }}>{errorMessage}</p>
+              </div>
+            ) : loading ? (
+              <div className="pane" style={{ padding: 24 }}>
+                <div style={{ color: 'var(--ink-muted)' }}>Loading {currentLabel.toLowerCase()}…</div>
+              </div>
+            ) : (
+              <>
+                {currentView === 'dashboard' && (
+                  <Dashboard
+                    expenses={expenses}
+                    subscriptions={subscriptions}
+                    monthlySummary={monthlySummary}
+                    currentMonth={currentMonth}
+                    currentYear={currentYear}
+                    onFinancialsUpdate={async (data) => {
+                      const res = await fetch(`/api/monthly-summary/${currentMonth}/${currentYear}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(data),
+                      });
+                      if (!res.ok) {
+                        const err = await res.json().catch(() => ({}));
+                        alert(`Failed to save financials: ${err?.error ?? res.statusText}`);
+                        return;
+                      }
+                      triggerRefresh();
+                    }}
+                  />
+                )}
+
+                {currentView === 'expenses' && (
+                  <ExpenseList
+                    expenses={filteredExpenses}
+                    onEdit={(expense, mode) => {
+                      if (mode === 'save-inline') {
+                        void handleExpenseUpdate(expense);
+                        return;
+                      }
+                      setEditingExpense(expense);
+                      setShowExpenseForm(true);
+                    }}
+                    onDelete={(id) => {
+                      void handleExpenseDelete(id);
+                    }}
+                    onAdd={(expense) => {
+                      void handleExpenseSubmit({
+                        date: expense.date ?? new Date().toISOString().split('T')[0],
+                        description: expense.description ?? '',
+                        amount: Number(expense.amount ?? 0),
+                        category: expense.category ?? 'Personal',
+                        note: expense.note ?? '',
+                      });
+                    }}
+                  />
+                )}
+
+                {currentView === 'subscriptions' && (
+                  <Subscriptions
+                    subscriptions={subscriptions}
+                    currentMonth={currentMonth}
+                    currentYear={currentYear}
+                    onAdd={() => {
+                      setEditingSubscription(null);
+                      setShowSubscriptionForm(true);
+                    }}
+                    onEdit={(subscription) => {
+                      setEditingSubscription(subscription);
+                      setShowSubscriptionForm(true);
+                    }}
+                    onDelete={(id) => {
+                      void handleSubscriptionDelete(id);
+                    }}
+                    onPay={() => {
+                      triggerRefresh();
+                    }}
+                  />
+                )}
+
+                {currentView === 'loans' && (
+                  <Loans
+                    refreshKey={refreshKey}
+                    onShowForm={() => {
+                      setEditingLoan(null);
+                      setShowLoanForm(true);
+                    }}
+                    onEdit={(loan) => {
+                      setEditingLoan(loan);
+                      setShowLoanForm(true);
+                    }}
+                    currentMonth={currentMonth}
+                    currentYear={currentYear}
+                  />
+                )}
+
+                {currentView === 'reports' && <MonthlyReport currentMonth={currentMonth} currentYear={currentYear} />}
+                {currentView === 'projection' && <YearEndProjection currentMonth={currentMonth} currentYear={currentYear} />}
+                {currentView === 'sip' && <SIPTracker currentMonth={currentMonth} currentYear={currentYear} onPortfolioUpdate={triggerRefresh} />}
+                {currentView === 'stocks' && <StockTracker currentMonth={currentMonth} currentYear={currentYear} onPortfolioUpdate={triggerRefresh} />}
+                {currentView === 'insurance' && <Insurance />}
+              </>
+            )}
+          </main>
+        </div>
+      </div>
+
+      {showExpenseForm && (
+        <ExpenseForm
+          expense={editingExpense}
+          onSubmit={(payload) => {
+            if (editingExpense?.id) {
+              void handleExpenseUpdate({ ...editingExpense, ...payload, amount: Number(payload.amount) });
+            } else {
+              void handleExpenseSubmit(payload);
+            }
+          }}
+          onCancel={() => {
+            setShowExpenseForm(false);
+            setEditingExpense(null);
+          }}
+        />
+      )}
+
+      {showSubscriptionForm && (
+        <SubscriptionForm
+          subscription={editingSubscription}
+          onSubmit={(payload) => {
+            if (editingSubscription?.id) {
+              void handleSubscriptionUpdate({ ...editingSubscription, ...payload, amount: Number(payload.amount) });
+            } else {
+              void handleSubscriptionSubmit(payload);
+            }
+          }}
+          onCancel={() => {
+            setShowSubscriptionForm(false);
+            setEditingSubscription(null);
+          }}
+        />
+      )}
+
+      {showLoanForm && (
+        <LoanForm
+          loan={editingLoan}
+          onSubmit={(payload) => {
+            if (editingLoan?.id) {
+              void handleLoanUpdate({ ...editingLoan, ...payload, amount: Number(payload.amount), due_day: Number(payload.due_day) });
+            } else {
+              void handleLoanSubmit({ ...payload, amount: Number(payload.amount), due_day: Number(payload.due_day) });
+            }
+          }}
+          onCancel={() => {
+            setShowLoanForm(false);
+            setEditingLoan(null);
+          }}
+        />
+      )}
+    </>
+  );
+}
+
+export default AppShell;

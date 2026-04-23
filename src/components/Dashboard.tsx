@@ -1,0 +1,900 @@
+'use client';
+
+import React, { useEffect, useMemo, useState } from 'react';
+import { Area, AreaChart, Bar, BarChart, CartesianGrid, LabelList, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { X, Save } from 'lucide-react';
+import BudgetSettingsModal from './BudgetSettingsModal';
+
+type Expense = {
+  id: number;
+  date: string;
+  description: string;
+  amount: number;
+  category: string;
+  note?: string;
+};
+
+type Subscription = {
+  id: number;
+  name: string;
+  amount: number;
+  billing_type: string;
+  renewal_date?: string;
+  status?: string;
+};
+
+type MonthlySummary = {
+  month: number;
+  year: number;
+  salary: number;
+  previous_month_remaining: number;
+  total_expenses?: number;
+  totalExpenses?: number;
+  remaining_amount: number;
+  interest_income: number;
+  savings_fd: number;
+  savings_sip: number;
+  savings_shares: number;
+  savings_nps: number;
+  savings_pf: number;
+  cash_equivalents: number;
+};
+
+type YearlyRow = {
+  month: number;
+  year: number;
+  cash: number;
+  fd: number;
+  sip: number;
+  shares: number;
+  nps_pf: number;
+  salary: number;
+  savings?: number;
+};
+
+type LoanMilestone = {
+  name: string;
+  amount: number;
+  end_date: string;
+};
+
+type FinancialFields = {
+  salary: number;
+  previous_month_remaining: number;
+  interest_income: number;
+  savings_fd: number;
+  savings_sip: number;
+  savings_shares: number;
+  savings_nps: number;
+  savings_pf: number;
+};
+
+type Props = {
+  expenses: Expense[];
+  subscriptions: Subscription[];
+  monthlySummary: MonthlySummary | null;
+  currentMonth: number;
+  currentYear: number;
+  onFinancialsUpdate?: (data: FinancialFields) => Promise<void>;
+};
+
+type BudgetMap = Record<string, { budget_type: string; budget_value: number }>;
+
+const CATEGORY_COLORS: Record<string, string> = {
+  'HOME Purpose': '#8b5cf6',
+  'LOANS/CC': '#ef4444',
+  MonthlyBills: '#f59e0b',
+  Personal: '#3b82f6',
+  Savings: '#10b981',
+};
+
+const DEFAULT_PCT: Record<string, number> = {
+  'HOME Purpose': 30,
+  'LOANS/CC': 20,
+  MonthlyBills: 15,
+  Personal: 15,
+  Savings: 25,
+};
+
+const MONTHS_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+const getCurrentRemaining = (summary: MonthlySummary | null) =>
+  summary?.remaining_amount ?? 0;
+
+function formatCurrency(amount: number) {
+  return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(amount || 0);
+}
+
+function Dashboard({ expenses, subscriptions, monthlySummary, currentMonth, currentYear, onFinancialsUpdate }: Props) {
+  const [prevMonthCategoryTotals, setPrevMonthCategoryTotals] = useState<Record<string, number>>({});
+  const [yearlyNetWorth, setYearlyNetWorth] = useState<Array<{ month: string; total: number }>>([]);
+  const [yearlySavings, setYearlySavings] = useState<YearlyRow[]>([]);
+  const [loanMilestones, setLoanMilestones] = useState<LoanMilestone[]>([]);
+  const [categoryBudgets, setCategoryBudgets] = useState<BudgetMap>({});
+  const [showBudgetSettings, setShowBudgetSettings] = useState(false);
+  const [showEditFinancials, setShowEditFinancials] = useState(false);
+  const [savingFinancials, setSavingFinancials] = useState(false);
+  const [liveNetWorth, setLiveNetWorth] = useState<number | null>(null);
+  const [previousMonthExpenses, setPreviousMonthExpenses] = useState<Expense[]>([]);
+
+  useEffect(() => {
+    const loadPrevMonthTotals = async () => {
+      let prevMonth = currentMonth - 1;
+      let prevYear = currentYear;
+      if (prevMonth === 0) {
+        prevMonth = 12;
+        prevYear -= 1;
+      }
+
+      try {
+        const res = await fetch(`/api/expenses?month=${prevMonth}&year=${prevYear}`);
+        const prevExpenses = res.ok ? await res.json() : [];
+        const totals = (prevExpenses ?? []).reduce((acc: Record<string, number>, expense: Expense) => {
+          acc[expense.category] = (acc[expense.category] || 0) + Number(expense.amount || 0);
+          return acc;
+        }, {});
+        setPrevMonthCategoryTotals(totals);
+        setPreviousMonthExpenses(prevExpenses);
+      } catch (error) {
+        console.error(error);
+        setPrevMonthCategoryTotals({});
+        setPreviousMonthExpenses([]);
+      }
+    };
+
+    const loadYearlyNetWorth = async () => {
+      try {
+        const res = await fetch(`/api/monthly-summary/yearly?year=${currentYear}`);
+        const rows: YearlyRow[] = res.ok ? await res.json() : [];
+        const data = MONTHS_SHORT.map((name, index) => {
+          const month = index + 1;
+          const row = rows.find((item) => item.month === month);
+          if (!row) return { month: name, total: 0 };
+          return {
+            month: name,
+            total: Number(row.cash || 0) + Number(row.fd || 0) + Number(row.sip || 0) + Number(row.shares || 0) + Number(row.nps_pf || 0),
+          };
+        });
+        setYearlyNetWorth(data);
+        setYearlySavings(rows);
+      } catch (error) {
+        console.error(error);
+        setYearlyNetWorth([]);
+        setYearlySavings([]);
+      }
+    };
+
+    const loadBudgets = async () => {
+      try {
+        const res = await fetch('/api/category-budgets');
+        const rows = res.ok ? await res.json() : [];
+        const map = (rows ?? []).reduce((acc: BudgetMap, row: { category: string; budget_type: string; budget_value: number }) => {
+          acc[row.category] = { budget_type: row.budget_type, budget_value: Number(row.budget_value) };
+          return acc;
+        }, {});
+        setCategoryBudgets(map);
+      } catch (error) {
+        console.error(error);
+        setCategoryBudgets({});
+      }
+    };
+
+    const loadLoanMilestones = async () => {
+      try {
+        const res = await fetch('/api/loans/milestones');
+        setLoanMilestones(res.ok ? await res.json() : []);
+      } catch { setLoanMilestones([]); }
+    };
+
+    const loadLiveWealth = async () => {
+      try {
+        // Initial load
+        const res = await fetch('/api/wealth/total');
+        if (res.ok) {
+          const data = await res.json();
+          setLiveNetWorth(data.live_portfolio_total);
+        }
+
+        // Background refresh for stocks
+        const refreshRes = await fetch('/api/stocks/refresh-prices', { method: 'POST' });
+        if (refreshRes.ok) {
+          const updatedRes = await fetch('/api/wealth/total');
+          if (updatedRes.ok) {
+            const updatedData = await updatedRes.json();
+            setLiveNetWorth(updatedData.live_portfolio_total);
+          }
+        }
+      } catch (error) {
+        console.error('Failed to load live wealth:', error);
+      }
+    };
+
+    void loadPrevMonthTotals();
+    void loadYearlyNetWorth();
+    void loadBudgets();
+    void loadLoanMilestones();
+    void loadLiveWealth();
+  }, [currentMonth, currentYear]);
+
+  const categoryTotals = useMemo(() => {
+    return expenses.reduce<Record<string, number>>((acc, expense) => {
+      acc[expense.category] = (acc[expense.category] || 0) + Number(expense.amount || 0);
+      return acc;
+    }, {});
+  }, [expenses]);
+
+  const totalSavings = categoryTotals.Savings || 0;
+  const totalExpensesOnly = Object.entries(categoryTotals)
+    .filter(([category]) => category !== 'Savings')
+    .reduce((sum, [, amount]) => sum + amount, 0);
+  const totalExpenses = totalExpensesOnly + totalSavings;
+
+  const calculateBankBalance = () => {
+    if (!monthlySummary) return 0;
+    return getCurrentRemaining(monthlySummary) + Number(monthlySummary.savings_fd || 0);
+  };
+
+  const calculateCashEquivalents = () => {
+    if (!monthlySummary) return 0;
+    return (
+      calculateBankBalance() +
+      Number(monthlySummary.savings_fd || 0) +
+      Number(monthlySummary.savings_sip || 0) +
+      Number(monthlySummary.savings_shares || 0)
+    );
+  };
+
+  const calculateFutureSavings = () => {
+    if (!monthlySummary) return 0;
+    return Number(monthlySummary.savings_nps || 0) + Number(monthlySummary.savings_pf || 0);
+  };
+
+  const dayOfMonth = Math.min(new Date().getDate(), new Date(currentYear, currentMonth, 0).getDate());
+  const monthName = new Date(currentYear, currentMonth - 1).toLocaleString('default', { month: 'long' });
+
+  const nwSorted = yearlyNetWorth.filter((item) => {
+    const index = MONTHS_SHORT.indexOf(item.month);
+    return index !== -1 && index < currentMonth && item.total > 0;
+  });
+  const nwCurrent = nwSorted[nwSorted.length - 1]?.total || 0;
+  const nwPrev = nwSorted[nwSorted.length - 2]?.total || 0;
+  const nwMomAbs = nwCurrent - nwPrev;
+  const nwMomPct = nwPrev > 0 ? ((nwCurrent - nwPrev) / nwPrev) * 100 : null;
+
+  const salary = Number(monthlySummary?.salary || 0);
+  const spentPct = salary > 0 ? Math.round((totalExpensesOnly / salary) * 100) : 0;
+
+  // NEW LOGIC: Use live portfolio sum from API if available, else use DB snapshot. Then add Bank (which includes FD) + Future.
+  const livePortfolio = liveNetWorth; // API returns live_portfolio_total (SIP+Stocks)
+  const dbPortfolio = Number(monthlySummary?.savings_sip || 0) + Number(monthlySummary?.savings_shares || 0);
+  
+  const currentNetWorth = (livePortfolio ?? dbPortfolio) + calculateBankBalance() + calculateFutureSavings();
+
+  const summaryText = salary > 0
+    ? `You've spent ${formatCurrency(totalExpensesOnly)} this ${monthName} — ${
+        totalExpensesOnly <= salary * 0.55
+          ? `within budget. Bank sits at ${formatCurrency(getCurrentRemaining(monthlySummary))}.`
+          : `${((totalExpensesOnly / salary - 0.55) * 100).toFixed(0)}% above the 55% envelope target.`
+      } Saved ${formatCurrency(totalSavings)} (${salary > 0 ? ((totalSavings / salary) * 100).toFixed(0) : '0'}% of salary).`
+    : 'Update your salary in financials to unlock spending analysis and year-end projection.';
+
+  const resolveBudget = (key: string) => {
+    const budget = categoryBudgets[key];
+    if (!budget) return salary * (DEFAULT_PCT[key] || 0) / 100;
+    return (budget.budget_type === 'percentage' || budget.budget_type === 'percent')
+      ? salary * budget.budget_value / 100
+      : budget.budget_value;
+  };
+
+  const categoryDefinitions = [
+    { key: 'HOME Purpose', label: 'HOME', color: '#8b5cf6' },
+    { key: 'LOANS/CC', label: 'Loans', color: '#ef4444' },
+    { key: 'MonthlyBills', label: 'Bills', color: '#f59e0b' },
+    { key: 'Personal', label: 'Personal', color: '#3b82f6' },
+    { key: 'Savings', label: 'Savings', color: '#10b981' },
+  ].map((item) => ({ ...item, budget: resolveBudget(item.key) }));
+
+  const upcomingRenewals = subscriptions
+    .filter((sub) => sub.renewal_date && sub.status !== 'cancelled' && sub.status !== 'inactive')
+    .map((sub) => ({ ...sub, renewal: new Date(sub.renewal_date as string) }))
+    .filter((sub) => {
+      const today = new Date();
+      const nextMonth = new Date(today.getTime() + 30 * 24 * 60 * 60 * 1000);
+      return sub.renewal >= today && sub.renewal <= nextMonth;
+    });
+
+  const handleFinancialsSave = async (data: FinancialFields) => {
+    if (!onFinancialsUpdate) return;
+    setSavingFinancials(true);
+    try {
+      await onFinancialsUpdate(data);
+      setShowEditFinancials(false);
+    } finally {
+      setSavingFinancials(false);
+    }
+  };
+
+  return (
+    <div className="fade-in" style={{ paddingBottom: 48 }}>
+      {showBudgetSettings && (
+        <BudgetSettingsModal
+          salary={salary}
+          onClose={() => setShowBudgetSettings(false)}
+          onSaved={() => setShowBudgetSettings(false)}
+        />
+      )}
+
+      {showEditFinancials && (
+        <FinancialEditModal
+          monthlySummary={monthlySummary}
+          saving={savingFinancials}
+          onSave={handleFinancialsSave}
+          onClose={() => setShowEditFinancials(false)}
+        />
+      )}
+
+      <div className="dash-hero">
+        <div className="dash-hero-left">
+          <div className="eyebrow">Net worth · {monthName} {currentYear}</div>
+          <div className="dash-hero-number serif">
+            {Math.round(currentNetWorth).toLocaleString('en-IN')}
+            <span className="dash-hero-rupee">₹</span>
+          </div>
+          <div className="dash-hero-deltas">
+            {nwMomPct !== null && (
+              <span className={`delta-pill ${nwMomAbs >= 0 ? 'pos' : 'neg'}`}>
+                {nwMomAbs >= 0 ? '↑' : '↓'} {Math.abs(nwMomPct).toFixed(1)}% MoM
+              </span>
+            )}
+            {nwMomAbs !== 0 && (
+              <span className="delta-pill">
+                {nwMomAbs >= 0 ? '+' : ''}{formatCurrency(nwMomAbs)} since last month
+              </span>
+            )}
+            <span className="delta-pill">{dayOfMonth} days · {expenses.length} txns</span>
+          </div>
+        </div>
+
+      </div>
+
+      <div className="grid-rings-row mb-8">
+        <div className="pane rings-card">
+          <div className="rings-title">
+            <div className="eyebrow">This month</div>
+            <div className="serif" style={{ fontSize: 22, margin: '4px 0 0' }}>How am I doing?</div>
+          </div>
+          <div className="rings-flex">
+            <div style={{ position: 'relative', flexShrink: 0 }}>
+              <svg width="200" height="200">
+                {[
+                  { value: totalExpensesOnly, target: salary * 0.55, color: '#ef4444', r: 80, sw: 18 },
+                  { value: totalSavings, target: salary * 0.25, color: '#22c55e', r: 54, sw: 18 },
+                ].map((ring, index) => {
+                  const circumference = 2 * Math.PI * ring.r;
+                  const pct = ring.target > 0 ? Math.min(ring.value / ring.target, 1) : 0;
+                  const offset = circumference * (1 - pct);
+                  return (
+                    <g key={index}>
+                      <circle cx="100" cy="100" r={ring.r} fill="none" stroke="var(--hairline)" strokeWidth={ring.sw} />
+                      <circle
+                        cx="100"
+                        cy="100"
+                        r={ring.r}
+                        fill="none"
+                        stroke={ring.color}
+                        strokeWidth={ring.sw}
+                        strokeDasharray={`${circumference} ${circumference}`}
+                        strokeDashoffset={offset}
+                        strokeLinecap="round"
+                        transform="rotate(-90 100 100)"
+                      />
+                    </g>
+                  );
+                })}
+              </svg>
+              <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
+                <div className="serif" style={{ fontSize: 34, lineHeight: 1 }}>{spentPct}%</div>
+                <div style={{ fontSize: 11, color: 'var(--ink-muted)', marginTop: 3 }}>of salary spent</div>
+              </div>
+            </div>
+
+            <div className="rings-legend">
+              {[
+                { label: 'Spent this month', value: totalExpensesOnly, hint: 'Target: 55% of salary', color: '#ef4444' },
+                { label: 'Saved this month', value: totalSavings, hint: 'Target: 25% of salary', color: '#22c55e' },
+                { label: 'Salary', value: salary, hint: `${dayOfMonth} of ${new Date(currentYear, currentMonth, 0).getDate()} days elapsed`, color: 'var(--accent)' },
+              ].map((item) => (
+                <div key={item.label} className="rings-legend-row">
+                  <span className="ring-dot" style={{ background: item.color }} />
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--ink)' }}>{item.label}</div>
+                    <div style={{ fontSize: 11, color: 'var(--ink-faint)', marginTop: 1 }}>{item.hint}</div>
+                  </div>
+                  <div style={{ fontSize: 13, fontVariantNumeric: 'tabular-nums', fontWeight: 600, color: 'var(--ink)' }}>
+                    {formatCurrency(item.value)}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div className="pane stat-bar">
+          <div className="stat-bar-row">
+            <div className="eyebrow">Bank balance</div>
+            <div className="serif" style={{ fontSize: 26, marginTop: 4 }}>
+              {formatCurrency(calculateBankBalance())}
+            </div>
+          </div>
+          <div className="hr" />
+          <div className="stat-bar-row">
+            <div className="eyebrow">Liquid assets</div>
+            <div style={{ fontSize: 16, marginTop: 4, color: 'var(--ink)', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
+              {formatCurrency(calculateCashEquivalents())}
+            </div>
+            <div style={{ marginTop: 2, fontSize: 11, color: 'var(--ink-faint)' }}>incl. Bank · FD · SIP · Stocks</div>
+          </div>
+          <div className="hr" />
+          <div className="stat-bar-row">
+            <div className="eyebrow">Carryover</div>
+            <div style={{ fontSize: 16, marginTop: 4, color: 'var(--ink)', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
+              {formatCurrency(Number(monthlySummary?.previous_month_remaining || 0))}
+            </div>
+            <div style={{ marginTop: 2, fontSize: 11, color: 'var(--ink-faint)' }}>from last month</div>
+          </div>
+          <div className="hr" />
+          <div className="stat-bar-row">
+            <div className="eyebrow">Salary</div>
+            <div style={{ fontSize: 16, marginTop: 4, color: 'var(--ink)', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
+              {formatCurrency(salary)}
+            </div>
+            <button
+              onClick={() => setShowEditFinancials(true)}
+              style={{ marginTop: 6, fontSize: 11, color: 'var(--accent)', background: 'none', border: 'none', cursor: 'pointer', padding: 0, textAlign: 'left' }}
+            >
+              Edit financials →
+            </button>
+          </div>
+        </div>
+      </div>
+
+
+      <div style={{ marginBottom: 32 }}>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 16 }}>
+          <div className="eyebrow">Envelopes</div>
+          <div className="serif" style={{ fontSize: 22 }}>Categories this month</div>
+          <button
+            onClick={() => setShowBudgetSettings(true)}
+            style={{
+              marginLeft: 'auto',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 5,
+              padding: '4px 12px',
+              borderRadius: 8,
+              border: '1px solid var(--hairline)',
+              background: 'transparent',
+              cursor: 'pointer',
+              fontSize: 11.5,
+              fontWeight: 600,
+              color: 'var(--ink-muted)',
+            }}
+          >
+            ✏️ Edit budgets
+          </button>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 14 }}>
+          {categoryDefinitions.map((category) => {
+            const spent = categoryTotals[category.key] || 0;
+            const pct = category.budget > 0 ? Math.min(100, (spent / category.budget) * 100) : 0;
+            const over = spent > category.budget && category.budget > 0;
+            const prevSpent = prevMonthCategoryTotals[category.key] || 0;
+            const trend = prevSpent > 0 ? ((spent - prevSpent) / prevSpent) * 100 : null;
+            return (
+              <div key={category.key} className="cat-card" style={{ ['--cat' as string]: category.color }}>
+                <div className="cat-card-accent" />
+                <div style={{ position: 'relative', zIndex: 1 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div className="eyebrow" style={{ color: category.color }}>{category.label}</div>
+                    {trend !== null && (
+                      <span className={`chip ${trend > 0 ? 'neg' : 'pos'}`} style={{ height: 18, padding: '0 6px', fontSize: 10, display: 'inline-flex', alignItems: 'center', borderRadius: 999 }}>
+                        {trend > 0 ? '↑' : '↓'}{Math.abs(trend).toFixed(0)}%
+                      </span>
+                    )}
+                  </div>
+                  <div className="serif" style={{ fontSize: 24, marginTop: 8, fontVariantNumeric: 'tabular-nums' }}>
+                    {spent >= 100000 ? `${(spent / 100000).toFixed(2)}L` : `₹${Math.round(spent / 1000)}K`}
+                  </div>
+                  <div style={{ fontSize: 11, color: 'var(--ink-faint)', marginTop: 2 }}>
+                    of {category.budget >= 100000 ? `${(category.budget / 100000).toFixed(1)}L` : `₹${Math.round(category.budget / 1000)}K`}
+                  </div>
+                  <div className="cat-progress">
+                    <div className="cat-progress-fill" style={{ width: `${pct}%`, background: over ? '#ef4444' : category.color }} />
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6, fontSize: 10.5, color: 'var(--ink-faint)' }}>
+                    <span>{pct.toFixed(0)}% used</span>
+                    <span>{over ? 'over budget' : spent === 0 ? '—' : `${formatCurrency(category.budget - spent)} left`}</span>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="pane" style={{ padding: '14px 20px', marginBottom: 24 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 12 }}>
+          {[
+            { label: 'FD', value: monthlySummary?.savings_fd, dot: '#3b82f6' },
+            { label: 'SIP', value: monthlySummary?.savings_sip, dot: '#8b5cf6' },
+            { label: 'Shares', value: monthlySummary?.savings_shares, dot: '#f59e0b' },
+            { label: 'NPS', value: monthlySummary?.savings_nps, dot: '#6366f1' },
+            { label: 'PF', value: monthlySummary?.savings_pf, dot: '#10b981' },
+            { label: 'Interest', value: monthlySummary?.interest_income, dot: '#f97316' },
+          ].map((item) => (
+            <div key={item.label} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '4px 0' }}>
+              <span style={{ width: 10, height: 10, borderRadius: '50%', backgroundColor: item.dot, flexShrink: 0 }} />
+              <div>
+                <div style={{ fontSize: 10, color: 'var(--ink-faint)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{item.label}</div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)', fontVariantNumeric: 'tabular-nums' }}>{formatCurrency(Number(item.value || 0))}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <SavingsRatePanel
+        yearlySavings={yearlySavings}
+        loanMilestones={loanMilestones}
+        currentMonth={currentMonth}
+        currentYear={currentYear}
+        formatCurrency={formatCurrency}
+      />
+
+      <NetWorthGrowthChart
+        yearlySavings={yearlySavings}
+        currentYear={currentYear}
+        currentMonth={currentMonth}
+        formatCurrency={formatCurrency}
+      />
+    </div>
+  );
+}
+
+const MONTHS_ABBR = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+function SavingsRatePanel({
+  yearlySavings,
+  loanMilestones,
+  currentMonth,
+  currentYear,
+  formatCurrency,
+}: {
+  yearlySavings: YearlyRow[];
+  loanMilestones: LoanMilestone[];
+  currentMonth: number;
+  currentYear: number;
+  formatCurrency: (n: number) => string;
+}) {
+  const pastMonths = yearlySavings.filter((m) => m.salary > 0);
+  const ytdSavings = pastMonths.reduce((sum, m) => sum + (m.savings || 0), 0);
+  const ytdSalary  = pastMonths.reduce((sum, m) => sum + (m.salary  || 0), 0);
+  const ytdRate    = ytdSalary > 0 ? (ytdSavings / ytdSalary) * 100 : 0;
+
+  const curData  = yearlySavings.find((m) => m.month === currentMonth);
+  const curRate  = curData && curData.salary > 0 ? ((curData.savings || 0) / curData.salary) * 100 : 0;
+
+  const avgMonthly      = pastMonths.length > 0 ? ytdSavings / pastMonths.length : 0;
+  const remainingMonths = 12 - currentMonth;
+  const projected       = Math.round(ytdSavings + avgMonthly * remainingMonths);
+
+  const maxSavings = Math.max(...pastMonths.map((m) => m.savings || 0), 1);
+  const MAX_BAR_PX = 64;
+
+  // Group loan milestones by month
+  const milestoneMap: Record<string, number> = {};
+  loanMilestones.forEach((l) => {
+    if (!l.end_date) return;
+    const endMonth = l.end_date.slice(0, 7);
+    milestoneMap[endMonth] = (milestoneMap[endMonth] || 0) + l.amount;
+  });
+  const upcomingMilestones = Object.entries(milestoneMap).sort(([a], [b]) => a.localeCompare(b));
+
+  const rateColor = ytdRate >= 20 ? '#4ade80' : ytdRate >= 10 ? '#fbbf24' : '#f87171';
+
+  return (
+    <div className="pane" style={{ padding: '18px 20px', marginBottom: 24 }}>
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 14 }}>
+        <div>
+          <div className="eyebrow">Savings Rate</div>
+          <div className="serif" style={{ fontSize: 18, marginTop: 2 }}>{currentYear} savings ÷ salary</div>
+        </div>
+        <div style={{ textAlign: 'right' }}>
+          <div style={{ fontSize: 28, fontWeight: 700, color: rateColor, fontVariantNumeric: 'tabular-nums' }}>{ytdRate.toFixed(1)}%</div>
+          <div style={{ fontSize: 10, color: 'var(--ink-faint)' }}>YTD rate</div>
+        </div>
+      </div>
+
+      {/* Key stats */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginBottom: 16 }}>
+        {[
+          { label: 'This Month', main: `${curRate.toFixed(1)}%`, sub: formatCurrency(curData?.savings || 0) },
+          { label: 'Saved YTD',  main: formatCurrency(ytdSavings), sub: `${pastMonths.length} months` },
+          { label: 'Dec Outlook', main: formatCurrency(projected), sub: 'at current rate' },
+        ].map(({ label, main, sub }) => (
+          <div key={label} style={{ background: 'var(--surface-solid)', border: '1px solid var(--hairline)', borderRadius: 10, padding: '8px 10px' }}>
+            <div style={{ fontSize: 10, color: 'var(--ink-faint)', marginBottom: 2 }}>{label}</div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)', fontVariantNumeric: 'tabular-nums' }}>{main}</div>
+            <div style={{ fontSize: 10, color: 'var(--ink-faint)', marginTop: 1 }}>{sub}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Monthly savings bar chart */}
+      <div style={{ marginBottom: upcomingMilestones.length > 0 ? 16 : 0 }}>
+        <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--ink-faint)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Monthly savings</div>
+        <div style={{ display: 'flex', alignItems: 'flex-end', gap: 3, height: MAX_BAR_PX + 28 }}>
+          {MONTHS_ABBR.map((name, idx) => {
+            const month = idx + 1;
+            const row = yearlySavings.find((m) => m.month === month);
+            const sv = row?.savings || 0;
+            const isFuture = month > currentMonth;
+            const isCur = month === currentMonth;
+            const barH = sv > 0 ? Math.max(Math.round((sv / maxSavings) * MAX_BAR_PX), 4) : 3;
+            return (
+              <div key={month} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+                <div style={{ fontSize: 8, color: 'var(--ink-faint)', height: 12, display: 'flex', alignItems: 'flex-end' }}>
+                  {sv > 0 && !isFuture ? (sv >= 100000 ? `₹${(sv/100000).toFixed(1)}L` : `₹${Math.round(sv/1000)}K`) : ''}
+                </div>
+                <div style={{
+                  width: '100%', borderRadius: '2px 2px 0 0',
+                  height: barH,
+                  background: isFuture ? 'var(--hairline)' : isCur ? '#10b981' : '#6ee7b7',
+                  transition: 'height 0.3s',
+                }} />
+                <div style={{ fontSize: 8, color: 'var(--ink-faint)' }}>{name}</div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* EMI milestones */}
+      {upcomingMilestones.length > 0 && (
+        <div>
+          <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--ink-faint)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>
+            EMI relief coming — more to save
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {upcomingMilestones.map(([month, amount]) => {
+              const [y, m] = month.split('-');
+              const endIdx = parseInt(m) - 1;
+              const freedIdx = (endIdx + 1) % 12;
+              const freedYear = freedIdx === 0 ? parseInt(y) + 1 : parseInt(y);
+              const freedLabel = `${MONTHS_ABBR[freedIdx]}${freedYear !== currentYear ? ` ${freedYear}` : ''}`;
+              return (
+                <div key={month} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(16, 185, 129, 0.08)', borderRadius: 8, padding: '7px 12px' }}>
+                  <span style={{ fontSize: 12, color: '#059669', fontWeight: 500 }}>⚡ From {freedLabel}</span>
+                  <span style={{ fontSize: 12, color: '#047857', fontWeight: 700 }}>+{formatCurrency(Math.round(amount))}/mo freed</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function NetWorthGrowthChart({
+  yearlySavings,
+  currentYear,
+  currentMonth,
+  formatCurrency,
+}: {
+  yearlySavings: YearlyRow[];
+  currentYear: number;
+  currentMonth: number;
+  formatCurrency: (n: number) => string;
+}) {
+  const SEGMENTS = [
+    { key: 'cash',   label: 'Cash',    color: '#10b981' },
+    { key: 'fd',     label: 'FD',      color: '#3b82f6' },
+    { key: 'sip',    label: 'SIP',     color: '#8b5cf6' },
+    { key: 'shares', label: 'Shares',  color: '#f59e0b' },
+    { key: 'nps_pf', label: 'NPS+PF',  color: '#4f46e5' },
+  ] as const;
+
+  const data = MONTHS_SHORT.map((name, i) => {
+    if (i >= currentMonth) return null; // exclude future months (idx is 0-based, currentMonth is 1-based)
+    const row = yearlySavings.find((r) => r.month === i + 1);
+    if (!row) return null;
+    const total = Number(row.cash || 0) + Number(row.fd || 0) + Number(row.sip || 0) + Number(row.shares || 0) + Number(row.nps_pf || 0);
+    if (total === 0) return null;
+    return {
+      month: name,
+      cash:   Number(row.cash || 0),
+      fd:     Number(row.fd || 0),
+      sip:    Number(row.sip || 0),
+      shares: Number(row.shares || 0),
+      nps_pf: Number(row.nps_pf || 0),
+      total,
+    };
+  }).filter(Boolean) as Array<{ month: string; cash: number; fd: number; sip: number; shares: number; nps_pf: number; total: number }>;
+
+  if (data.length < 1) return null;
+
+  const firstVal = data[0].total;
+  const lastVal  = data[data.length - 1].total;
+  const growth   = lastVal - firstVal;
+  const growthPct = firstVal > 0 ? ((growth) / firstVal) * 100 : 0;
+  const isUp = growth >= 0;
+
+  const fmtL = (v: unknown) => { const n = Number(v ?? 0); return n >= 100000 ? `₹${(n / 100000).toFixed(1)}L` : `₹${Math.round(n / 1000)}K`; };
+
+  return (
+    <div className="pane" style={{ padding: '18px 20px', marginBottom: 24 }}>
+      {/* Header */}
+      <div style={{ marginBottom: 14 }}>
+        <div className="eyebrow">Net Worth Growth</div>
+        <div className="serif" style={{ fontSize: 18, marginTop: 2 }}>{currentYear} month-by-month</div>
+      </div>
+
+      {/* Stats row */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginBottom: 14 }}>
+        <div>
+          <div style={{ fontSize: 10, color: 'var(--ink-faint)', marginBottom: 2 }}>Current Net Worth</div>
+          <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--ink)', fontVariantNumeric: 'tabular-nums' }}>
+            {formatCurrency(lastVal)}
+          </div>
+        </div>
+        <div>
+          <div style={{ fontSize: 10, color: 'var(--ink-faint)', marginBottom: 2 }}>Growth since Jan</div>
+          <div style={{ fontSize: 15, fontWeight: 700, color: isUp ? '#4ade80' : '#f87171', fontVariantNumeric: 'tabular-nums' }}>
+            {isUp ? '+' : ''}{formatCurrency(growth)}
+          </div>
+        </div>
+        <div>
+          <div style={{ fontSize: 10, color: 'var(--ink-faint)', marginBottom: 2 }}>Change</div>
+          <div style={{ fontSize: 15, fontWeight: 700, color: isUp ? '#4ade80' : '#f87171', fontVariantNumeric: 'tabular-nums' }}>
+            {isUp ? '↑' : '↓'}{Math.abs(growthPct).toFixed(1)}%
+          </div>
+        </div>
+      </div>
+
+      {/* Legend */}
+      <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', marginBottom: 12 }}>
+        {SEGMENTS.map(({ key, label, color }) => (
+          <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+            <div style={{ width: 10, height: 10, borderRadius: 2, background: color, flexShrink: 0 }} />
+            <span style={{ fontSize: 11, color: 'var(--ink-faint)' }}>{label}</span>
+          </div>
+        ))}
+      </div>
+
+      <ResponsiveContainer width="100%" height={200}>
+        <BarChart data={data} margin={{ top: 20, right: 4, left: 0, bottom: 0 }} barCategoryGap="25%">
+          <CartesianGrid strokeDasharray="3 3" stroke="var(--hairline)" vertical={false} />
+          <XAxis dataKey="month" tick={{ fontSize: 10, fill: 'var(--ink-faint)' }} axisLine={false} tickLine={false} />
+          <YAxis
+            tickFormatter={(v) => v >= 100000 ? `₹${(v / 100000).toFixed(1)}L` : `₹${Math.round(v / 1000)}K`}
+            tick={{ fontSize: 9, fill: 'var(--ink-faint)' }}
+            axisLine={false} tickLine={false} width={44}
+          />
+          <Tooltip
+            formatter={(value, name) => [formatCurrency(Number(value ?? 0)), String(name).toUpperCase()]}
+            contentStyle={{ background: 'var(--surface)', border: '1px solid var(--hairline)', borderRadius: 8, fontSize: 12 }}
+            labelStyle={{ color: 'var(--ink-muted)', fontWeight: 600 }}
+          />
+          {SEGMENTS.map(({ key, color }, idx) => (
+            <Bar key={key} dataKey={key} stackId="nw" fill={color} radius={idx === SEGMENTS.length - 1 ? [4, 4, 0, 0] : [0, 0, 0, 0]}>
+              {idx === SEGMENTS.length - 1 && (
+                <LabelList
+                  dataKey="total"
+                  position="top"
+                  formatter={fmtL}
+                  style={{ fontSize: 10, fill: 'var(--ink-faint)', fontVariantNumeric: 'tabular-nums' }}
+                />
+              )}
+            </Bar>
+          ))}
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
+function FinancialEditModal({
+  monthlySummary,
+  saving,
+  onSave,
+  onClose,
+}: {
+  monthlySummary: MonthlySummary | null;
+  saving: boolean;
+  onSave: (data: FinancialFields) => Promise<void>;
+  onClose: () => void;
+}) {
+  const [form, setForm] = useState<FinancialFields>({
+    salary: Number(monthlySummary?.salary ?? 0),
+    previous_month_remaining: Number(monthlySummary?.previous_month_remaining ?? 0),
+    interest_income: Number(monthlySummary?.interest_income ?? 0),
+    savings_fd: Number(monthlySummary?.savings_fd ?? 0),
+    savings_sip: Number(monthlySummary?.savings_sip ?? 0),
+    savings_shares: Number(monthlySummary?.savings_shares ?? 0),
+    savings_nps: Number(monthlySummary?.savings_nps ?? 0),
+    savings_pf: Number(monthlySummary?.savings_pf ?? 0),
+  });
+
+  const fields: Array<{ key: keyof FinancialFields; label: string }> = [
+    { key: 'salary', label: 'Monthly Salary' },
+    { key: 'previous_month_remaining', label: 'Opening Cash' },
+    { key: 'interest_income', label: 'Interest Income' },
+    { key: 'savings_fd', label: 'Fixed Deposits' },
+    { key: 'savings_sip', label: 'SIP Balance' },
+    { key: 'savings_shares', label: 'Stocks Balance' },
+    { key: 'savings_nps', label: 'NPS' },
+    { key: 'savings_pf', label: 'PF' },
+  ];
+
+  return (
+    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-gray-900/40 backdrop-blur-md" onClick={onClose} />
+      <div className="relative z-10 w-full max-w-lg bg-white rounded-[28px] shadow-[0_32px_80px_rgba(0,0,0,0.15)] overflow-hidden border border-white/20">
+        <div className="flex items-center justify-between px-8 py-6 border-b border-gray-100 bg-gray-50/50">
+          <div>
+            <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Financials</div>
+            <h2 className="text-2xl font-bold text-gray-900 tracking-tight italic serif">Month-End Summary</h2>
+          </div>
+          <button
+            onClick={onClose}
+            className="w-10 h-10 flex items-center justify-center rounded-full bg-gray-100 text-gray-500 hover:bg-gray-200 transition-all"
+          >
+            <X size={20} />
+          </button>
+        </div>
+
+        <div className="p-8">
+          <div className="grid grid-cols-2 gap-x-6 gap-y-5">
+            {fields.map(({ key, label }) => (
+              <div key={key}>
+                <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2">
+                  {label}
+                </label>
+                <div className="relative">
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 font-medium text-sm">₹</span>
+                  <input
+                    type="number"
+                    value={form[key]}
+                    onChange={(e) => setForm((prev) => ({ ...prev, [key]: parseFloat(e.target.value) || 0 }))}
+                    className="w-full pl-8 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl text-gray-900 focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all text-sm font-medium"
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="flex items-center gap-3 mt-8">
+            <button
+              onClick={onClose}
+              disabled={saving}
+              className="flex-1 py-4 rounded-2xl border border-gray-200 text-gray-600 font-bold text-sm hover:bg-gray-50 transition-all"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={() => onSave(form)}
+              disabled={saving}
+              className="flex-1 py-4 rounded-2xl bg-blue-600 text-white font-bold text-sm shadow-xl shadow-blue-600/20 hover:bg-blue-700 transition-all flex items-center justify-center gap-2"
+            >
+              {saving ? 'Updating…' : 'Save Financials'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default Dashboard;
