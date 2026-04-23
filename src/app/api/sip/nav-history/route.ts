@@ -1,10 +1,10 @@
-import { requireAuth } from "@/lib/auth-guard";
+import { requireAuth, requireAuthFast } from "@/lib/auth-guard";
 import { NextRequest } from "next/server";
 
 // GET /api/sip/nav-history?schemeCode=123456
 // Returns last 365 entries ordered by nav_date ASC
 export async function GET(request: NextRequest) {
-  const { user, supabase, error } = await requireAuth();
+  const { user, supabase, error } = await requireAuthFast();
   if (error) return error;
 
   const schemeCode = request.nextUrl.searchParams.get("schemeCode");

@@ -96,7 +96,7 @@ function Loans({ onShowForm, onEdit, refreshKey, currentMonth, currentYear }: Pr
         <div className="flex items-center gap-3">
           <button
             onClick={onShowForm}
-            className="inline-flex items-center px-4 py-2 bg-primary-600 text-white rounded-xl font-medium shadow-lg shadow-primary-600/20"
+            className="inline-flex items-center px-4 py-2 bg-primary-600 text-white rounded-xl font-medium shadow-lg shadow-primary-600/20 cursor-pointer"
           >
             <Plus className="h-5 w-5 mr-2" />
             Add Loan
@@ -221,13 +221,13 @@ function Loans({ onShowForm, onEdit, refreshKey, currentMonth, currentYear }: Pr
                         <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                           <button
                             onClick={() => onEdit(loan)}
-                            className="p-1.5 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg"
+                            className="p-1.5 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg cursor-pointer"
                           >
                             <Edit2 className="h-4 w-4" />
                           </button>
                           <button
                             onClick={() => handleDelete(loan.id, loan.name)}
-                            className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg"
+                            className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg cursor-pointer"
                           >
                             <Trash2 className="h-4 w-4" />
                           </button>

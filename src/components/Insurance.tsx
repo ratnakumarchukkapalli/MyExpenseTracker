@@ -194,18 +194,34 @@ function PolicyForm({ policy, onSubmit, onCancel, defaultOwner }: any) {
     onSubmit({ ...form, sum_insured: parseFloat(form.sum_insured) || 0, premium_amount: parseFloat(form.premium_amount) || 0 });
   };
 
-  const inputClass = 'w-full px-3 py-2 text-sm rounded-xl border border-gray-200 bg-white text-gray-800 focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-400 placeholder-gray-400 transition-all';
-  const labelClass = 'block text-xs font-medium text-gray-500 mb-1';
+  const inputClass = 'w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 transition-all text-sm';
+  const labelClass = 'block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2';
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-        <div className="sticky top-0 bg-white px-6 pt-5 pb-4 border-b border-gray-100 flex items-center justify-between z-10">
-          <h2 className="text-lg font-bold text-gray-800">{policy ? 'Edit Policy' : 'Add Insurance Policy'}</h2>
-          <button onClick={onCancel} className="p-2 rounded-xl text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"><X className="h-4 w-4" /></button>
+    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
+      {/* Backdrop */}
+      <div 
+        className="absolute inset-0 bg-gray-900/40 backdrop-blur-md transition-opacity"
+        onClick={onCancel}
+      />
+
+      {/* Light Glass Modal */}
+      <div className="relative z-10 w-full max-w-2xl bg-white/95 backdrop-blur-2xl border border-white/20 rounded-[24px] shadow-[0_32px_80px_rgba(0,0,0,0.12)] overflow-hidden flex flex-col max-h-[90vh]">
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100 bg-gray-50/50">
+          <div>
+            <div className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.12em] mb-1">Insurance</div>
+            <h2 className="text-xl font-bold text-gray-900 tracking-tight">{policy ? 'Edit Policy' : 'Add Insurance Policy'}</h2>
+          </div>
+          <button
+            onClick={onCancel}
+            className="w-9 h-9 flex items-center justify-center rounded-full bg-gray-100 text-gray-500 hover:bg-gray-200 hover:text-gray-900 transition-all cursor-pointer"
+          >
+            <X size={18} />
+          </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+        <form onSubmit={handleSubmit} className="p-6 space-y-4 overflow-y-auto">
           <div className="grid grid-cols-3 gap-4">
             <div className="col-span-2">
               <label className={labelClass}>Policy Name *</label>
@@ -213,9 +229,9 @@ function PolicyForm({ policy, onSubmit, onCancel, defaultOwner }: any) {
             </div>
             <div>
               <label className={labelClass}>Belongs To</label>
-              <select className={inputClass} value={form.owner} onChange={e => set('owner', e.target.value)}>
+              <select className={inputClass + ' cursor-pointer'} value={form.owner} onChange={e => set('owner', e.target.value)}>
                 <option value="self">My Policy</option>
-                <option value="dad">Dad&apos;s Policy</option>
+                <option value="dad">Dad's Policy</option>
               </select>
             </div>
           </div>
@@ -223,7 +239,7 @@ function PolicyForm({ policy, onSubmit, onCancel, defaultOwner }: any) {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className={labelClass}>Type *</label>
-              <select className={inputClass} value={form.type} onChange={e => set('type', e.target.value)}>
+              <select className={inputClass + ' cursor-pointer'} value={form.type} onChange={e => set('type', e.target.value)}>
                 <option value="Life">Life</option>
                 <option value="Health">Health</option>
                 <option value="Vehicle">Vehicle</option>
@@ -231,7 +247,7 @@ function PolicyForm({ policy, onSubmit, onCancel, defaultOwner }: any) {
             </div>
             <div>
               <label className={labelClass}>Status</label>
-              <select className={inputClass} value={form.status} onChange={e => set('status', e.target.value)}>
+              <select className={inputClass + ' cursor-pointer'} value={form.status} onChange={e => set('status', e.target.value)}>
                 <option value="active">Active</option>
                 <option value="expired">Expired</option>
                 <option value="lapsed">Lapsed</option>
@@ -241,13 +257,13 @@ function PolicyForm({ policy, onSubmit, onCancel, defaultOwner }: any) {
 
           <div>
             <label className={labelClass}>Insurer *</label>
-            <input className={inputClass} value={form.insurer} onChange={e => set('insurer', e.target.value)} placeholder="e.g. Life Insurance Corporation of India" required />
+            <input className={inputClass} value={form.insurer} onChange={e => set('insurer', e.target.value)} placeholder="e.g. LIC" required />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className={labelClass}>Policy Number</label>
-              <input className={inputClass} value={form.policy_number} onChange={e => set('policy_number', e.target.value)} placeholder="Policy / certificate number" />
+              <input className={inputClass} value={form.policy_number} onChange={e => set('policy_number', e.target.value)} placeholder="Policy number" />
             </div>
             <div>
               <label className={labelClass}>Nominee</label>
@@ -266,9 +282,9 @@ function PolicyForm({ policy, onSubmit, onCancel, defaultOwner }: any) {
             </div>
             <div>
               <label className={labelClass}>Premium Mode</label>
-              <select className={inputClass} value={form.premium_mode} onChange={e => set('premium_mode', e.target.value)}>
+              <select className={inputClass + ' cursor-pointer'} value={form.premium_mode} onChange={e => set('premium_mode', e.target.value)}>
                 <option value="yearly">Yearly</option>
-                <option value="biennial">2-Year (Biennial)</option>
+                <option value="biennial">2-Year</option>
                 <option value="quarterly">Quarterly</option>
                 <option value="monthly">Monthly</option>
               </select>
@@ -278,15 +294,15 @@ function PolicyForm({ policy, onSubmit, onCancel, defaultOwner }: any) {
           <div className="grid grid-cols-3 gap-4">
             <div>
               <label className={labelClass}>Start Date</label>
-              <input className={inputClass} type="date" value={form.start_date} onChange={e => set('start_date', e.target.value)} />
+              <input className={inputClass + ' cursor-pointer'} type="date" value={form.start_date} onChange={e => set('start_date', e.target.value)} />
             </div>
             <div>
               <label className={labelClass}>{form.type === 'Life' ? 'Maturity Date' : 'Expiry Date'}</label>
-              <input className={inputClass} type="date" value={form.end_date} onChange={e => set('end_date', e.target.value)} />
+              <input className={inputClass + ' cursor-pointer'} type="date" value={form.end_date} onChange={e => set('end_date', e.target.value)} />
             </div>
             <div>
               <label className={labelClass}>Next Due Date</label>
-              <input className={inputClass} type="date" value={form.next_due_date} onChange={e => set('next_due_date', e.target.value)} />
+              <input className={inputClass + ' cursor-pointer'} type="date" value={form.next_due_date} onChange={e => set('next_due_date', e.target.value)} />
             </div>
           </div>
 
@@ -299,12 +315,21 @@ function PolicyForm({ policy, onSubmit, onCancel, defaultOwner }: any) {
 
           <div>
             <label className={labelClass}>Notes</label>
-            <textarea className={`${inputClass} resize-none`} rows={3} value={form.notes} onChange={e => set('notes', e.target.value)} placeholder="Add-ons, special conditions, reminders…" />
+            <textarea className={`${inputClass} resize-none`} rows={2} value={form.notes} onChange={e => set('notes', e.target.value)} placeholder="Reminders…" />
           </div>
 
           <div className="flex justify-end gap-3 pt-2">
-            <button type="button" onClick={onCancel} className="px-4 py-2 text-sm font-medium text-gray-600 bg-gray-100 rounded-xl hover:bg-gray-200 transition-colors">Cancel</button>
-            <button type="submit" className="inline-flex items-center gap-1.5 px-5 py-2 text-sm font-semibold text-white bg-primary-600 hover:bg-primary-700 rounded-xl transition-colors">
+            <button 
+              type="button" 
+              onClick={onCancel} 
+              className="flex-1 py-3.5 rounded-2xl border border-gray-200 text-gray-600 font-bold text-sm hover:bg-gray-50 transition-all cursor-pointer"
+            >
+              Cancel
+            </button>
+            <button 
+              type="submit" 
+              className="flex-1 py-3.5 rounded-2xl bg-blue-600 text-white font-bold text-sm shadow-xl shadow-blue-600/20 hover:bg-blue-700 transition-all flex items-center justify-center gap-2 cursor-pointer"
+            >
               <Check className="h-4 w-4" />
               {policy ? 'Save Changes' : 'Add Policy'}
             </button>
@@ -314,7 +339,6 @@ function PolicyForm({ policy, onSubmit, onCancel, defaultOwner }: any) {
     </div>
   );
 }
-
 // ── PoliciesView ───────────────────────────────────────────────────────────
 
 function PoliciesView({ policies, onEdit, onDelete, onMarkPaid }: any) {

@@ -1,22 +1,18 @@
-import { requireAuth } from "@/lib/auth-guard";
+import { requireAuthFast } from "@/lib/auth-guard";
 
 export const revalidate = 0;
 
 export async function GET() {
-  const { user, supabase, error } = await requireAuth();
+  const { user, supabase, error } = await requireAuthFast();
   if (error) return error;
 
-  // Get total from SIP Funds (LIVE)
-  const { data: sipData, error: sipError } = await supabase
-    .from("sip_funds")
-    .select("units, current_nav")
-    .eq("user_id", user.id);
+  const [sipResponse, stockResponse] = await Promise.all([
+    supabase.from("sip_funds").select("units, current_nav").eq("user_id", user.id),
+    supabase.from("stock_holdings").select("shares, current_price").eq("user_id", user.id)
+  ]);
 
-  // Get total from Stock Holdings (LIVE)
-  const { data: stockData, error: stockError } = await supabase
-    .from("stock_holdings")
-    .select("shares, current_price")
-    .eq("user_id", user.id);
+  const { data: sipData, error: sipError } = sipResponse;
+  const { data: stockData, error: stockError } = stockResponse;
 
   if (sipError || stockError) {
     return Response.json({ error: "Failed to fetch portfolio data" }, { status: 500 });
@@ -32,5 +28,7 @@ export async function GET() {
       sip: sipTotal,
       stocks: stockTotal
     }
+  }, {
+    headers: { "Cache-Control": "private, max-age=0, stale-while-revalidate=300" },
   });
 }

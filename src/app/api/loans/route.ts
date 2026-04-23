@@ -1,11 +1,11 @@
-import { requireAuth } from "@/lib/auth-guard";
+import { requireAuth, requireAuthFast } from "@/lib/auth-guard";
 import { LoanSchema } from "@/lib/schemas/loan";
 import { after } from "next/server";
 import { NextRequest } from "next/server";
 
 // GET /api/loans — auto-deactivates expired loans in background, returns current data
 export async function GET() {
-  const { user, supabase, error } = await requireAuth();
+  const { user, supabase, error } = await requireAuthFast();
   if (error) return error;
 
   const cutoff = new Date();

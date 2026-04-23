@@ -1,4 +1,4 @@
-import { requireAuth } from "@/lib/auth-guard";
+import { requireAuth, requireAuthFast } from "@/lib/auth-guard";
 import { ExpenseCreateSchema } from "@/lib/schemas/expense";
 import { updateMonthlyExpenseTotal } from "@/lib/monthly-totals";
 import { after } from "next/server";
@@ -6,7 +6,7 @@ import { NextRequest } from "next/server";
 
 // GET /api/expenses?month=4&year=2026
 export async function GET(request: NextRequest) {
-  const { user, supabase, error } = await requireAuth();
+  const { user, supabase, error } = await requireAuthFast();
   if (error) return error;
 
   const { searchParams } = request.nextUrl;
@@ -33,7 +33,9 @@ export async function GET(request: NextRequest) {
   const { data, error: dbError } = await query;
   if (dbError) return Response.json({ error: dbError.message }, { status: 500 });
 
-  return Response.json(data);
+  return Response.json(data, {
+    headers: { "Cache-Control": "no-store, max-age=0" },
+  });
 }
 
 // POST /api/expenses

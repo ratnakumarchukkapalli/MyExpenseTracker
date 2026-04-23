@@ -1,4 +1,4 @@
-import { requireAuth } from "@/lib/auth-guard";
+import { requireAuth, requireAuthFast } from "@/lib/auth-guard";
 import { z } from "zod";
 import { NextRequest } from "next/server";
 
@@ -14,7 +14,7 @@ const FinancialSummarySchema = z.object({
 
 // GET /api/financial-summary?month=4&year=2026
 export async function GET(request: NextRequest) {
-  const { user, supabase, error } = await requireAuth();
+  const { user, supabase, error } = await requireAuthFast();
   if (error) return error;
 
   const { searchParams } = request.nextUrl;

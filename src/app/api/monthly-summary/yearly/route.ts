@@ -1,8 +1,8 @@
-import { requireAuth } from "@/lib/auth-guard";
+import { requireAuthFast } from "@/lib/auth-guard";
 import { NextRequest } from "next/server";
 
 export async function GET(request: NextRequest) {
-  const { user, supabase, error } = await requireAuth();
+  const { user, supabase, error } = await requireAuthFast();
   if (error) return error;
 
   const year = Number(request.nextUrl.searchParams.get("year") ?? new Date().getFullYear());
@@ -48,5 +48,7 @@ export async function GET(request: NextRequest) {
     savings: savingsByMonth[r.month] ?? 0,
   }));
 
-  return Response.json(rows);
+  return Response.json(rows, {
+    headers: { "Cache-Control": "private, max-age=0, stale-while-revalidate=300" },
+  });
 }

@@ -1,4 +1,4 @@
-import { requireAuth } from "@/lib/auth-guard";
+import { requireAuth, requireAuthFast } from "@/lib/auth-guard";
 import { SubscriptionSchema } from "@/lib/schemas/subscription";
 import { after } from "next/server";
 import { NextRequest } from "next/server";
@@ -13,7 +13,7 @@ function advanceMonthlyRenewal(renewalDate: string): string {
 
 // GET /api/subscriptions
 export async function GET() {
-  const { user, supabase, error } = await requireAuth();
+  const { user, supabase, error } = await requireAuthFast();
   if (error) return error;
 
   const { data: rows, error: dbError } = await supabase

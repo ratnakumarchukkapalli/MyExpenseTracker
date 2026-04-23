@@ -1,11 +1,11 @@
-import { requireAuth } from "@/lib/auth-guard";
+import { requireAuth, requireAuthFast } from "@/lib/auth-guard";
 import { NextRequest } from "next/server";
 
 type P = { params: Promise<{ month: string; year: string }> };
 
 // GET /api/reports/[month]/[year]
 export async function GET(_req: NextRequest, { params }: P) {
-  const { user, supabase, error } = await requireAuth();
+  const { user, supabase, error } = await requireAuthFast();
   if (error) return error;
 
   const { month, year } = await params;

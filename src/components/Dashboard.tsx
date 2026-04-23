@@ -4,6 +4,8 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, LabelList, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { X, Save } from 'lucide-react';
 import BudgetSettingsModal from './BudgetSettingsModal';
+import CategoryDrillDown from './CategoryDrillDown';
+import { CATEGORY_COLORS } from '../constants/categories';
 
 type Expense = {
   id: number;
@@ -80,13 +82,6 @@ type Props = {
 
 type BudgetMap = Record<string, { budget_type: string; budget_value: number }>;
 
-const CATEGORY_COLORS: Record<string, string> = {
-  'HOME Purpose': '#8b5cf6',
-  'LOANS/CC': '#ef4444',
-  MonthlyBills: '#f59e0b',
-  Personal: '#3b82f6',
-  Savings: '#10b981',
-};
 
 const DEFAULT_PCT: Record<string, number> = {
   'HOME Purpose': 30,
@@ -116,6 +111,7 @@ function Dashboard({ expenses, subscriptions, monthlySummary, currentMonth, curr
   const [savingFinancials, setSavingFinancials] = useState(false);
   const [liveNetWorth, setLiveNetWorth] = useState<number | null>(null);
   const [previousMonthExpenses, setPreviousMonthExpenses] = useState<Expense[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
   useEffect(() => {
     const loadPrevMonthTotals = async () => {
@@ -229,25 +225,26 @@ function Dashboard({ expenses, subscriptions, monthlySummary, currentMonth, curr
     .reduce((sum, [, amount]) => sum + amount, 0);
   const totalExpenses = totalExpensesOnly + totalSavings;
 
-  const calculateBankBalance = () => {
-    if (!monthlySummary) return 0;
-    return getCurrentRemaining(monthlySummary) + Number(monthlySummary.savings_fd || 0);
-  };
+  const currentCash = getCurrentRemaining(monthlySummary);
+  const currentFD = Number(monthlySummary?.savings_fd || 0);
+  const currentSIP = Number(monthlySummary?.savings_sip || 0);
+  const currentShares = Number(monthlySummary?.savings_shares || 0);
+  const currentNPS_PF = Number(monthlySummary?.savings_nps || 0) + Number(monthlySummary?.savings_pf || 0);
+
+  // Source of truth for portfolio (SIP+Stocks): Live API > DB Snapshot
+  const livePortfolio = liveNetWorth;
+  const dbPortfolio = currentSIP + currentShares;
+  const portfolioTotal = livePortfolio ?? dbPortfolio;
+
+  // BANK BALANCE definition: For the UI, we'll show "Liquid Cash" as the bank balance.
+  // We'll treat FD as a separate asset to avoid "duplication" confusion.
+  const calculateBankBalance = () => currentCash;
 
   const calculateCashEquivalents = () => {
-    if (!monthlySummary) return 0;
-    return (
-      calculateBankBalance() +
-      Number(monthlySummary.savings_fd || 0) +
-      Number(monthlySummary.savings_sip || 0) +
-      Number(monthlySummary.savings_shares || 0)
-    );
+    return currentCash + currentFD + currentSIP + currentShares;
   };
 
-  const calculateFutureSavings = () => {
-    if (!monthlySummary) return 0;
-    return Number(monthlySummary.savings_nps || 0) + Number(monthlySummary.savings_pf || 0);
-  };
+  const calculateFutureSavings = () => currentNPS_PF;
 
   const dayOfMonth = Math.min(new Date().getDate(), new Date(currentYear, currentMonth, 0).getDate());
   const monthName = new Date(currentYear, currentMonth - 1).toLocaleString('default', { month: 'long' });
@@ -264,16 +261,14 @@ function Dashboard({ expenses, subscriptions, monthlySummary, currentMonth, curr
   const salary = Number(monthlySummary?.salary || 0);
   const spentPct = salary > 0 ? Math.round((totalExpensesOnly / salary) * 100) : 0;
 
-  // NEW LOGIC: Use live portfolio sum from API if available, else use DB snapshot. Then add Bank (which includes FD) + Future.
-  const livePortfolio = liveNetWorth; // API returns live_portfolio_total (SIP+Stocks)
-  const dbPortfolio = Number(monthlySummary?.savings_sip || 0) + Number(monthlySummary?.savings_shares || 0);
-  
-  const currentNetWorth = (livePortfolio ?? dbPortfolio) + calculateBankBalance() + calculateFutureSavings();
+  // CRITICAL: Final Net Worth calculation
+  // Cash + FD + (SIP + Stocks) + (NPS + PF)
+  const currentNetWorth = currentCash + currentFD + portfolioTotal + currentNPS_PF;
 
   const summaryText = salary > 0
     ? `You've spent ${formatCurrency(totalExpensesOnly)} this ${monthName} — ${
         totalExpensesOnly <= salary * 0.55
-          ? `within budget. Bank sits at ${formatCurrency(getCurrentRemaining(monthlySummary))}.`
+          ? `within budget. Cash balance is ${formatCurrency(currentCash)}.`
           : `${((totalExpensesOnly / salary - 0.55) * 100).toFixed(0)}% above the 55% envelope target.`
       } Saved ${formatCurrency(totalSavings)} (${salary > 0 ? ((totalSavings / salary) * 100).toFixed(0) : '0'}% of salary).`
     : 'Update your salary in financials to unlock spending analysis and year-end projection.';
@@ -367,8 +362,8 @@ function Dashboard({ expenses, subscriptions, monthlySummary, currentMonth, curr
             <div style={{ position: 'relative', flexShrink: 0 }}>
               <svg width="200" height="200">
                 {[
-                  { value: totalExpensesOnly, target: salary * 0.55, color: '#ef4444', r: 80, sw: 18 },
-                  { value: totalSavings, target: salary * 0.25, color: '#22c55e', r: 54, sw: 18 },
+                  { value: totalExpensesOnly, target: salary, color: '#ef4444', r: 80, sw: 18 },
+                  { value: totalSavings, target: salary, color: '#22c55e', r: 54, sw: 18 },
                 ].map((ring, index) => {
                   const circumference = 2 * Math.PI * ring.r;
                   const pct = ring.target > 0 ? Math.min(ring.value / ring.target, 1) : 0;
@@ -421,36 +416,46 @@ function Dashboard({ expenses, subscriptions, monthlySummary, currentMonth, curr
 
         <div className="pane stat-bar">
           <div className="stat-bar-row">
-            <div className="eyebrow">Bank balance</div>
+            <div className="eyebrow">Cash balance</div>
             <div className="serif" style={{ fontSize: 26, marginTop: 4 }}>
-              {formatCurrency(calculateBankBalance())}
+              {formatCurrency(currentCash)}
             </div>
+            <div style={{ marginTop: 2, fontSize: 10, color: 'var(--ink-faint)' }}>Available liquid cash</div>
           </div>
           <div className="hr" />
           <div className="stat-bar-row">
-            <div className="eyebrow">Liquid assets</div>
+            <div className="eyebrow">Fixed Deposits</div>
             <div style={{ fontSize: 16, marginTop: 4, color: 'var(--ink)', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
-              {formatCurrency(calculateCashEquivalents())}
+              {formatCurrency(currentFD)}
             </div>
-            <div style={{ marginTop: 2, fontSize: 11, color: 'var(--ink-faint)' }}>incl. Bank · FD · SIP · Stocks</div>
+            <div style={{ marginTop: 2, fontSize: 11, color: 'var(--ink-faint)' }}>Locked investments</div>
           </div>
           <div className="hr" />
           <div className="stat-bar-row">
-            <div className="eyebrow">Carryover</div>
+            <div className="eyebrow">Investments</div>
             <div style={{ fontSize: 16, marginTop: 4, color: 'var(--ink)', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
-              {formatCurrency(Number(monthlySummary?.previous_month_remaining || 0))}
+              {formatCurrency(portfolioTotal)}
             </div>
-            <div style={{ marginTop: 2, fontSize: 11, color: 'var(--ink-faint)' }}>from last month</div>
+            <div style={{ marginTop: 2, fontSize: 11, color: 'var(--ink-faint)' }}>SIPs · Stocks</div>
           </div>
           <div className="hr" />
           <div className="stat-bar-row">
-            <div className="eyebrow">Salary</div>
+            <div className="eyebrow">Future savings</div>
+            <div style={{ fontSize: 16, marginTop: 4, color: 'var(--ink)', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
+              {formatCurrency(currentNPS_PF)}
+            </div>
+            <div style={{ marginTop: 2, fontSize: 11, color: 'var(--ink-faint)' }}>NPS · PF</div>
+          </div>
+          <div className="hr" />
+          <div className="stat-bar-row">
+            <div className="eyebrow">Salary & Edit</div>
             <div style={{ fontSize: 16, marginTop: 4, color: 'var(--ink)', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
               {formatCurrency(salary)}
             </div>
             <button
               onClick={() => setShowEditFinancials(true)}
-              style={{ marginTop: 6, fontSize: 11, color: 'var(--accent)', background: 'none', border: 'none', cursor: 'pointer', padding: 0, textAlign: 'left' }}
+              className="cursor-pointer"
+              style={{ marginTop: 6, fontSize: 11, color: 'var(--accent)', background: 'none', border: 'none', padding: 0, textAlign: 'left' }}
             >
               Edit financials →
             </button>
@@ -491,28 +496,36 @@ function Dashboard({ expenses, subscriptions, monthlySummary, currentMonth, curr
             const prevSpent = prevMonthCategoryTotals[category.key] || 0;
             const trend = prevSpent > 0 ? ((spent - prevSpent) / prevSpent) * 100 : null;
             return (
-              <div key={category.key} className="cat-card" style={{ ['--cat' as string]: category.color }}>
-                <div className="cat-card-accent" />
+              <div 
+                key={category.key} 
+                className="cat-card cursor-pointer group relative transition-all duration-200 hover:translate-y-[-2px] hover:shadow-lg active:scale-[0.97]" 
+                style={{ ['--cat' as string]: category.color }}
+                onClick={() => setSelectedCategory(category.key)}
+              >
+                <div className="cat-card-accent opacity-10 group-hover:opacity-20 transition-opacity" />
                 <div style={{ position: 'relative', zIndex: 1 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <div className="eyebrow" style={{ color: category.color }}>{category.label}</div>
                     {trend !== null && (
-                      <span className={`chip ${trend > 0 ? 'neg' : 'pos'}`} style={{ height: 18, padding: '0 6px', fontSize: 10, display: 'inline-flex', alignItems: 'center', borderRadius: 999 }}>
+                      <span className={`chip ${trend > 0 ? 'neg' : 'pos'} animate-in fade-in zoom-in-50 duration-300`} style={{ height: 18, padding: '0 6px', fontSize: 10, display: 'inline-flex', alignItems: 'center', borderRadius: 999 }}>
                         {trend > 0 ? '↑' : '↓'}{Math.abs(trend).toFixed(0)}%
                       </span>
                     )}
                   </div>
-                  <div className="serif" style={{ fontSize: 24, marginTop: 8, fontVariantNumeric: 'tabular-nums' }}>
+                  <div className="serif text-2xl mt-2 font-bold tabular-nums text-[var(--ink)] group-hover:text-[var(--accent)] transition-colors">
                     {spent >= 100000 ? `${(spent / 100000).toFixed(2)}L` : `₹${Math.round(spent / 1000)}K`}
                   </div>
-                  <div style={{ fontSize: 11, color: 'var(--ink-faint)', marginTop: 2 }}>
+                  <div className="text-[11px] text-[var(--ink-faint)] mt-1">
                     of {category.budget >= 100000 ? `${(category.budget / 100000).toFixed(1)}L` : `₹${Math.round(category.budget / 1000)}K`}
                   </div>
-                  <div className="cat-progress">
-                    <div className="cat-progress-fill" style={{ width: `${pct}%`, background: over ? '#ef4444' : category.color }} />
+                  <div className="cat-progress mt-3 h-1.5 rounded-full bg-[var(--hairline)] overflow-hidden">
+                    <div 
+                      className="cat-progress-fill h-full rounded-full transition-all duration-1000 ease-out" 
+                      style={{ width: `${pct}%`, background: over ? 'var(--neg)' : category.color }} 
+                    />
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6, fontSize: 10.5, color: 'var(--ink-faint)' }}>
-                    <span>{pct.toFixed(0)}% used</span>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8, fontSize: 10.5, color: 'var(--ink-faint)', fontWeight: 500 }}>
+                    <span className={over ? 'text-[var(--neg)] font-bold' : ''}>{pct.toFixed(0)}% used</span>
                     <span>{over ? 'over budget' : spent === 0 ? '—' : `${formatCurrency(category.budget - spent)} left`}</span>
                   </div>
                 </div>
@@ -556,6 +569,13 @@ function Dashboard({ expenses, subscriptions, monthlySummary, currentMonth, curr
         currentYear={currentYear}
         currentMonth={currentMonth}
         formatCurrency={formatCurrency}
+      />
+
+      <CategoryDrillDown
+        isOpen={!!selectedCategory}
+        onClose={() => setSelectedCategory(null)}
+        category={selectedCategory}
+        expenses={expenses.filter(e => e.category === selectedCategory)}
       />
     </div>
   );
@@ -841,21 +861,21 @@ function FinancialEditModal({
   return (
     <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-gray-900/40 backdrop-blur-md" onClick={onClose} />
-      <div className="relative z-10 w-full max-w-lg bg-white rounded-[28px] shadow-[0_32px_80px_rgba(0,0,0,0.15)] overflow-hidden border border-white/20">
-        <div className="flex items-center justify-between px-8 py-6 border-b border-gray-100 bg-gray-50/50">
+      <div className="relative z-10 w-full max-w-lg bg-white/95 backdrop-blur-2xl border border-white/20 rounded-[24px] shadow-[0_32px_80px_rgba(0,0,0,0.12)] overflow-hidden flex flex-col max-h-[90vh]">
+        <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100 bg-gray-50/50">
           <div>
             <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Financials</div>
-            <h2 className="text-2xl font-bold text-gray-900 tracking-tight italic serif">Month-End Summary</h2>
+            <h2 className="text-xl font-bold text-gray-900 tracking-tight italic serif">Month-End Summary</h2>
           </div>
           <button
             onClick={onClose}
-            className="w-10 h-10 flex items-center justify-center rounded-full bg-gray-100 text-gray-500 hover:bg-gray-200 transition-all"
+            className="w-9 h-9 flex items-center justify-center rounded-full bg-gray-100 text-gray-500 hover:bg-gray-200 hover:text-gray-900 transition-all cursor-pointer"
           >
-            <X size={20} />
+            <X size={18} />
           </button>
         </div>
 
-        <div className="p-8">
+        <div className="p-6 overflow-y-auto">
           <div className="grid grid-cols-2 gap-x-6 gap-y-5">
             {fields.map(({ key, label }) => (
               <div key={key}>
@@ -879,14 +899,14 @@ function FinancialEditModal({
             <button
               onClick={onClose}
               disabled={saving}
-              className="flex-1 py-4 rounded-2xl border border-gray-200 text-gray-600 font-bold text-sm hover:bg-gray-50 transition-all"
+              className="flex-1 py-4 rounded-2xl border border-gray-200 text-gray-600 font-bold text-sm hover:bg-gray-50 transition-all cursor-pointer"
             >
               Cancel
             </button>
             <button
               onClick={() => onSave(form)}
               disabled={saving}
-              className="flex-1 py-4 rounded-2xl bg-blue-600 text-white font-bold text-sm shadow-xl shadow-blue-600/20 hover:bg-blue-700 transition-all flex items-center justify-center gap-2"
+              className="flex-1 py-4 rounded-2xl bg-blue-600 text-white font-bold text-sm shadow-xl shadow-blue-600/20 hover:bg-blue-700 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
             >
               {saving ? 'Updating…' : 'Save Financials'}
             </button>

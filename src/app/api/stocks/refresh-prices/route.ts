@@ -5,6 +5,24 @@ import { after } from "next/server";
 
 const PYTHON_API = "http://127.0.0.1:8765";
 
+import { unstable_cache } from "next/cache";
+
+const getCachedQuote = unstable_cache(
+  async (ticker: string) => {
+    const res = await fetch(`${PYTHON_API}/stocks/quote`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ticker }),
+      signal: AbortSignal.timeout(8000),
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    return data?.price ?? data?.current_price ?? null;
+  },
+  ['stock-quotes'],
+  { revalidate: 3600 }
+);
+
 // POST /api/stocks/refresh-prices
 // Fetches all holdings, calls Python API for each, updates prices
 export async function POST() {
@@ -25,20 +43,7 @@ export async function POST() {
   const priceResults = await Promise.all(
     holdings.map(async (h) => {
       try {
-        const res = await fetch(`${PYTHON_API}/stocks/quote`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ ticker: h.ticker }),
-          signal: AbortSignal.timeout(8000),
-        });
-
-        if (!res.ok) {
-          return { id: h.id, ticker: h.ticker, price: null, success: false, error: `HTTP ${res.status}` };
-        }
-
-        const data = await res.json();
-        const price = data?.price ?? data?.current_price ?? null;
-
+        const price = await getCachedQuote(h.ticker);
         if (price != null && !isNaN(price)) {
           return { id: h.id, ticker: h.ticker, price, success: true };
         } else {

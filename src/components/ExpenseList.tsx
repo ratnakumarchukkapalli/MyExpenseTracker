@@ -203,7 +203,7 @@ function ExpenseList({ expenses, onEdit, onDelete, onAdd, categoryIcons = {} }: 
 
         <button
           onClick={() => setShowFilters(!showFilters)}
-          className="btn btn-sm"
+          className="btn btn-sm cursor-pointer"
           style={categoryFilter !== 'all' ? { background: 'var(--accent-bg)', color: 'var(--accent)', borderColor: 'transparent' } : {}}
         >
           <Filter size={13} />
@@ -290,7 +290,7 @@ function ExpenseList({ expenses, onEdit, onDelete, onAdd, categoryIcons = {} }: 
           <div key={group.date} className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
             <button
               onClick={() => toggleDateGroup(group.date)}
-              className="w-full flex items-center justify-between px-5 py-3 bg-gray-50/50 hover:bg-gray-50 transition-colors"
+              className="w-full flex items-center justify-between px-5 py-3 bg-gray-50/50 hover:bg-gray-50 transition-colors cursor-pointer"
             >
               <div className="flex items-center gap-3">
                 {collapsedDates[group.date] ? (
@@ -399,14 +399,14 @@ function ExpenseList({ expenses, onEdit, onDelete, onAdd, categoryIcons = {} }: 
                       <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                         <button
                           onClick={() => duplicateExpense(expense)}
-                          className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                          className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
                           title="Duplicate"
                         >
                           <Copy className="h-4 w-4" />
                         </button>
                         <button
                           onClick={() => onEdit(expense, 'open-form')}
-                          className="p-1.5 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
+                          className="p-1.5 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors cursor-pointer"
                           title="Edit"
                         >
                           <Edit2 className="h-4 w-4" />
@@ -417,7 +417,7 @@ function ExpenseList({ expenses, onEdit, onDelete, onAdd, categoryIcons = {} }: 
                               onDelete(expense.id);
                             }
                           }}
-                          className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                          className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
                           title="Delete"
                         >
                           <Trash2 className="h-4 w-4" />

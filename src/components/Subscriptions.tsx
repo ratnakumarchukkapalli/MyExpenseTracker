@@ -169,21 +169,21 @@ function Subscriptions({ subscriptions, onAdd, onEdit, onDelete, onPay, currentM
           <td className="px-4 py-3">
             <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
               {!isPaid && (
-                <button onClick={() => handleMarkPaid(subscription)} className="p-1.5 text-green-600 hover:bg-green-50 rounded-lg" title="Mark Paid">
+                <button onClick={() => handleMarkPaid(subscription)} className="p-1.5 text-green-600 hover:bg-green-50 rounded-lg cursor-pointer" title="Mark Paid">
                   <CheckCircle className="h-4 w-4" />
                 </button>
               )}
               <button
                 onClick={() => setExpandedPaymentHistory(isExpanded ? null : subscription.id)}
-                className={`p-1.5 rounded-lg ${isExpanded ? 'text-primary-600 bg-primary-50' : 'text-gray-400 hover:text-primary-600 hover:bg-primary-50'}`}
+                className={`p-1.5 rounded-lg cursor-pointer ${isExpanded ? 'text-primary-600 bg-primary-50' : 'text-gray-400 hover:text-primary-600 hover:bg-primary-50'}`}
                 title="Payment History"
               >
                 <History className="h-4 w-4" />
               </button>
-              <button onClick={() => onEdit(subscription)} className="p-1.5 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg" title="Edit">
+              <button onClick={() => onEdit(subscription)} className="p-1.5 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg cursor-pointer" title="Edit">
                 <Edit2 className="h-4 w-4" />
               </button>
-              <button onClick={() => { if (window.confirm(`Delete ${subscription.name}?`)) onDelete(subscription.id); }} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg" title="Delete">
+              <button onClick={() => { if (window.confirm(`Delete ${subscription.name}?`)) onDelete(subscription.id); }} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg cursor-pointer" title="Delete">
                 <Trash2 className="h-4 w-4" />
               </button>
             </div>
@@ -225,7 +225,7 @@ function Subscriptions({ subscriptions, onAdd, onEdit, onDelete, onPay, currentM
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
         <button
           onClick={() => toggleSection(type)}
-          className="w-full flex items-center justify-between px-5 py-4 bg-gray-50/50 hover:bg-gray-50 transition-colors"
+          className="w-full flex items-center justify-between px-5 py-4 bg-gray-50/50 hover:bg-gray-50 transition-colors cursor-pointer"
         >
           <div className="flex items-center gap-3">
             {isCollapsed ? <ChevronRight className="h-4 w-4 text-gray-400" /> : <ChevronDown className="h-4 w-4 text-gray-400" />}
@@ -275,7 +275,7 @@ function Subscriptions({ subscriptions, onAdd, onEdit, onDelete, onPay, currentM
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <h2 className="text-2xl font-bold text-gray-900">Subscriptions</h2>
-          <button onClick={onAdd} className="btn btn-accent">
+          <button onClick={onAdd} className="btn btn-accent cursor-pointer">
             <Plus size={14} /> Add Subscription
           </button>
         </div>
@@ -301,7 +301,7 @@ function Subscriptions({ subscriptions, onAdd, onEdit, onDelete, onPay, currentM
                   <div key={sub.id} className="flex items-center gap-2 bg-white rounded-lg px-3 py-1.5 border border-red-200">
                     <span className="text-sm font-medium">{sub.name}</span>
                     <span className="text-sm text-red-600 font-bold">₹{sub.amount.toLocaleString()}</span>
-                    <button onClick={() => handleMarkPaid(sub)} className="text-xs bg-red-600 text-white px-2 py-0.5 rounded hover:bg-red-700">Pay</button>
+                    <button onClick={() => handleMarkPaid(sub)} className="text-xs bg-red-600 text-white px-2 py-0.5 rounded hover:bg-red-700 cursor-pointer">Pay</button>
                   </div>
                 ))}
               </div>
@@ -320,10 +320,10 @@ function Subscriptions({ subscriptions, onAdd, onEdit, onDelete, onPay, currentM
             style={{ width: '100%', paddingLeft: 32, paddingRight: 12, paddingTop: 7, paddingBottom: 7, background: 'var(--surface-solid)', border: '1px solid var(--hairline)', borderRadius: 10, fontSize: 13, color: 'var(--ink)', outline: 'none', fontFamily: 'inherit' }}
           />
         </div>
-        <button onClick={() => setShowFilters(!showFilters)} className="btn btn-sm" style={categoryFilter !== 'all' ? { background: 'var(--accent-bg)', color: 'var(--accent)', borderColor: 'transparent' } : {}}>
+        <button onClick={() => setShowFilters(!showFilters)} className="btn btn-sm cursor-pointer" style={categoryFilter !== 'all' ? { background: 'var(--accent-bg)', color: 'var(--accent)', borderColor: 'transparent' } : {}}>
           <Filter className="h-4 w-4" /> Filters
         </button>
-        <button onClick={onAdd} className="btn btn-sm btn-accent">
+        <button onClick={onAdd} className="btn btn-sm btn-accent cursor-pointer">
           <Plus size={13} /> Add
         </button>
       </div>

@@ -110,22 +110,18 @@ const convertAmfiDate = (d: string) => {
 };
 
 const fetchAmfiNavMap = async (schemeCodes: string[]) => {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 20000);
-  const res = await fetch(AMFI_URL, { signal: controller.signal });
-  clearTimeout(timeout);
-  const text = await res.text();
-  const map: Record<string, { nav: number; date: string }> = {};
-  for (const line of text.split('\n')) {
-    const parts = line.split(';');
-    if (parts.length < 6) continue;
-    const code = parts[0].trim();
-    if (!schemeCodes.includes(code)) continue;
-    const nav = parseFloat(parts[4]);
-    const date = convertAmfiDate(parts[5]);
-    if (!isNaN(nav) && date) map[code] = { nav, date };
+  try {
+    const res = await fetch('/api/sip/amfi-nav', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ schemeCodes }),
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return await res.json();
+  } catch (err) {
+    console.error('AMFI fetch error:', err);
+    return {};
   }
-  return map;
 };
 
 const gainClass = (val: number) =>
@@ -589,7 +585,8 @@ const HoldingsImportModal = ({ funds, onConfirm, onCancel }: HoldingsImportModal
       return next;
     });
     try {
-      const res = await fetch(`https://api.mfapi.in/mf/search?q=${encodeURIComponent(q)}`);
+      const path = `mf/search?q=${encodeURIComponent(q)}`;
+      const res = await fetch(`/api/sip/mfapi?path=${encodeURIComponent(path)}`);
       const data: SchemeResult[] = await res.json();
       setMapped(prev => {
         const next = [...prev];
@@ -705,7 +702,8 @@ const LogSIPModal = ({ funds, onLog, onCancel }: LogSIPModalProps) => {
     if (!selectedFund?.scheme_code || !date) return;
     setLoading(true);
     try {
-      const res = await fetch(`https://api.mfapi.in/mf/${selectedFund.scheme_code}`);
+      const path = `mf/${selectedFund.scheme_code}`;
+      const res = await fetch(`/api/sip/mfapi?path=${encodeURIComponent(path)}`);
       const data = await res.json();
       if (!data?.data?.length) { setLoading(false); return; }
 
@@ -775,94 +773,137 @@ const LogSIPModal = ({ funds, onLog, onCancel }: LogSIPModalProps) => {
   };
 
   return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.60)', backdropFilter: 'blur(6px)' }} onClick={onCancel} />
-      <div style={{
-        position: 'relative', zIndex: 1, width: '100%', maxWidth: 480, margin: 16,
-        background: DARK.bg, border: `1px solid ${DARK.border}`, borderRadius: 20,
-        padding: '24px 28px', boxShadow: '0 32px 80px rgba(0,0,0,0.6)',
-      }}>
+    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
+      {/* Backdrop */}
+      <div 
+        className="absolute inset-0 bg-gray-900/40 backdrop-blur-md transition-opacity"
+        onClick={onCancel}
+      />
+
+      {/* Light Glass Modal */}
+      <div className="relative z-10 w-full max-w-md bg-white/95 backdrop-blur-2xl border border-white/20 rounded-[24px] shadow-[0_32px_80px_rgba(0,0,0,0.12)] overflow-hidden">
         {/* Header */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 22 }}>
+        <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100 bg-gray-50/50">
           <div>
-            <div style={{ fontSize: 10, fontWeight: 700, color: DARK.muted, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 3 }}>SIP Tracker</div>
-            <div style={{ fontSize: 22, fontWeight: 600, color: DARK.ink, fontFamily: 'Georgia, serif' }}>Log Monthly SIP</div>
-            <div style={{ fontSize: 12, color: DARK.muted, marginTop: 2 }}>Pick the date your SIP was debited, then fetch NAV</div>
+            <div className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.12em] mb-1">SIP Tracker</div>
+            <h2 className="text-xl font-bold text-gray-900 tracking-tight">Log Monthly SIP</h2>
           </div>
-          <button onClick={onCancel} style={{ background: 'rgba(255,255,255,0.08)', border: 'none', cursor: 'pointer', color: DARK.muted, fontSize: 16, width: 32, height: 32, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
+          <button
+            onClick={onCancel}
+            className="w-9 h-9 flex items-center justify-center rounded-full bg-gray-100 text-gray-500 hover:bg-gray-200 hover:text-gray-900 transition-all cursor-pointer"
+          >
+            <X size={18} />
+          </button>
         </div>
 
-        {/* Fund */}
-        <div style={{ marginBottom: 14 }}>
-          <label style={labelStyle}>Fund</label>
-          <select value={selectedFundId} onChange={e => setSelectedFundId(e.target.value)}
-            style={{ ...inputStyle, fontWeight: 600 }}>
-            {activeFunds.map(f => <option key={f.id} value={f.id} style={{ background: DARK.bg }}>{f.fund_name}</option>)}
-          </select>
-          {selectedFund && (
-            <div style={{ marginTop: 5, fontSize: 12, color: DARK.muted }}>
-              SIP amount: <span style={{ fontWeight: 700, color: '#a78bfa' }}>₹{(selectedFund.sip_amount || 0).toLocaleString()}/mo</span>
-              {selectedFund.folio_number && <span style={{ marginLeft: 8 }}>· Folio {selectedFund.folio_number}</span>}
+        <div className="p-6 space-y-5">
+          {/* Fund Selection */}
+          <div>
+            <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2">Fund Selection</label>
+            <select
+              value={selectedFundId}
+              onChange={e => setSelectedFundId(e.target.value)}
+              className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 transition-all text-sm cursor-pointer"
+            >
+              {activeFunds.map(f => (
+                <option key={f.id} value={f.id}>{f.fund_name}</option>
+              ))}
+            </select>
+            {selectedFund && (
+              <div className="mt-2 text-[10px] text-gray-500 font-medium">
+                SIP amount: <span className="text-blue-600">₹{(selectedFund.sip_amount || 0).toLocaleString()}/mo</span>
+                {selectedFund.folio_number && <span className="ml-2 opacity-50">· Folio {selectedFund.folio_number}</span>}
+              </div>
+            )}
+          </div>
+
+          {/* SIP Date + Fetch NAV */}
+          <div>
+            <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2">SIP Date</label>
+            <div className="flex gap-3">
+              <input
+                type="date"
+                value={date}
+                onChange={e => setDate(e.target.value)}
+                className="flex-1 px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 transition-all text-sm cursor-pointer"
+              />
+              <button
+                onClick={fetchNavForDate}
+                disabled={loading || !selectedFund?.scheme_code}
+                className="px-4 py-2.5 bg-indigo-50 text-indigo-600 rounded-xl font-bold text-xs flex items-center gap-2 hover:bg-indigo-100 transition-all cursor-pointer disabled:opacity-50"
+              >
+                <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+                {loading ? 'Fetching...' : 'Fetch NAV'}
+              </button>
+            </div>
+          </div>
+
+          {/* Amount */}
+          <div>
+            <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2">Amount (₹)</label>
+            <input
+              type="number"
+              value={amount}
+              onChange={e => setAmount(e.target.value)}
+              placeholder="e.g. 5000"
+              className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 transition-all text-sm font-bold"
+            />
+          </div>
+
+          {/* NAV + Units */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2">NAV (₹)</label>
+              <input
+                type="number"
+                value={nav}
+                step="0.0001"
+                onChange={e => setNav(e.target.value)}
+                placeholder="Auto-fetched"
+                className={`w-full px-4 py-2.5 bg-gray-50 border ${nav ? 'border-emerald-200 bg-emerald-50/30' : 'border-gray-200'} rounded-xl text-gray-900 focus:outline-none focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 transition-all text-sm`}
+              />
+            </div>
+            <div>
+              <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2">Units Allotted</label>
+              <input
+                type="number"
+                value={units}
+                step="0.0001"
+                readOnly
+                placeholder="Calculated"
+                className="w-full px-4 py-2.5 bg-gray-100 border border-gray-200 rounded-xl text-gray-400 text-sm cursor-not-allowed"
+              />
+            </div>
+          </div>
+
+          {nav && amount && units && (
+            <div className="bg-indigo-50 border border-indigo-100 rounded-2xl p-4 flex items-center justify-between">
+              <div className="text-[11px] text-indigo-900/60 font-medium">
+                <span className="text-indigo-900 font-bold">₹{parseFloat(amount).toLocaleString()}</span>
+                <span className="mx-1 opacity-40">/</span>
+                <span className="text-indigo-900 font-bold">₹{parseFloat(nav).toFixed(4)}</span>
+              </div>
+              <div className="text-sm font-bold text-indigo-600">{parseFloat(units).toFixed(4)} units</div>
             </div>
           )}
-        </div>
 
-        {/* SIP Date + Fetch NAV */}
-        <div style={{ marginBottom: 14 }}>
-          <label style={labelStyle}>SIP Date</label>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <input type="date" value={date} onChange={e => setDate(e.target.value)} style={{ ...inputStyle, flex: 1 }} />
-            <button onClick={fetchNavForDate} disabled={loading || !selectedFund?.scheme_code}
-              style={{ padding: '10px 16px', borderRadius: 10, border: 'none', background: '#7c6fff', color: '#fff', fontSize: 13, fontWeight: 700, cursor: loading ? 'not-allowed' : 'pointer', opacity: (loading || !selectedFund?.scheme_code) ? 0.5 : 1, display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap' }}>
-              <RefreshCw style={{ width: 14, height: 14, animation: loading ? 'spin 1s linear infinite' : 'none' }} />
-              {loading ? 'Fetching…' : 'Fetch NAV'}
+          {/* Actions */}
+          <div className="flex items-center gap-3 pt-2">
+            <button
+              type="button"
+              onClick={onCancel}
+              className="flex-1 py-3.5 rounded-2xl border border-gray-200 text-gray-600 font-bold text-sm hover:bg-gray-50 transition-all cursor-pointer"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleSubmit}
+              disabled={!selectedFundId || !date || !amount || !nav}
+              className="flex-1 py-3.5 rounded-2xl bg-blue-600 text-white font-bold text-sm shadow-xl shadow-blue-600/20 hover:bg-blue-700 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+            >
+              Log SIP
             </button>
           </div>
-        </div>
-
-        {/* Amount */}
-        <div style={{ marginBottom: 14 }}>
-          <label style={labelStyle}>Amount (₹)</label>
-          <input type="number" value={amount} onChange={e => setAmount(e.target.value)}
-            placeholder="e.g. 5000" style={{ ...inputStyle, fontSize: 16, fontWeight: 600 }} />
-        </div>
-
-        {/* NAV + Units */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
-          <div>
-            <label style={labelStyle}>NAV (₹)</label>
-            <input type="number" value={nav} step="0.0001" onChange={e => setNav(e.target.value)}
-              placeholder="Auto-fetched" style={{ ...inputStyle, borderColor: nav ? '#34d399' : DARK.border }} />
-          </div>
-          <div>
-            <label style={labelStyle}>Units Allotted</label>
-            <input type="number" value={units} step="0.0001" readOnly
-              placeholder="Calculated" style={{ ...inputStyle, opacity: 0.6, cursor: 'default' }} />
-          </div>
-        </div>
-
-        {nav && amount && units && (
-          <div style={{ background: 'rgba(124,111,255,0.10)', border: `1px solid rgba(124,111,255,0.25)`, borderRadius: 12, padding: '10px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-            <div style={{ fontSize: 13, color: DARK.muted }}>
-              <span style={{ fontWeight: 700, color: DARK.ink }}>₹{parseFloat(amount).toLocaleString()}</span>
-              <span style={{ margin: '0 6px' }}>÷</span>
-              <span style={{ fontWeight: 700, color: DARK.ink }}>₹{parseFloat(nav).toFixed(4)}</span>
-              <span style={{ margin: '0 6px' }}>=</span>
-            </div>
-            <div style={{ fontSize: 14, fontWeight: 700, color: '#a78bfa' }}>{parseFloat(units).toFixed(4)} units</div>
-          </div>
-        )}
-
-        {/* Buttons */}
-        <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 8 }}>
-          <button onClick={onCancel}
-            style={{ padding: '9px 20px', borderRadius: 10, border: `1px solid ${DARK.border}`, background: 'transparent', color: DARK.muted, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
-            Cancel
-          </button>
-          <button onClick={handleSubmit} disabled={!selectedFundId || !date || !amount || !nav}
-            style={{ padding: '9px 24px', borderRadius: 10, border: 'none', background: '#7c6fff', color: '#fff', fontSize: 13, fontWeight: 700, cursor: (!selectedFundId || !date || !amount || !nav) ? 'not-allowed' : 'pointer', opacity: (!selectedFundId || !date || !amount || !nav) ? 0.5 : 1, boxShadow: '0 4px 16px rgba(124,111,255,0.35)' }}>
-            Log SIP
-          </button>
         </div>
       </div>
     </div>

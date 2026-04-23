@@ -1,4 +1,4 @@
-import { requireAuth } from "@/lib/auth-guard";
+import { requireAuth, requireAuthFast } from "@/lib/auth-guard";
 import { MonthlySummaryUpdateSchema } from "@/lib/schemas/monthly-summary";
 import { after } from "next/server";
 import { NextRequest } from "next/server";
@@ -8,7 +8,7 @@ type RouteParams = { params: Promise<{ month: string; year: string }> };
 // GET /api/monthly-summary/[month]/[year]
 // Mirrors get-monthly-financial-summary: returns row or auto-carries forward from previous month
 export async function GET(_req: NextRequest, { params }: RouteParams) {
-  const { user, supabase, error } = await requireAuth();
+  const { user, supabase, error } = await requireAuthFast();
   if (error) return error;
 
   const { month, year } = await params;
@@ -48,7 +48,9 @@ export async function GET(_req: NextRequest, { params }: RouteParams) {
       
       return Response.json(updatedRow || row);
     }
-    return Response.json(row);
+    return Response.json(row, {
+      headers: { "Cache-Control": "private, max-age=0, stale-while-revalidate=60" },
+    });
   }
 
   // No record — fetch previous month in parallel with nothing (single query needed)

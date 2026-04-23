@@ -1,4 +1,4 @@
-import { requireAuth } from "@/lib/auth-guard";
+import { requireAuth, requireAuthFast } from "@/lib/auth-guard";
 import { z } from "zod";
 import { NextRequest } from "next/server";
 
@@ -10,7 +10,7 @@ const BudgetSchema = z.object({
 
 // GET /api/category-budgets
 export async function GET() {
-  const { user, supabase, error } = await requireAuth();
+  const { user, supabase, error } = await requireAuthFast();
   if (error) return error;
 
   const { data, error: dbError } = await supabase

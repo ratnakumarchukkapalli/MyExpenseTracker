@@ -16,7 +16,7 @@ function IPhoneImportModal({ onClose }: Props) {
             <Smartphone className="h-5 w-5 text-[var(--accent)]" />
             <h2 className="text-lg font-semibold text-gray-900">iPhone import is not yet web-enabled</h2>
           </div>
-          <button onClick={onClose} className="rounded-full p-2 text-gray-500 transition hover:bg-gray-100">
+          <button onClick={onClose} className="rounded-full p-2 text-gray-500 transition hover:bg-gray-100 cursor-pointer">
             <X className="h-4 w-4" />
           </button>
         </div>

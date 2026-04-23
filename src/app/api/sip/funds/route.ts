@@ -1,8 +1,8 @@
-import { requireAuth } from "@/lib/auth-guard";
+import { requireAuthFast } from "@/lib/auth-guard";
 
 // GET /api/sip/funds
 export async function GET() {
-  const { user, supabase, error } = await requireAuth();
+  const { user, supabase, error } = await requireAuthFast();
   if (error) return error;
 
   const { data, error: dbError } = await supabase

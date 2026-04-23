@@ -1,9 +1,9 @@
-import { requireAuth } from "@/lib/auth-guard";
+import { requireAuth, requireAuthFast } from "@/lib/auth-guard";
 import { NextRequest } from "next/server";
 
 // GET /api/sip/transactions?fundId=123
 export async function GET(request: NextRequest) {
-  const { user, supabase, error } = await requireAuth();
+  const { user, supabase, error } = await requireAuthFast();
   if (error) return error;
 
   const fundId = request.nextUrl.searchParams.get("fundId");

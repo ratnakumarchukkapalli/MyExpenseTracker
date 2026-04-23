@@ -1,10 +1,10 @@
-import { requireAuth } from "@/lib/auth-guard";
+import { requireAuth, requireAuthFast } from "@/lib/auth-guard";
 import { InsuranceSchema } from "@/lib/schemas/insurance";
 import { NextRequest } from "next/server";
 
 // GET /api/insurance
 export async function GET() {
-  const { user, supabase, error } = await requireAuth();
+  const { user, supabase, error } = await requireAuthFast();
   if (error) return error;
 
   const { data, error: dbError } = await supabase

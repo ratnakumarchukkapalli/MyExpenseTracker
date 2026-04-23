@@ -1,4 +1,4 @@
-import { requireAuth } from "@/lib/auth-guard";
+import { requireAuthFast } from "@/lib/auth-guard";
 import { NextRequest } from "next/server";
 
 const VALID_CATEGORIES = [
@@ -8,7 +8,7 @@ const VALID_CATEGORIES = [
 // GET /api/expenses/historical?months=6&excludeMonth=4&excludeYear=2026
 // Returns category-wise monthly aggregates for ML / year-end projection
 export async function GET(request: NextRequest) {
-  const { user, supabase, error } = await requireAuth();
+  const { user, supabase, error } = await requireAuthFast();
   if (error) return error;
 
   const { searchParams } = request.nextUrl;

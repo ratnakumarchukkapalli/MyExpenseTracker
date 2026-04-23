@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { EXPENSE_CATEGORIES } from '../constants/categories';
+import { EXPENSE_CATEGORIES, CATEGORY_COLORS } from '../constants/categories';
 import { X, Check, Save } from 'lucide-react';
 
 interface ExpenseData {
@@ -19,13 +19,7 @@ interface Props {
   onCancel: () => void;
 }
 
-const CATEGORY_COLORS: Record<string, string> = {
-  'HOME Purpose': '#7C3AED',
-  'LOANS/CC':    '#DC2626',
-  MonthlyBills:  '#D97706',
-  Personal:      '#2563EB',
-  Savings:       '#059669',
-};
+
 
 function ExpenseForm({ expense, onSubmit, onCancel }: Props) {
   const [formData, setFormData] = useState({
@@ -48,13 +42,20 @@ function ExpenseForm({ expense, onSubmit, onCancel }: Props) {
     }
   }, [expense]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.description.trim() || !formData.amount) {
-      alert('Please enter a description and amount');
+    if (!formData.description.trim() || !formData.amount || isSubmitting) {
+      if (!formData.description.trim() || !formData.amount) alert('Please enter a description and amount');
       return;
     }
-    onSubmit({ ...formData, amount: parseFloat(formData.amount) });
+    setIsSubmitting(true);
+    try {
+      await onSubmit({ ...formData, amount: parseFloat(formData.amount) });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -79,7 +80,7 @@ function ExpenseForm({ expense, onSubmit, onCancel }: Props) {
           </div>
           <button
             onClick={onCancel}
-            className="w-9 h-9 flex items-center justify-center rounded-full bg-gray-100 text-gray-500 hover:bg-gray-200 hover:text-gray-900 transition-all"
+            className="w-9 h-9 flex items-center justify-center rounded-full bg-gray-100 text-gray-500 hover:bg-gray-200 hover:text-gray-900 transition-all cursor-pointer"
           >
             <X size={18} />
           </button>
@@ -143,7 +144,7 @@ function ExpenseForm({ expense, onSubmit, onCancel }: Props) {
                     type="button"
                     onClick={() => setFormData((p) => ({ ...p, category: cat }))}
                     className={`
-                      px-3 py-1.5 rounded-full text-[11px] font-bold border-2 transition-all flex items-center gap-1.5
+                      px-3 py-1.5 rounded-full text-[11px] font-bold border-2 transition-all flex items-center gap-1.5 cursor-pointer
                       ${active 
                         ? 'border-transparent text-white shadow-sm' 
                         : 'border-gray-100 text-gray-400 hover:border-gray-200'}
@@ -178,16 +179,19 @@ function ExpenseForm({ expense, onSubmit, onCancel }: Props) {
             <button
               type="button"
               onClick={onCancel}
-              className="flex-1 py-3.5 rounded-2xl border border-gray-200 text-gray-600 font-bold text-sm hover:bg-gray-50 transition-all"
+              className="flex-1 py-3.5 rounded-2xl border border-gray-200 text-gray-600 font-bold text-sm hover:bg-gray-50 transition-all cursor-pointer"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="flex-1 py-3.5 rounded-2xl bg-blue-600 text-white font-bold text-sm shadow-xl shadow-blue-600/20 hover:bg-blue-700 transition-all flex items-center justify-center gap-2"
+              disabled={isSubmitting}
+              className={`flex-1 py-3.5 rounded-2xl text-white font-bold text-sm shadow-xl transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                isSubmitting ? 'bg-blue-400 cursor-not-allowed shadow-none' : 'bg-blue-600 shadow-blue-600/20 hover:bg-blue-700'
+              }`}
             >
               <Save size={18} />
-              {expense ? 'Update Expense' : 'Save Expense'}
+              {isSubmitting ? 'Saving...' : (expense ? 'Update Expense' : 'Save Expense')}
             </button>
           </div>
         </form>

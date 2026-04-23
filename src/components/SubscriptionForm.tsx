@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { X, Save } from 'lucide-react';
+import { X, Save, Check } from 'lucide-react';
 
 interface SubscriptionData {
   id?: number;
@@ -64,152 +64,167 @@ function SubscriptionForm({ subscription, onSubmit, onCancel }: Props) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto">
-      <div className="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
-        <div className="fixed inset-0 transition-opacity bg-gray-900/50 backdrop-blur-sm" onClick={onCancel}></div>
-        <span className="hidden sm:inline-block sm:align-middle sm:h-screen">&#8203;</span>
+    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
+      {/* Backdrop */}
+      <div 
+        className="absolute inset-0 bg-gray-900/40 backdrop-blur-md transition-opacity"
+        onClick={onCancel}
+      />
 
-        <div className="inline-block align-bottom bg-white rounded-2xl text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg w-full">
-          <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
-            <h3 className="text-lg font-bold text-gray-900">
-              {subscription ? 'Edit Subscription' : 'Add New Subscription'}
-            </h3>
-            <button onClick={onCancel} className="text-gray-400 hover:text-gray-500 focus:outline-none p-1 rounded-full hover:bg-gray-100 transition-colors">
-              <X className="h-5 w-5" />
-            </button>
+      {/* Light Glass Modal */}
+      <div className="relative z-10 w-full max-w-md bg-white/95 backdrop-blur-2xl border border-white/20 rounded-[24px] shadow-[0_32px_80px_rgba(0,0,0,0.12)] overflow-hidden">
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100 bg-gray-50/50">
+          <div>
+            <div className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.12em] mb-1">
+              {subscription ? 'Edit record' : 'Quick add'}
+            </div>
+            <h2 className="text-xl font-bold text-gray-900 tracking-tight">
+              {subscription ? 'Update Subscription' : 'New Subscription'}
+            </h2>
+          </div>
+          <button
+            onClick={onCancel}
+            className="w-9 h-9 flex items-center justify-center rounded-full bg-gray-100 text-gray-500 hover:bg-gray-200 hover:text-gray-900 transition-all cursor-pointer"
+          >
+            <X size={18} />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="p-6 space-y-5 max-h-[80vh] overflow-y-auto">
+          {/* Service Name */}
+          <div>
+            <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2">Service Name</label>
+            <input
+              type="text"
+              name="name"
+              value={formData.name}
+              onChange={handleChange}
+              placeholder="e.g., Netflix, Spotify, AWS"
+              required
+              autoFocus
+              className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 transition-all text-sm"
+            />
           </div>
 
-          <form onSubmit={handleSubmit} className="p-6 space-y-5">
+          {/* Amount + Billing Type */}
+          <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                Service Name <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                name="name"
-                value={formData.name}
-                onChange={handleChange}
-                required
-                placeholder="e.g., Netflix, Spotify, AWS"
-                className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all placeholder:text-gray-400"
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-5">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                  Billing Type <span className="text-red-500">*</span>
-                </label>
-                <select
-                  name="billing_type"
-                  value={formData.billing_type}
-                  onChange={handleChange}
-                  required
-                  className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all text-gray-600"
-                >
-                  <option value="monthly">Monthly</option>
-                  <option value="yearly">Yearly</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                  Amount (₹) <span className="text-red-500">*</span>
-                </label>
-                <div className="relative">
-                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 font-medium">₹</span>
-                  <input
-                    type="number"
-                    name="amount"
-                    value={formData.amount}
-                    onChange={handleChange}
-                    required
-                    min="0"
-                    step="0.01"
-                    placeholder="0.00"
-                    className="w-full pl-8 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all placeholder:text-gray-400"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {formData.billing_type === 'monthly' && formData.amount && (
-              <div className="bg-blue-50 text-blue-700 px-4 py-3 rounded-xl text-sm flex items-center">
-                <span className="font-medium mr-1">Note:</span> Yearly cost will be ₹{(parseFloat(formData.amount) * 12).toLocaleString()}
-              </div>
-            )}
-
-            <div className="grid grid-cols-2 gap-5">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">Next Renewal Date</label>
+              <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2">Amount (₹)</label>
+              <div className="relative">
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 font-medium text-sm">₹</span>
                 <input
-                  type="date"
-                  name="renewal_date"
-                  value={formData.renewal_date}
+                  type="number"
+                  name="amount"
+                  value={formData.amount}
                   onChange={handleChange}
-                  className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all text-gray-600"
+                  placeholder="0.00"
+                  min="0"
+                  step="0.01"
+                  required
+                  className="w-full pl-8 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 transition-all text-sm"
                 />
               </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">Status</label>
-                <select
-                  name="status"
-                  value={formData.status}
-                  onChange={handleChange}
-                  className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all text-gray-600"
-                >
-                  <option value="active">Active</option>
-                  <option value="inactive">Inactive</option>
-                  <option value="cancelled">Cancelled</option>
-                </select>
-              </div>
             </div>
-
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Category</label>
+              <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2">Billing Type</label>
               <select
-                name="category"
-                value={formData.category}
+                name="billing_type"
+                value={formData.billing_type}
                 onChange={handleChange}
-                className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all text-gray-600"
+                required
+                className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 transition-all text-sm"
               >
-                {CATEGORIES.map(cat => (
-                  <option key={cat} value={cat}>{cat}</option>
-                ))}
+                <option value="monthly">Monthly</option>
+                <option value="yearly">Yearly</option>
               </select>
             </div>
+          </div>
 
+          {/* Renewal Date + Status */}
+          <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Comments</label>
-              <textarea
-                name="comments"
-                value={formData.comments}
+              <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2">Next Renewal</label>
+              <input
+                type="date"
+                name="renewal_date"
+                value={formData.renewal_date}
                 onChange={handleChange}
-                rows={3}
-                placeholder="Optional notes about this subscription"
-                className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all placeholder:text-gray-400 resize-none"
+                className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 transition-all text-sm"
               />
             </div>
-
-            <div className="flex space-x-3 pt-4 border-t border-gray-100 mt-6">
-              <button
-                type="button"
-                onClick={onCancel}
-                className="flex-1 px-4 py-2.5 border border-gray-200 rounded-xl text-sm font-medium text-gray-700 hover:bg-gray-50 hover:border-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-200 transition-all"
+            <div>
+              <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2">Status</label>
+              <select
+                name="status"
+                value={formData.status}
+                onChange={handleChange}
+                className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 transition-all text-sm"
               >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                className="flex-1 inline-flex items-center justify-center px-4 py-2.5 bg-primary-600 border border-transparent rounded-xl text-sm font-medium text-white hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 shadow-lg shadow-primary-600/20 transition-all"
-              >
-                <Save className="h-4 w-4 mr-2" />
-                {subscription ? 'Update Subscription' : 'Save Subscription'}
-              </button>
+                <option value="active">Active</option>
+                <option value="inactive">Inactive</option>
+                <option value="cancelled">Cancelled</option>
+              </select>
             </div>
-          </form>
-        </div>
+          </div>
+
+          {/* Category Selection */}
+          <div>
+            <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-3">Category</label>
+            <div className="flex flex-wrap gap-2">
+              {CATEGORIES.map((cat) => {
+                const active = formData.category === cat;
+                return (
+                  <button
+                    key={cat}
+                    type="button"
+                    onClick={() => setFormData((p) => ({ ...p, category: cat }))}
+                    className={`
+                      px-3 py-1.5 rounded-full text-[11px] font-bold border-2 transition-all flex items-center gap-1.5 cursor-pointer
+                      ${active 
+                        ? 'border-transparent text-white shadow-sm bg-blue-500' 
+                        : 'border-gray-100 text-gray-400 hover:border-gray-200 bg-gray-50'}
+                    `}
+                  >
+                    {active && <Check size={12} />}
+                    {cat}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Note */}
+          <div>
+            <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2">Comments</label>
+            <textarea
+              name="comments"
+              value={formData.comments}
+              onChange={handleChange}
+              placeholder="Any details…"
+              rows={2}
+              className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all resize-none text-sm"
+            />
+          </div>
+
+          {/* Actions */}
+          <div className="flex items-center gap-3 pt-2">
+            <button
+              type="button"
+              onClick={onCancel}
+              className="flex-1 py-3.5 rounded-2xl border border-gray-200 text-gray-600 font-bold text-sm hover:bg-gray-50 transition-all cursor-pointer"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="flex-1 py-3.5 rounded-2xl bg-blue-600 text-white font-bold text-sm shadow-xl shadow-blue-600/20 hover:bg-blue-700 transition-all flex items-center justify-center gap-2 cursor-pointer"
+            >
+              <Save size={18} />
+              {subscription ? 'Update Subs' : 'Save Subs'}
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );

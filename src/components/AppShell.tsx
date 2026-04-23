@@ -352,7 +352,7 @@ function AppShell() {
                 // Stable check for hydration: on first pass (mounted=false), only 'dashboard' is active
                 const active = mounted ? currentView === id : id === 'dashboard';
                 return (
-                  <div key={id} className={`nav-item ${active ? 'active' : ''}`} onClick={() => setCurrentView(id)}>
+                  <div key={id} className={`nav-item cursor-pointer ${active ? 'active' : ''}`} onClick={() => setCurrentView(id)}>
                     <span className="nav-icon">
                       <Icon size={16} />
                     </span>
@@ -382,28 +382,28 @@ function AppShell() {
               {MONTHS_SHORT.map((month, index) => (
                 <div
                   key={index + 1}
-                  className={`scrubber-item ${index + 1 === displayMonth ? 'active' : ''}`}
+                  className={`scrubber-item cursor-pointer ${index + 1 === displayMonth ? 'active' : ''}`}
                   onClick={() => setCurrentMonth(index + 1)}
                 >
                   {month}
                 </div>
               ))}
               <div className="scrubber-divider" />
-              <div className="scrubber-item" style={{ padding: '0 6px' }} onClick={() => setCurrentYear((value) => value - 1)}>
+              <div className="scrubber-item cursor-pointer" style={{ padding: '0 6px' }} onClick={() => setCurrentYear((value) => value - 1)}>
                 <ChevronLeft size={12} />
               </div>
               <div className="scrubber-year">{displayYear}</div>
-              <div className="scrubber-item" style={{ padding: '0 6px' }} onClick={() => setCurrentYear((value) => value + 1)}>
+              <div className="scrubber-item cursor-pointer" style={{ padding: '0 6px' }} onClick={() => setCurrentYear((value) => value + 1)}>
                 <ChevronRight size={12} />
               </div>
             </div>
 
-            <button className="icon-btn" title={darkMode ? 'Light mode' : 'Dark mode'} onClick={() => setDarkMode((value) => !value)}>
+            <button className="icon-btn cursor-pointer" title={darkMode ? 'Light mode' : 'Dark mode'} onClick={() => setDarkMode((value) => !value)}>
               {darkMode ? <Sun size={16} /> : <Moon size={16} />}
             </button>
 
             <button
-              className="icon-btn"
+              className="icon-btn cursor-pointer"
               title="Logout"
               onClick={async () => {
                 if (confirm('Are you sure you want to logout?')) {
@@ -415,7 +415,7 @@ function AppShell() {
               <LogOut size={16} />
             </button>
 
-            <button className="btn btn-accent" onClick={() => { setEditingExpense(null); setShowExpenseForm(true); }}>
+            <button className="btn btn-accent cursor-pointer" onClick={() => { setEditingExpense(null); setShowExpenseForm(true); }}>
               <Plus size={14} />
               Quick add
             </button>
@@ -459,19 +459,19 @@ function AppShell() {
                 {currentView === 'expenses' && (
                   <ExpenseList
                     expenses={filteredExpenses}
-                    onEdit={(expense, mode) => {
+                    onEdit={async (expense, mode) => {
                       if (mode === 'save-inline') {
-                        void handleExpenseUpdate(expense);
+                        await handleExpenseUpdate(expense);
                         return;
                       }
                       setEditingExpense(expense);
                       setShowExpenseForm(true);
                     }}
                     onDelete={(id) => {
-                      void handleExpenseDelete(id);
+                      handleExpenseDelete(id);
                     }}
-                    onAdd={(expense) => {
-                      void handleExpenseSubmit({
+                    onAdd={async (expense) => {
+                      await handleExpenseSubmit({
                         date: expense.date ?? new Date().toISOString().split('T')[0],
                         description: expense.description ?? '',
                         amount: Number(expense.amount ?? 0),
@@ -534,11 +534,11 @@ function AppShell() {
       {showExpenseForm && (
         <ExpenseForm
           expense={editingExpense}
-          onSubmit={(payload) => {
+          onSubmit={async (payload) => {
             if (editingExpense?.id) {
-              void handleExpenseUpdate({ ...editingExpense, ...payload, amount: Number(payload.amount) });
+              await handleExpenseUpdate({ ...editingExpense, ...payload, amount: Number(payload.amount) });
             } else {
-              void handleExpenseSubmit(payload);
+              await handleExpenseSubmit(payload);
             }
           }}
           onCancel={() => {
