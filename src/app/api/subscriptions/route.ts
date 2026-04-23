@@ -43,8 +43,8 @@ export async function GET() {
 
   // Fire DB updates in background after response is sent
   if (toUpdate.length > 0) {
-    after(() =>
-      Promise.all(
+    after(async () => {
+      await Promise.all(
         toUpdate.map(({ id, advanced }) =>
           supabase
             .from("subscriptions")
@@ -52,8 +52,9 @@ export async function GET() {
             .eq("id", id)
             .eq("user_id", user.id)
         )
-      )
-    );
+      );
+    });
+
   }
 
   return Response.json(updated, {

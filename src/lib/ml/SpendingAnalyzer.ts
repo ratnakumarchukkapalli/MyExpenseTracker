@@ -23,8 +23,9 @@ class SpendingAnalyzer {
   categories: string[];
 
   constructor() {
-    this.categories = EXPENSE_CATEGORIES;
+    this.categories = [...EXPENSE_CATEGORIES];
   }
+
 
   async analyze(categoryData: Record<string, any[]>, predictions: any, targetMonth: number, targetYear: number) {
     const [monthOverMonth, anomalies] = await Promise.all([

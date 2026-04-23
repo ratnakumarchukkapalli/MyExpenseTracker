@@ -75,10 +75,11 @@ export async function POST() {
   }
 
   // Sync stock portfolio value to monthly_summary in background
-  after(() => {
-    const svc = createSupabaseServerClient();
-    svc.then((client) => syncStocksToMonthlySummary(client, user.id));
+  after(async () => {
+    const client = await createSupabaseServerClient();
+    await syncStocksToMonthlySummary(client, user.id);
   });
+
 
   return Response.json({ results, updatedCount: successfulUpdates.length });
 }

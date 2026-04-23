@@ -30,7 +30,10 @@ export async function PUT(
   if (dbError) return Response.json({ error: dbError.message }, { status: 500 });
 
   // Sync portfolio value to monthly_summary in background — don't block response
-  after(() => syncStocksToMonthlySummary(supabase, user.id));
+  after(async () => {
+    await syncStocksToMonthlySummary(supabase, user.id);
+  });
+
 
   return Response.json({ success: true });
 }

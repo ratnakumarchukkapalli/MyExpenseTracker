@@ -54,13 +54,14 @@ export async function PUT(
     monthsToUpdate.push({ month: oldMonth, year: oldYear });
   }
 
-  after(() =>
-    Promise.all(
+  after(async () => {
+    await Promise.all(
       monthsToUpdate.map(({ month, year }) =>
         updateMonthlyExpenseTotal(supabase, user.id, month, year)
       )
-    )
-  );
+    );
+  });
+
 
   return Response.json({ changes: 1 });
 }
@@ -95,14 +96,15 @@ export async function DELETE(
   if (dbError) return Response.json({ error: dbError.message }, { status: 500 });
 
   const expenseDate = new Date(existing.date);
-  after(() =>
-    updateMonthlyExpenseTotal(
+  after(async () => {
+    await updateMonthlyExpenseTotal(
       supabase,
       user.id,
       expenseDate.getMonth() + 1,
       expenseDate.getFullYear()
-    )
-  );
+    );
+  });
+
 
   return Response.json({ changes: 1 });
 }

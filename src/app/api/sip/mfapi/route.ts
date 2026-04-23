@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireAuthFast } from "@/lib/auth-guard";
 
 export async function GET(request: NextRequest) {
+  const { error: authError } = await requireAuthFast();
+  if (authError) return authError;
+
   const { searchParams } = new URL(request.url);
   const path = searchParams.get("path");
   

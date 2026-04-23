@@ -57,14 +57,15 @@ export async function POST(request: NextRequest) {
   if (dbError) return Response.json({ error: dbError.message }, { status: 500 });
 
   const expenseDate = new Date(parsed.data.date);
-  after(() =>
-    updateMonthlyExpenseTotal(
+  after(async () => {
+    await updateMonthlyExpenseTotal(
       supabase,
       user.id,
       expenseDate.getMonth() + 1,
       expenseDate.getFullYear()
-    )
-  );
+    );
+  });
+
 
   return Response.json({ id: data.id }, { status: 201 });
 }

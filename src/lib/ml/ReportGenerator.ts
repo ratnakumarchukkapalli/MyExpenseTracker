@@ -15,8 +15,9 @@ class ReportGenerator {
   constructor() {
     this.predictor = new SpendingPredictor();
     this.analyzer = new SpendingAnalyzer();
-    this.categories = EXPENSE_CATEGORIES;
+    this.categories = [...EXPENSE_CATEGORIES];
   }
+
 
   async fetchHistoricalData(months = 6, excludeMonth?: number, excludeYear?: number): Promise<any> {
     try {

@@ -1,0 +1,16 @@
+{
+  "name": "MyExpenseTracker",
+  "short_name": "MET",
+  "description": "Premium expense tracking with glassmorphism aesthetics.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#F6F4EE",
+  "theme_color": "#5A4FCF",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "64x64 32x32 24x24 16x16",
+      "type": "image/x-icon"
+    }
+  ]
+}

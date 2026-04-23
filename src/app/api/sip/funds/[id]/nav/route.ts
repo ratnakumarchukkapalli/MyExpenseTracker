@@ -30,7 +30,10 @@ export async function PUT(
   if (dbError) return Response.json({ error: dbError.message }, { status: 500 });
 
   // Sync SIP portfolio value in background — don't block the response
-  after(() => syncSIPToMonthlySummary(supabase, user.id));
+  after(async () => {
+    await syncSIPToMonthlySummary(supabase, user.id);
+  });
+
 
   return Response.json({ success: true });
 }

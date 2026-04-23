@@ -388,28 +388,27 @@ function Dashboard({ expenses, subscriptions, monthlySummary, currentMonth, curr
                 })}
               </svg>
               <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
-                <div className="serif" style={{ fontSize: 34, lineHeight: 1 }}>{spentPct}%</div>
+                <div className="serif dash-hero-pct" style={{ fontSize: 34, lineHeight: 1 }}>{spentPct}%</div>
                 <div style={{ fontSize: 11, color: 'var(--ink-muted)', marginTop: 3 }}>of salary spent</div>
               </div>
+
             </div>
 
             <div className="rings-legend">
               {[
-                { label: 'Spent this month', value: totalExpensesOnly, hint: 'Target: 55% of salary', color: '#ef4444' },
-                { label: 'Saved this month', value: totalSavings, hint: 'Target: 25% of salary', color: '#22c55e' },
-                { label: 'Salary', value: salary, hint: `${dayOfMonth} of ${new Date(currentYear, currentMonth, 0).getDate()} days elapsed`, color: 'var(--accent)' },
+                { label: 'Spent', value: totalExpensesOnly, color: '#ef4444' },
+                { label: 'Saved', value: totalSavings, color: '#22c55e' },
+                { label: 'Salary', value: salary, color: 'var(--accent)' },
               ].map((item) => (
-                <div key={item.label} className="rings-legend-row">
-                  <span className="ring-dot" style={{ background: item.color }} />
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--ink)' }}>{item.label}</div>
-                    <div style={{ fontSize: 11, color: 'var(--ink-faint)', marginTop: 1 }}>{item.hint}</div>
-                  </div>
-                  <div style={{ fontSize: 13, fontVariantNumeric: 'tabular-nums', fontWeight: 600, color: 'var(--ink)' }}>
+                <div key={item.label} className="rings-legend-row" style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                  <span className="ring-dot" style={{ width: 8, height: 8, borderRadius: '50%', background: item.color }} />
+                  <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--ink)', flex: 1 }}>{item.label}</div>
+                  <div style={{ fontSize: 12, fontVariantNumeric: 'tabular-nums', fontWeight: 600, color: 'var(--ink)' }}>
                     {formatCurrency(item.value)}
                   </div>
                 </div>
               ))}
+
             </div>
           </div>
         </div>
@@ -417,39 +416,36 @@ function Dashboard({ expenses, subscriptions, monthlySummary, currentMonth, curr
         <div className="pane stat-bar">
           <div className="stat-bar-row">
             <div className="eyebrow">Cash balance</div>
-            <div className="serif" style={{ fontSize: 26, marginTop: 4 }}>
+            <div className="serif dash-stat-value" style={{ fontSize: 26, marginTop: 4 }}>
               {formatCurrency(currentCash)}
             </div>
-            <div style={{ marginTop: 2, fontSize: 10, color: 'var(--ink-faint)' }}>Available liquid cash</div>
+
           </div>
           <div className="hr" />
           <div className="stat-bar-row">
             <div className="eyebrow">Fixed Deposits</div>
-            <div style={{ fontSize: 16, marginTop: 4, color: 'var(--ink)', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
+            <div className="dash-stat-small" style={{ fontSize: 16, marginTop: 4, color: 'var(--ink)', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
               {formatCurrency(currentFD)}
             </div>
-            <div style={{ marginTop: 2, fontSize: 11, color: 'var(--ink-faint)' }}>Locked investments</div>
           </div>
           <div className="hr" />
           <div className="stat-bar-row">
             <div className="eyebrow">Investments</div>
-            <div style={{ fontSize: 16, marginTop: 4, color: 'var(--ink)', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
+            <div className="dash-stat-small" style={{ fontSize: 16, marginTop: 4, color: 'var(--ink)', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
               {formatCurrency(portfolioTotal)}
             </div>
-            <div style={{ marginTop: 2, fontSize: 11, color: 'var(--ink-faint)' }}>SIPs · Stocks</div>
           </div>
           <div className="hr" />
           <div className="stat-bar-row">
             <div className="eyebrow">Future savings</div>
-            <div style={{ fontSize: 16, marginTop: 4, color: 'var(--ink)', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
+            <div className="dash-stat-small" style={{ fontSize: 16, marginTop: 4, color: 'var(--ink)', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
               {formatCurrency(currentNPS_PF)}
             </div>
-            <div style={{ marginTop: 2, fontSize: 11, color: 'var(--ink-faint)' }}>NPS · PF</div>
           </div>
           <div className="hr" />
           <div className="stat-bar-row">
             <div className="eyebrow">Salary & Edit</div>
-            <div style={{ fontSize: 16, marginTop: 4, color: 'var(--ink)', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
+            <div className="dash-stat-small" style={{ fontSize: 16, marginTop: 4, color: 'var(--ink)', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
               {formatCurrency(salary)}
             </div>
             <button
@@ -460,6 +456,7 @@ function Dashboard({ expenses, subscriptions, monthlySummary, currentMonth, curr
               Edit financials →
             </button>
           </div>
+
         </div>
       </div>
 
@@ -488,7 +485,10 @@ function Dashboard({ expenses, subscriptions, monthlySummary, currentMonth, curr
             ✏️ Edit budgets
           </button>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 14 }}>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 lg:gap-4">
+
+
+
           {categoryDefinitions.map((category) => {
             const spent = categoryTotals[category.key] || 0;
             const pct = category.budget > 0 ? Math.min(100, (spent / category.budget) * 100) : 0;
@@ -512,9 +512,10 @@ function Dashboard({ expenses, subscriptions, monthlySummary, currentMonth, curr
                       </span>
                     )}
                   </div>
-                  <div className="serif text-2xl mt-2 font-bold tabular-nums text-[var(--ink)] group-hover:text-[var(--accent)] transition-colors">
+                  <div className="serif mt-2 font-bold tabular-nums text-[var(--ink)] group-hover:text-[var(--accent)] transition-colors dash-cat-amount">
                     {spent >= 100000 ? `${(spent / 100000).toFixed(2)}L` : `₹${Math.round(spent / 1000)}K`}
                   </div>
+
                   <div className="text-[11px] text-[var(--ink-faint)] mt-1">
                     of {category.budget >= 100000 ? `${(category.budget / 100000).toFixed(1)}L` : `₹${Math.round(category.budget / 1000)}K`}
                   </div>
@@ -536,7 +537,10 @@ function Dashboard({ expenses, subscriptions, monthlySummary, currentMonth, curr
       </div>
 
       <div className="pane" style={{ padding: '14px 20px', marginBottom: 24 }}>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 12 }}>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 lg:gap-4">
+
+
+
           {[
             { label: 'FD', value: monthlySummary?.savings_fd, dot: '#3b82f6' },
             { label: 'SIP', value: monthlySummary?.savings_sip, dot: '#8b5cf6' },
@@ -637,7 +641,10 @@ function SavingsRatePanel({
       </div>
 
       {/* Key stats */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginBottom: 16 }}>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
+
+
+
         {[
           { label: 'This Month', main: `${curRate.toFixed(1)}%`, sub: formatCurrency(curData?.savings || 0) },
           { label: 'Saved YTD',  main: formatCurrency(ytdSavings), sub: `${pastMonths.length} months` },
@@ -762,7 +769,10 @@ function NetWorthGrowthChart({
       </div>
 
       {/* Stats row */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginBottom: 14 }}>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
+
+
+
         <div>
           <div style={{ fontSize: 10, color: 'var(--ink-faint)', marginBottom: 2 }}>Current Net Worth</div>
           <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--ink)', fontVariantNumeric: 'tabular-nums' }}>

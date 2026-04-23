@@ -76,12 +76,12 @@ export async function GET(_req: NextRequest, { params }: RouteParams) {
   };
 
   // Persist the auto-carry-forward record in the background (don't block response)
-  after(() =>
-    supabase
+  after(async () => {
+    await supabase
       .from("monthly_summary")
-      .insert({ ...carryForward, user_id: user.id })
-      .then(() => {})
-  );
+      .insert({ ...carryForward, user_id: user.id });
+  });
+
 
   return Response.json(carryForward, {
     headers: { "Cache-Control": "private, max-age=30, stale-while-revalidate=60" },

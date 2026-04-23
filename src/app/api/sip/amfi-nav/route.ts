@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireAuth } from "@/lib/auth-guard";
 
 const AMFI_URL = "https://portal.amfiindia.com/spages/NAVAll.txt";
 
@@ -14,6 +15,9 @@ function convertAmfiDate(d: string) {
 
 // POST /api/sip/amfi-nav
 export async function POST(request: NextRequest) {
+  const { error: authError } = await requireAuth();
+  if (authError) return authError;
+
   try {
     const { schemeCodes } = await request.json();
     if (!Array.isArray(schemeCodes) || schemeCodes.length === 0) {

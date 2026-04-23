@@ -28,6 +28,10 @@ import MonthlyReport from './MonthlyReport';
 import YearEndProjection from './YearEndProjection';
 import SIPTracker from './SIPTracker';
 import StockTracker from './StockTracker';
+import LogoutConfirmModal from './LogoutConfirmModal';
+import MobileNav from './MobileNav';
+
+
 
 type Expense = {
   id: number;
@@ -171,6 +175,8 @@ function AppShell() {
   const [showLoanForm, setShowLoanForm] = useState(false);
   const [editingLoan, setEditingLoan] = useState<Loan | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
+
 
   const loadCoreData = async () => {
     setLoading(true);
@@ -405,13 +411,9 @@ function AppShell() {
             <button
               className="icon-btn cursor-pointer"
               title="Logout"
-              onClick={async () => {
-                if (confirm('Are you sure you want to logout?')) {
-                  await fetch('/api/auth/logout', { method: 'POST' });
-                  window.location.href = '/login';
-                }
-              }}
+              onClick={() => setShowLogoutModal(true)}
             >
+
               <LogOut size={16} />
             </button>
 
@@ -581,7 +583,26 @@ function AppShell() {
           }}
         />
       )}
+      {showLogoutModal && (
+        <LogoutConfirmModal
+          onConfirm={async () => {
+            await fetch('/api/auth/logout', { method: 'POST' });
+            window.location.href = '/login';
+          }}
+          onCancel={() => setShowLogoutModal(false)}
+        />
+      )}
+
+      <MobileNav 
+        currentView={currentView}
+        onViewChange={(v) => setCurrentView(v)}
+        onQuickAdd={() => { setEditingExpense(null); setShowExpenseForm(true); }}
+      />
     </>
+
+
+
+
   );
 }
 

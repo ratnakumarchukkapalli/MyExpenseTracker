@@ -13,16 +13,16 @@ export async function GET() {
   const cutoffStr = cutoff.toISOString().split("T")[0];
 
   // Run deactivation in background — don't block the read
-  after(() =>
-    supabase
+  after(async () => {
+    await supabase
       .from("loans")
       .update({ status: "inactive" })
       .eq("user_id", user.id)
       .eq("status", "active")
       .lt("end_date", cutoffStr)
-      .not("end_date", "is", null)
-      .then(() => {})
-  );
+      .not("end_date", "is", null);
+  });
+
 
   const { data, error: dbError } = await supabase
     .from("loans")

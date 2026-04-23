@@ -2,9 +2,28 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "MET Webapp",
-  description: "MyExpenseTracker web frontend on Next.js and Supabase",
+  title: "MET — MyExpenseTracker",
+  description: "Premium expense tracking with glassmorphism aesthetics.",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "MET",
+  },
+  formatDetection: {
+    telephone: false,
+  },
 };
+
+export const viewport = {
+  themeColor: "#F6F4EE",
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  viewportFit: "cover",
+};
+
 
 export default function RootLayout({
   children,
