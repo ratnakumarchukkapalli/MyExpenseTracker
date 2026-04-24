@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Calendar,
   ChevronLeft,
@@ -176,7 +176,7 @@ function AppShell() {
   const [editingLoan, setEditingLoan] = useState<Loan | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
-
+  const monthScrollRef = useRef<HTMLDivElement>(null);
 
   const loadCoreData = async () => {
     if (!monthlySummary) setLoading(true);
@@ -231,6 +231,13 @@ function AppShell() {
   const displayMonth = mounted ? currentMonth : now.getMonth() + 1;
   const displayYear = mounted ? currentYear : now.getFullYear();
   const displayView = mounted ? currentView : 'dashboard';
+
+  // Auto-scroll active month chip into view on mobile
+  useEffect(() => {
+    if (!monthScrollRef.current) return;
+    const active = monthScrollRef.current.querySelector('.mobile-month-chip.active') as HTMLElement | null;
+    active?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+  }, [displayMonth]);
 
   const periodLabel = `${MONTHS_SHORT[displayMonth - 1]} ${displayYear}`;
   const currentLabel = NAV_SECTIONS.flatMap((section) => section.items).find((item) => item.id === displayView)?.label || 'Dashboard';
@@ -452,6 +459,30 @@ function AppShell() {
               Quick add
             </button>
           </header>
+
+          {/* Mobile-only month navigation — scrubber is hidden on mobile */}
+          <div className="mobile-month-bar">
+            <div className="mobile-year-row">
+              <button className="mobile-year-btn" onClick={() => setCurrentYear((v) => v - 1)}>
+                <ChevronLeft size={16} />
+              </button>
+              <span className="mobile-year-label">{displayYear}</span>
+              <button className="mobile-year-btn" onClick={() => setCurrentYear((v) => v + 1)}>
+                <ChevronRight size={16} />
+              </button>
+            </div>
+            <div className="mobile-month-scroll" ref={monthScrollRef}>
+              {MONTHS_SHORT.map((m, i) => (
+                <button
+                  key={i}
+                  className={`mobile-month-chip${i + 1 === displayMonth ? ' active' : ''}`}
+                  onClick={() => setCurrentMonth(i + 1)}
+                >
+                  {m}
+                </button>
+              ))}
+            </div>
+          </div>
 
           <main className="content fade-in">
             {errorMessage ? (
