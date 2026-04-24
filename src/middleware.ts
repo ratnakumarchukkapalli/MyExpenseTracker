@@ -1,7 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-export async function proxy(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
 
   const supabase = createServerClient(
@@ -25,6 +25,7 @@ export async function proxy(request: NextRequest) {
     }
   );
 
+  // Validates JWT + refreshes session cookie — prevents stale sessions
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -36,7 +37,7 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(new URL("/", request.url));
   }
 
-  // Unauthenticated user visiting protected route → redirect to login
+  // Unauthenticated user visiting any non-public path → redirect to login
   const isPublicPath = pathname === "/login" || pathname.startsWith("/auth/");
   if (!user && !isPublicPath) {
     return NextResponse.redirect(new URL("/login", request.url));
