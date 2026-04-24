@@ -55,7 +55,7 @@ const netWorth = monthlySummary.remaining_amount
 
 **Monthly summary edit modal:** Opens `MonthlySummaryModal` for salary, savings, interest edits. POSTs to `/api/monthly-summary/[month]/[year]`.
 
-### SIPTracker.tsx (~900 lines)
+### SIPTracker.tsx (~1100 lines)
 **Purpose:** Mutual fund portfolio — add/edit funds, view NAV, transactions  
 **Data sources:**
 - `GET /api/sip/funds`
@@ -64,6 +64,8 @@ const netWorth = monthlySummary.remaining_amount
 - ML analysis via `/api/sip/...` endpoints
 
 **Key behaviour:** On mount, fetches live NAV from AMFI if any fund's `last_nav_update` is not today. Updates `sip_funds.current_nav` and syncs to `monthly_summary.savings_sip` for the CURRENT month only.
+
+**Add Fund**: `AddFundModal` component (inline in SIPTracker.tsx) — manually add a fund without Excel import. Fields: `fund_name`, `fund_type` (active/historical), `sip_amount`, `units`, `invested_value`, `current_nav?`, `scheme_code?`, `folio_number?`. POSTs to `POST /api/sip/funds`.
 
 ### StockTracker.tsx (~700 lines)
 **Purpose:** Direct equity holdings — add/edit stocks, view live prices  
@@ -79,7 +81,13 @@ const netWorth = monthlySummary.remaining_amount
 **Mutations:** POST/PUT/DELETE `/api/expenses`
 
 ### AppShell.tsx
-Navigation sidebar, month/year state management, passes `currentMonth`/`currentYear` down to all views via context or props.
+Navigation sidebar + mobile layout shell. Key state: `currentMonth`, `currentYear`, `currentView`, `userInfo` (from bootstrap).
+
+**Mobile month navigation**: `mobile-month-bar` div (sticky below topbar) — scrollable month chips + `< Year >` arrows. Auto-scrolls active chip into view via `monthScrollRef`. Hidden on desktop via `@media (min-width: 769px)`.
+
+**User avatar**: 32px gradient circle in topbar showing initials. Click opens `user-menu` dropdown with email and sign-out. `userInfo` populated from `GET /api/bootstrap` response (no extra fetch). Click-outside closes via `userMenuRef`.
+
+**Mobile topbar**: Quick Add button hidden (FAB replaces it). Title truncated at 160px. Padding tightened.
 
 ### Other Components
 | Component | Purpose |
@@ -91,7 +99,7 @@ Navigation sidebar, month/year state management, passes `currentMonth`/`currentY
 | `LoanForm.tsx` | Add/edit loan modal |
 | `Subscriptions.tsx` | Recurring payment list |
 | `SubscriptionForm.tsx` | Add/edit subscription modal |
-| `Insurance.tsx` | Insurance policy list |
+| `Insurance.tsx` | Insurance policy list — two tabs: "My Policies" (owner≠'dad') and "Family" (owner='dad' in DB) |
 | `MonthlyReport.tsx` | AI-generated spending report |
 | `YearEndProjection.tsx` | Year-end cash forecast (ML) |
 | `AIChat.tsx` | AI chat interface |
