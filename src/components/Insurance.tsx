@@ -58,7 +58,7 @@ const EMPTY_FORM = {
   name: '', type: 'Life', insurer: '', policy_number: '',
   sum_insured: '', premium_amount: '', premium_mode: 'yearly',
   start_date: '', end_date: '', next_due_date: '',
-  nominee: '', vehicle_reg: '', notes: '', status: 'active',
+  nominee: '', vehicle_reg: '', notes: '', status: 'active', owner: 'self',
 };
 
 // ── PolicyCard ─────────────────────────────────────────────────────────────
@@ -175,7 +175,7 @@ function PolicyCard({ policy, onEdit, onDelete, onMarkPaid }: any) {
 
 // ── PolicyForm ─────────────────────────────────────────────────────────────
 
-function PolicyForm({ policy, onSubmit, onCancel }: any) {
+function PolicyForm({ policy, onSubmit, onCancel, defaultOwner }: any) {
   const [form, setForm] = useState(policy ? {
     name: policy.name || '', type: policy.type || 'Life', insurer: policy.insurer || '',
     policy_number: policy.policy_number || '', sum_insured: policy.sum_insured || '',
@@ -183,8 +183,8 @@ function PolicyForm({ policy, onSubmit, onCancel }: any) {
     start_date: policy.start_date || '', end_date: policy.end_date || '',
     next_due_date: policy.next_due_date || '', nominee: policy.nominee || '',
     vehicle_reg: policy.vehicle_reg || '', notes: policy.notes || '',
-    status: policy.status || 'active',
-  } : { ...EMPTY_FORM });
+    status: policy.status || 'active', owner: policy.owner || 'self',
+  } : { ...EMPTY_FORM, owner: defaultOwner || 'self' });
 
   const set = (field: string, value: string) => setForm((f: any) => ({ ...f, [field]: value }));
 
@@ -222,9 +222,18 @@ function PolicyForm({ policy, onSubmit, onCancel }: any) {
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-4 overflow-y-auto">
-          <div>
-            <label className={labelClass}>Policy Name *</label>
-            <input className={inputClass} value={form.name} onChange={e => set('name', e.target.value)} placeholder="e.g. LIC Bima Shree" required />
+          <div className="grid grid-cols-3 gap-4">
+            <div className="col-span-2">
+              <label className={labelClass}>Policy Name *</label>
+              <input className={inputClass} value={form.name} onChange={e => set('name', e.target.value)} placeholder="e.g. LIC Bima Shree" required />
+            </div>
+            <div>
+              <label className={labelClass}>Belongs To</label>
+              <select className={inputClass + ' cursor-pointer'} value={form.owner} onChange={e => set('owner', e.target.value)}>
+                <option value="self">My Policy</option>
+                <option value="dad">Family</option>
+              </select>
+            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
@@ -381,6 +390,7 @@ const Insurance = () => {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingPolicy, setEditingPolicy] = useState<any>(null);
+  const [activeTab, setActiveTab] = useState<'self' | 'family'>('self');
 
   useEffect(() => { loadPolicies(); }, []);
 
@@ -438,11 +448,13 @@ const Insurance = () => {
     }
   };
 
-  const activePolicies = policies.filter(p => p.status === 'active' && p.owner !== 'dad');
+  const myPolicies     = policies.filter(p => p.status === 'active' && p.owner !== 'dad');
+  const familyPolicies = policies.filter(p => p.status === 'active' && p.owner === 'dad');
+  const tabPolicies    = activeTab === 'family' ? familyPolicies : myPolicies;
 
-  const totalAnnualPremium = activePolicies.reduce((sum, p) => sum + annualPremium(p), 0);
-  const totalSumInsured    = activePolicies.reduce((sum, p) => sum + (p.sum_insured || 0), 0);
-  const nomineeWarnings    = activePolicies.filter(hasNomineeIssue);
+  const totalAnnualPremium = tabPolicies.reduce((sum, p) => sum + annualPremium(p), 0);
+  const totalSumInsured    = tabPolicies.reduce((sum, p) => sum + (p.sum_insured || 0), 0);
+  const nomineeWarnings    = tabPolicies.filter(hasNomineeIssue);
 
   if (loading) {
     return (
@@ -474,7 +486,7 @@ const Insurance = () => {
             </div>
             <div>
               <h1 className="text-xl font-bold text-gray-800">Insurance Policies</h1>
-              <p className="text-xs text-gray-400">{activePolicies.length} active policies</p>
+              <p className="text-xs text-gray-400">{myPolicies.length} mine · {familyPolicies.length} family</p>
             </div>
           </div>
           <button
@@ -483,6 +495,21 @@ const Insurance = () => {
           >
             <Plus className="h-4 w-4" />
             Add Policy
+          </button>
+        </div>
+
+        <div className="flex gap-1 mb-5 bg-gray-100 rounded-xl p-1">
+          <button
+            onClick={() => setActiveTab('self')}
+            className={`flex-1 py-2 text-sm font-medium rounded-lg transition-all ${activeTab === 'self' ? 'bg-white text-primary-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+          >
+            My Policies ({myPolicies.length})
+          </button>
+          <button
+            onClick={() => setActiveTab('family')}
+            className={`flex-1 py-2 text-sm font-medium rounded-lg transition-all ${activeTab === 'family' ? 'bg-white text-primary-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+          >
+            Family ({familyPolicies.length})
           </button>
         </div>
 
@@ -497,13 +524,13 @@ const Insurance = () => {
           </div>
           <div className="bg-gray-50 rounded-xl p-4">
             <p className="text-xs text-gray-400 mb-1">Active Policies</p>
-            <p className="text-xl font-bold text-gray-800">{activePolicies.length}</p>
+            <p className="text-xl font-bold text-gray-800">{tabPolicies.length}</p>
           </div>
         </div>
       </div>
 
       <PoliciesView
-        policies={activePolicies}
+        policies={tabPolicies}
         onEdit={(p: any) => { setEditingPolicy(p); setShowForm(true); }}
         onDelete={handleDelete}
         onMarkPaid={handleMarkPaid}
@@ -514,6 +541,7 @@ const Insurance = () => {
           policy={editingPolicy}
           onSubmit={editingPolicy ? handleUpdate : handleAdd}
           onCancel={() => { setShowForm(false); setEditingPolicy(null); }}
+          defaultOwner={activeTab === 'family' ? 'dad' : 'self'}
         />
       )}
     </div>

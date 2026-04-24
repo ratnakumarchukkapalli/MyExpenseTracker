@@ -34,6 +34,13 @@ ON sip_funds FOR ALL
 USING (auth.uid() = user_id);
 
 -- 7. Create "Owner Only" Policies for Stock Holdings
-CREATE POLICY "Users can only access their own stocks" 
-ON stock_holdings FOR ALL 
+CREATE POLICY "Users can only access their own stocks"
+ON stock_holdings FOR ALL
+USING (auth.uid() = user_id);
+
+-- 8. Enable RLS and create "Owner Only" Policies for Insurance Policies
+ALTER TABLE insurance_policies ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can only access their own insurance policies"
+ON insurance_policies FOR ALL
 USING (auth.uid() = user_id);

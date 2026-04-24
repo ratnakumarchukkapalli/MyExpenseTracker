@@ -1022,6 +1022,114 @@ const GoalTracker = ({ totalCurrent, monthlyRSIP }: GoalTrackerProps) => {
 
 // ── MAIN COMPONENT ────────────────────────────────────────────────────────
 
+// ── AddFundModal ───────────────────────────────────────────────────────────
+
+const EMPTY_FUND_FORM = {
+  fund_name: '', fund_type: 'active', scheme_code: '',
+  folio_number: '', units: '', invested_value: '', current_nav: '', sip_amount: '',
+};
+
+function AddFundModal({ onSubmit, onCancel }: { onSubmit: (data: object) => Promise<void>; onCancel: () => void }) {
+  const [form, setForm] = useState(EMPTY_FUND_FORM);
+  const [saving, setSaving] = useState(false);
+  const set = (k: string, v: string) => setForm(f => ({ ...f, [k]: v }));
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!form.fund_name.trim()) { alert('Fund name is required'); return; }
+    setSaving(true);
+    await onSubmit({
+      fund_name: form.fund_name.trim(),
+      fund_type: form.fund_type,
+      scheme_code: form.scheme_code.trim() || null,
+      folio_number: form.folio_number.trim() || null,
+      units: parseFloat(form.units) || 0,
+      invested_value: parseFloat(form.invested_value) || 0,
+      current_nav: form.current_nav ? parseFloat(form.current_nav) : null,
+      sip_amount: form.sip_amount ? parseFloat(form.sip_amount) : null,
+    });
+    setSaving(false);
+  };
+
+  const inp = 'w-full px-3 py-2.5 bg-gray-50 dark:bg-surface-800 border border-gray-200 dark:border-surface-600 rounded-xl text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-500 transition-all';
+  const lbl = 'block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1.5';
+
+  return (
+    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-gray-900/40 backdrop-blur-md" onClick={onCancel} />
+      <div className="relative z-10 w-full max-w-lg bg-white dark:bg-surface-900 rounded-[24px] shadow-xl border border-gray-100 dark:border-surface-700 overflow-hidden flex flex-col max-h-[90vh]">
+        <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100 dark:border-surface-700">
+          <div>
+            <div className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.12em] mb-1">SIP Tracker</div>
+            <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">Add SIP Fund</h2>
+          </div>
+          <button onClick={onCancel} className="w-9 h-9 flex items-center justify-center rounded-full bg-gray-100 dark:bg-surface-700 text-gray-500 hover:bg-gray-200 dark:hover:bg-surface-600 transition-all">
+            <X size={18} />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="p-6 space-y-4 overflow-y-auto">
+          <div>
+            <label className={lbl}>Fund Name *</label>
+            <input className={inp} value={form.fund_name} onChange={e => set('fund_name', e.target.value)} placeholder="e.g. Parag Parikh Flexi Cap Fund" required />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className={lbl}>Status</label>
+              <select className={inp + ' cursor-pointer'} value={form.fund_type} onChange={e => set('fund_type', e.target.value)}>
+                <option value="active">Active SIP</option>
+                <option value="historical">Historical</option>
+              </select>
+            </div>
+            <div>
+              <label className={lbl}>Monthly SIP (₹)</label>
+              <input className={inp} type="number" min="0" step="0.01" value={form.sip_amount} onChange={e => set('sip_amount', e.target.value)} placeholder="0" />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className={lbl}>Units Held</label>
+              <input className={inp} type="number" min="0" step="0.0001" value={form.units} onChange={e => set('units', e.target.value)} placeholder="0.0000" />
+            </div>
+            <div>
+              <label className={lbl}>Invested Value (₹)</label>
+              <input className={inp} type="number" min="0" step="0.01" value={form.invested_value} onChange={e => set('invested_value', e.target.value)} placeholder="0" />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className={lbl}>Current NAV (₹)</label>
+              <input className={inp} type="number" min="0" step="0.0001" value={form.current_nav} onChange={e => set('current_nav', e.target.value)} placeholder="optional" />
+            </div>
+            <div>
+              <label className={lbl}>AMFI Scheme Code</label>
+              <input className={inp} value={form.scheme_code} onChange={e => set('scheme_code', e.target.value)} placeholder="e.g. 122639 (for NAV sync)" />
+            </div>
+          </div>
+
+          <div>
+            <label className={lbl}>Folio Number</label>
+            <input className={inp} value={form.folio_number} onChange={e => set('folio_number', e.target.value)} placeholder="optional" />
+          </div>
+
+          <div className="flex gap-3 pt-2">
+            <button type="button" onClick={onCancel} className="flex-1 py-3 rounded-2xl border border-gray-200 dark:border-surface-600 text-gray-600 dark:text-gray-400 font-bold text-sm hover:bg-gray-50 dark:hover:bg-surface-800 transition-all">
+              Cancel
+            </button>
+            <button type="submit" disabled={saving} className="flex-1 py-3 rounded-2xl bg-primary-600 hover:bg-primary-700 text-white font-bold text-sm transition-all flex items-center justify-center gap-2 disabled:opacity-60">
+              <Plus size={16} />
+              {saving ? 'Adding…' : 'Add Fund'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 interface SIPTrackerProps {
   currentMonth?: number;
   currentYear?: number;
@@ -1036,6 +1144,7 @@ const SIPTracker = ({ currentMonth: _currentMonth, currentYear: _currentYear, on
   const [showHoldingsModal, setShowHoldingsModal] = useState(false);
   const [holdingsPreview, setHoldingsPreview] = useState<HoldingsImportFund[] | null>(null);
   const [showLogSIP, setShowLogSIP] = useState(false);
+  const [showAddFund, setShowAddFund] = useState(false);
   const [importing, setImporting] = useState(false);
   const [autoRefreshing, setAutoRefreshing] = useState(false);
 
@@ -1208,6 +1317,22 @@ const SIPTracker = ({ currentMonth: _currentMonth, currentYear: _currentYear, on
     await loadFunds();
   };
 
+  const handleAddFund = async (data: object) => {
+    const res = await fetch('/api/sip/funds', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      alert('Failed to add fund: ' + (err.error ?? res.statusText));
+      return;
+    }
+    setShowAddFund(false);
+    await loadFunds();
+    onPortfolioUpdate?.();
+  };
+
   const activeFunds = funds.filter(f => f.fund_type === 'active');
   const histFunds = funds.filter(f => f.fund_type === 'historical');
   const totalInvested = funds.reduce((s, f) => s + (f.invested_value ?? 0), 0);
@@ -1305,6 +1430,13 @@ const SIPTracker = ({ currentMonth: _currentMonth, currentYear: _currentYear, on
       {/* Action Bar */}
       <div className="flex flex-wrap items-center gap-3">
         <button
+          onClick={() => setShowAddFund(true)}
+          className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-primary-600 hover:bg-primary-700 rounded-xl shadow-sm transition-all cursor-pointer"
+        >
+          <Plus className="h-4 w-4" />
+          Add Fund
+        </button>
+        <button
           onClick={handleImportHoldings}
           disabled={importing}
           className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium bg-white dark:bg-surface-900 border border-gray-200 dark:border-surface-700 text-gray-700 dark:text-gray-300 rounded-xl hover:bg-gray-50 dark:hover:bg-surface-800 transition-all cursor-pointer"
@@ -1323,7 +1455,7 @@ const SIPTracker = ({ currentMonth: _currentMonth, currentYear: _currentYear, on
         {activeFunds.length > 0 && (
           <button
             onClick={() => setShowLogSIP(true)}
-            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-primary-600 hover:bg-primary-700 rounded-xl shadow-sm transition-all cursor-pointer"
+            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium bg-white dark:bg-surface-900 border border-gray-200 dark:border-surface-700 text-gray-700 dark:text-gray-300 rounded-xl hover:bg-gray-50 dark:hover:bg-surface-800 transition-all cursor-pointer"
           >
             <Plus className="h-4 w-4" />
             Log Monthly SIP
@@ -1426,6 +1558,12 @@ const SIPTracker = ({ currentMonth: _currentMonth, currentYear: _currentYear, on
           funds={funds}
           onLog={handleLogSIP}
           onCancel={() => setShowLogSIP(false)}
+        />
+      )}
+      {showAddFund && (
+        <AddFundModal
+          onSubmit={handleAddFund}
+          onCancel={() => setShowAddFund(false)}
         />
       )}
     </div>

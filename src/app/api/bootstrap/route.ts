@@ -47,6 +47,10 @@ export async function GET(request: NextRequest) {
     expenses: expensesRes.data ?? [],
     subscriptions: subscriptions,
     summary: summaryRes.data ?? null,
+    user: {
+      email: user.email ?? null,
+      name: (user.user_metadata?.full_name as string | undefined) ?? null,
+    },
   }, {
     headers: { "Cache-Control": "no-store, max-age=0" }
   });

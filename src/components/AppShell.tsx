@@ -176,7 +176,10 @@ function AppShell() {
   const [editingLoan, setEditingLoan] = useState<Loan | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [userInfo, setUserInfo] = useState<{ email: string | null; name: string | null } | null>(null);
+  const [showUserMenu, setShowUserMenu] = useState(false);
   const monthScrollRef = useRef<HTMLDivElement>(null);
+  const userMenuRef = useRef<HTMLDivElement>(null);
 
   const loadCoreData = async () => {
     if (!monthlySummary) setLoading(true);
@@ -193,6 +196,7 @@ function AppShell() {
       setExpenses(data.expenses ?? []);
       setSubscriptions(data.subscriptions ?? []);
       setMonthlySummary(data.summary ?? null);
+      if (data.user && !userInfo) setUserInfo(data.user);
     } catch (error) {
       console.error(error);
       setErrorMessage(error instanceof Error ? error.message : 'Failed to load data');
@@ -232,6 +236,18 @@ function AppShell() {
   const displayYear = mounted ? currentYear : now.getFullYear();
   const displayView = mounted ? currentView : 'dashboard';
 
+  // Close user menu on outside click
+  useEffect(() => {
+    if (!showUserMenu) return;
+    const handler = (e: MouseEvent) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) {
+        setShowUserMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [showUserMenu]);
+
   // Auto-scroll active month chip into view on mobile
   useEffect(() => {
     if (!monthScrollRef.current) return;
@@ -243,6 +259,19 @@ function AppShell() {
   const currentLabel = NAV_SECTIONS.flatMap((section) => section.items).find((item) => item.id === displayView)?.label || 'Dashboard';
 
   const triggerRefresh = () => setRefreshKey((value) => value + 1);
+
+  const userInitials = (() => {
+    if (userInfo?.name) {
+      const parts = userInfo.name.trim().split(' ').filter(Boolean);
+      return parts.length >= 2
+        ? (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
+        : parts[0].slice(0, 2).toUpperCase();
+    }
+    if (userInfo?.email) return userInfo.email[0].toUpperCase();
+    return '?';
+  })();
+
+  const userDisplayName = userInfo?.name || userInfo?.email?.split('@')[0] || 'Account';
 
   const handleExpenseSubmit = async (payload: Omit<Expense, 'id'>) => {
     // Optimistic Update
@@ -445,14 +474,35 @@ function AppShell() {
               {darkMode ? <Sun size={16} /> : <Moon size={16} />}
             </button>
 
-            <button
-              className="icon-btn cursor-pointer"
-              title="Logout"
-              onClick={() => setShowLogoutModal(true)}
-            >
-
-              <LogOut size={16} />
-            </button>
+            {/* User avatar + dropdown */}
+            <div style={{ position: 'relative' }} ref={userMenuRef}>
+              <button
+                className="user-avatar cursor-pointer"
+                title={userInfo?.email ?? 'Account'}
+                onClick={() => setShowUserMenu((v) => !v)}
+              >
+                {userInitials}
+              </button>
+              {showUserMenu && (
+                <div className="user-menu">
+                  <div className="user-menu-header">
+                    <div className="user-menu-avatar">{userInitials}</div>
+                    <div>
+                      <div className="user-menu-name">{userDisplayName}</div>
+                      {userInfo?.email && <div className="user-menu-email">{userInfo.email}</div>}
+                    </div>
+                  </div>
+                  <div className="user-menu-divider" />
+                  <button
+                    className="user-menu-item cursor-pointer"
+                    onClick={() => { setShowUserMenu(false); setShowLogoutModal(true); }}
+                  >
+                    <LogOut size={14} />
+                    Sign out
+                  </button>
+                </div>
+              )}
+            </div>
 
             <button className="btn btn-accent cursor-pointer" onClick={() => { setEditingExpense(null); setShowExpenseForm(true); }}>
               <Plus size={14} />
