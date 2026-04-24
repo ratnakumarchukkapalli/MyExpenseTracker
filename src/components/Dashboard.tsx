@@ -494,7 +494,7 @@ function Dashboard({ expenses, subscriptions, monthlySummary, currentMonth, curr
             </div>
             <button
               onClick={() => setShowEditFinancials(true)}
-              className="cursor-pointer"
+              className="cursor-pointer edit-financials-btn"
               style={{ marginTop: 6, fontSize: 11, color: 'var(--accent)', background: 'none', border: 'none', padding: 0, textAlign: 'left' }}
             >
               Edit financials →

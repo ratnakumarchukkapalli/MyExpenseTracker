@@ -706,6 +706,22 @@ html, body { background: var(--bg); }
 
   .scrubber { display: none !important; }
 
+  /* Dashboard grid — stack rings + stat-bar vertically */
+  .grid-rings-row { grid-template-columns: 1fr !important; }
+  .rings-flex { flex-direction: column; align-items: stretch; gap: 20px; }
+  .rings-flex svg { align-self: center; }
+
+  /* Edit financials button — larger tap target on mobile */
+  .edit-financials-btn {
+    font-size: 13px !important;
+    padding: 8px 14px !important;
+    background: var(--accent-bg) !important;
+    border-radius: 8px !important;
+    font-weight: 600 !important;
+    display: inline-block !important;
+    margin-top: 8px !important;
+  }
+
   /* Topbar mobile tweaks */
   .topbar { padding: 0 16px !important; gap: 8px !important; }
   .topbar-title { font-size: 20px !important; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 160px; }
