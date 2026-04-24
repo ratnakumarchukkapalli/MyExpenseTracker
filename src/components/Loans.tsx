@@ -82,7 +82,61 @@ function Loans({ onShowForm, onEdit, refreshKey, currentMonth, currentYear }: Pr
   };
 
   if (loading) {
-    return <div className="p-8 text-center text-gray-500">Loading...</div>;
+    return (
+      <div className="space-y-6 animate-pulse">
+        {/* Header Skeleton */}
+        <div className="flex items-center justify-between">
+          <div className="space-y-2">
+            <div className="h-8 w-48 bg-gray-200 dark:bg-surface-800 rounded-lg" />
+            <div className="h-4 w-64 bg-gray-100 dark:bg-surface-800 rounded-lg" />
+          </div>
+          <div className="h-10 w-32 bg-gray-100 dark:bg-surface-800 rounded-xl" />
+        </div>
+
+        {/* Summary Cards Skeleton */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="bg-white dark:bg-surface-900 border border-gray-100 dark:border-surface-800 rounded-2xl p-5 shadow-sm space-y-3">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 bg-gray-100 dark:bg-surface-800 rounded-lg" />
+                <div className="h-4 w-20 bg-gray-100 dark:bg-surface-800 rounded" />
+              </div>
+              <div className="h-8 w-32 bg-gray-200 dark:bg-surface-800 rounded-lg" />
+            </div>
+          ))}
+        </div>
+
+        {/* Table Skeleton */}
+        <div className="bg-white dark:bg-surface-900 border border-gray-100 dark:border-surface-800 rounded-2xl overflow-hidden">
+          <div className="px-4 py-3 border-b border-gray-100 dark:border-surface-800 bg-gray-50/50 dark:bg-surface-800/30">
+            <div className="grid grid-cols-7 gap-4">
+              {[1, 2, 3, 4, 5, 6, 7].map(i => (
+                <div key={i} className="h-3 bg-gray-200 dark:bg-surface-800 rounded w-16" />
+              ))}
+            </div>
+          </div>
+          <div className="p-4 space-y-4">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="grid grid-cols-7 gap-4 items-center">
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 bg-gray-100 dark:bg-surface-800 rounded-xl" />
+                  <div className="space-y-1">
+                    <div className="h-4 w-24 bg-gray-200 dark:bg-surface-800 rounded" />
+                    <div className="h-3 w-16 bg-gray-100 dark:bg-surface-800 rounded" />
+                  </div>
+                </div>
+                <div className="h-4 bg-gray-200 dark:bg-surface-800 rounded w-20 justify-self-end" />
+                <div className="h-6 bg-gray-100 dark:bg-surface-800 rounded w-16 justify-self-center" />
+                <div className="h-4 bg-gray-100 dark:bg-surface-800 rounded w-32 justify-self-center" />
+                <div className="h-6 bg-gray-100 dark:bg-surface-800 rounded w-20 justify-self-center" />
+                <div className="h-5 bg-gray-100 dark:bg-surface-800 rounded w-16 justify-self-center" />
+                <div className="h-8 w-8 bg-gray-100 dark:bg-surface-800 rounded-lg justify-self-end" />
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (

@@ -458,8 +458,67 @@ const Insurance = () => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-gray-400 text-sm animate-pulse">Loading insurance policies…</div>
+      <div className="space-y-6 animate-pulse">
+        {/* Header Skeleton */}
+        <div className="bg-white rounded-2xl border border-gray-100 p-6">
+          <div className="flex items-center justify-between mb-5">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-gray-100 dark:bg-surface-800" />
+              <div className="space-y-2">
+                <div className="h-6 w-48 bg-gray-200 dark:bg-surface-800 rounded-lg" />
+                <div className="h-3 w-32 bg-gray-100 dark:bg-surface-800 rounded-lg" />
+              </div>
+            </div>
+            <div className="h-10 w-32 bg-gray-100 dark:bg-surface-800 rounded-xl" />
+          </div>
+          
+          <div className="h-10 w-full bg-gray-50 dark:bg-surface-800 rounded-xl mb-5" />
+
+          <div className="grid grid-cols-3 gap-4">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="bg-gray-50 dark:bg-surface-800 rounded-xl p-4 space-y-2">
+                <div className="h-3 w-16 bg-gray-100 dark:bg-surface-700 rounded" />
+                <div className="h-6 w-24 bg-gray-200 dark:bg-surface-700 rounded" />
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* List Skeleton */}
+        <div className="space-y-6">
+          {[1, 2].map((group) => (
+            <div key={group} className="space-y-3">
+              <div className="flex items-center gap-2">
+                <div className="h-4 w-4 bg-gray-100 dark:bg-surface-800 rounded" />
+                <div className="h-4 w-32 bg-gray-200 dark:bg-surface-800 rounded" />
+              </div>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                {[1, 2].map((card) => (
+                  <div key={card} className="bg-white dark:bg-surface-900 border border-gray-100 dark:border-surface-800 rounded-2xl p-5 shadow-sm space-y-4">
+                    <div className="flex justify-between">
+                      <div className="flex gap-3">
+                        <div className="w-9 h-9 bg-gray-100 dark:bg-surface-800 rounded-xl" />
+                        <div className="space-y-2">
+                          <div className="h-4 w-32 bg-gray-200 dark:bg-surface-800 rounded" />
+                          <div className="h-3 w-24 bg-gray-100 dark:bg-surface-800 rounded" />
+                        </div>
+                      </div>
+                      <div className="h-6 w-16 bg-gray-100 dark:bg-surface-800 rounded-full" />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      {[1, 2, 3, 4].map((j) => (
+                        <div key={j} className="space-y-1">
+                          <div className="h-3 w-12 bg-gray-100 dark:bg-surface-800 rounded" />
+                          <div className="h-4 w-20 bg-gray-200 dark:bg-surface-800 rounded" />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     );
   }
