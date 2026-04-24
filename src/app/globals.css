@@ -709,7 +709,7 @@ html, body { background: var(--bg); }
   /* Dashboard grid — stack rings + stat-bar vertically */
   .grid-rings-row { grid-template-columns: 1fr !important; }
   .rings-flex { flex-direction: column; align-items: stretch; gap: 20px; }
-  .rings-flex svg { align-self: center; }
+  .rings-flex > div:first-child { align-self: center; }
 
   /* Edit financials button — larger tap target on mobile */
   .edit-financials-btn {
