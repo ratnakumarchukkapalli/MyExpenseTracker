@@ -396,7 +396,7 @@ function Dashboard({ expenses, subscriptions, monthlySummary, currentMonth, curr
         <div className="pane rings-card">
           <div className="rings-title">
             <div className="eyebrow">This month</div>
-            <div className="serif" style={{ fontSize: 22, margin: '4px 0 0' }}>How am I doing?</div>
+            <div className="serif" style={{ fontSize: 22, margin: '4px 0 0', color: 'var(--ink)' }}>How am I doing?</div>
           </div>
           <div className="rings-flex">
             <div style={{ position: 'relative', flexShrink: 0 }}>
@@ -429,7 +429,7 @@ function Dashboard({ expenses, subscriptions, monthlySummary, currentMonth, curr
               </svg>
               <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
                 <div className="serif dash-hero-pct" style={{ fontSize: 34, lineHeight: 1, color: 'var(--ink)' }}>{spentPct}%</div>
-                <div style={{ fontSize: 11, color: 'var(--ink-muted)', marginTop: 3 }}>of salary spent</div>
+                <div style={{ fontSize: 11, color: 'var(--ink-soft)', marginTop: 3 }}>of salary spent</div>
               </div>
 
             </div>
@@ -455,8 +455,8 @@ function Dashboard({ expenses, subscriptions, monthlySummary, currentMonth, curr
 
         <div className="pane stat-bar">
           <div className="stat-bar-row">
-            <div className="eyebrow">Cash balance</div>
-            <div className="serif dash-stat-value" style={{ fontSize: 26, marginTop: 4, color: 'var(--ink)' }}>
+            <div className="eyebrow" style={{ color: 'var(--ink-soft)' }}>Cash balance</div>
+            <div className="serif dash-stat-value" style={{ fontSize: 26, marginTop: 4, color: 'var(--ink) !important' }}>
               {formatCurrency(currentCash)}
             </div>
 
@@ -512,7 +512,7 @@ function Dashboard({ expenses, subscriptions, monthlySummary, currentMonth, curr
       <div style={{ marginBottom: 32 }}>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 16 }}>
           <div className="eyebrow">Envelopes</div>
-          <div className="serif" style={{ fontSize: 22, color: 'var(--ink)' }}>Categories this month</div>
+          <div className="serif" style={{ fontSize: 22, color: 'var(--ink) !important' }}>Categories this month</div>
           <button
             onClick={() => setShowBudgetSettings(true)}
             style={{
@@ -679,8 +679,8 @@ function SavingsRatePanel({
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 14 }}>
         <div>
-          <div className="eyebrow">Savings Rate</div>
-          <div className="serif" style={{ fontSize: 18, marginTop: 2, color: 'var(--ink)' }}>{currentYear} savings ÷ salary</div>
+          <div className="eyebrow" style={{ color: 'var(--ink-soft)' }}>Savings Rate</div>
+          <div className="serif" style={{ fontSize: 18, marginTop: 2, color: 'var(--ink) !important' }}>{currentYear} savings ÷ salary</div>
         </div>
         <div style={{ textAlign: 'right' }}>
           <div style={{ fontSize: 28, fontWeight: 700, color: rateColor, fontVariantNumeric: 'tabular-nums' }}>{ytdRate.toFixed(1)}%</div>

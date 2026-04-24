@@ -146,7 +146,7 @@ button:disabled {
 .eyebrow {
   font-size: 10.5px; font-weight: 600;
   letter-spacing: 0.14em; text-transform: uppercase;
-  color: var(--ink-muted);
+  color: var(--ink-soft);
 }
 
 .pane {
