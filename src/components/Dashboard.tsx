@@ -201,11 +201,15 @@ function Dashboard({ expenses, subscriptions, monthlySummary, currentMonth, curr
       }
     };
 
+    const isCurrentMonth = currentMonth === new Date().getMonth() + 1 && currentYear === new Date().getFullYear();
+
     void loadPrevMonthTotals();
     void loadYearlyNetWorth();
     void loadBudgets();
     void loadLoanMilestones();
-    void loadLiveWealth();
+    if (isCurrentMonth) {
+      void loadLiveWealth();
+    }
   }, [currentMonth, currentYear, monthlySummary]);
 
   const yearlySavings = useMemo(() => {
