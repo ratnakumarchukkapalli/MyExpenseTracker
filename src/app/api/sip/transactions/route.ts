@@ -67,5 +67,15 @@ export async function POST(request: NextRequest) {
       .eq("id", body.fundId);
   }
 
+  // Chain Reaction: Sync wealth snapshot for the month of the transaction
+  const txnDate = new Date(body.date);
+  const m = txnDate.getMonth() + 1;
+  const y = txnDate.getFullYear();
+
+  after(async () => {
+    const { syncMonthlyWealthSnapshot } = await import("@/lib/monthly-totals");
+    await syncMonthlyWealthSnapshot(supabase, user.id, m, y);
+  });
+
   return Response.json({ id: txnResult.data.id }, { status: 201 });
 }

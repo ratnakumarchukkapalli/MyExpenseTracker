@@ -58,9 +58,11 @@ const holdingPeriod = (buyDate?: string | null) => {
 interface AddStockModalProps {
   onClose: () => void;
   onAdd: () => void;
+  currentMonth: number;
+  currentYear: number;
 }
 
-const AddStockModal = ({ onClose, onAdd }: AddStockModalProps) => {
+const AddStockModal = ({ onClose, onAdd, currentMonth, currentYear }: AddStockModalProps) => {
   const [form, setForm] = useState({
     ticker: '',
     company_name: '',
@@ -87,7 +89,7 @@ const AddStockModal = ({ onClose, onAdd }: AddStockModalProps) => {
 
     setSaving(true);
     try {
-      await fetch('/api/stocks', {
+      await fetch(`/api/stocks?month=${currentMonth}&year=${currentYear}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -261,9 +263,11 @@ interface EditStockModalProps {
   holding: StockHolding;
   onClose: () => void;
   onSave: () => void;
+  currentMonth: number;
+  currentYear: number;
 }
 
-const EditStockModal = ({ holding, onClose, onSave }: EditStockModalProps) => {
+const EditStockModal = ({ holding, onClose, onSave, currentMonth, currentYear }: EditStockModalProps) => {
   const [form, setForm] = useState({
     ticker:       holding.ticker || '',
     company_name: holding.company_name || '',
@@ -289,7 +293,7 @@ const EditStockModal = ({ holding, onClose, onSave }: EditStockModalProps) => {
 
     setSaving(true);
     try {
-      await fetch(`/api/stocks/${holding.id}`, {
+      await fetch(`/api/stocks/${holding.id}?month=${currentMonth}&year=${currentYear}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -447,9 +451,11 @@ const EditStockModal = ({ holding, onClose, onSave }: EditStockModalProps) => {
 interface PriceEditorProps {
   holding: StockHolding;
   onPriceUpdate: () => void;
+  currentMonth: number;
+  currentYear: number;
 }
 
-const PriceEditor = ({ holding, onPriceUpdate }: PriceEditorProps) => {
+const PriceEditor = ({ holding, onPriceUpdate, currentMonth, currentYear }: PriceEditorProps) => {
   const [editing, setEditing] = useState(false);
   const [value, setValue] = useState('');
   const [saving, setSaving] = useState(false);
@@ -459,7 +465,7 @@ const PriceEditor = ({ holding, onPriceUpdate }: PriceEditorProps) => {
     if (isNaN(price) || price <= 0) return;
     setSaving(true);
     try {
-      await fetch(`/api/stocks/${holding.id}/price`, {
+      await fetch(`/api/stocks/${holding.id}/price?month=${currentMonth}&year=${currentYear}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ price }),
@@ -526,9 +532,11 @@ interface StockCardProps {
   onDelete: (id: number) => void;
   onEdit: (h: StockHolding) => void;
   onPriceUpdate: () => void;
+  currentMonth: number;
+  currentYear: number;
 }
 
-const StockCard = ({ holding, onDelete, onEdit, onPriceUpdate }: StockCardProps) => {
+const StockCard = ({ holding, onDelete, onEdit, onPriceUpdate, currentMonth, currentYear }: StockCardProps) => {
   const invested = holding.shares * holding.buy_price;
   const currentValue = holding.current_price != null ? holding.shares * holding.current_price : null;
   const gainAmt = currentValue != null ? currentValue - invested : null;
@@ -596,7 +604,12 @@ const StockCard = ({ holding, onDelete, onEdit, onPriceUpdate }: StockCardProps)
             <div className="flex items-center gap-1.5 mt-0.5">
               <span className="text-xs text-gray-500 dark:text-gray-400 num">₹{holding.buy_price.toFixed(2)}</span>
               <span className="text-gray-300 dark:text-gray-600 text-xs">→</span>
-              <PriceEditor holding={holding} onPriceUpdate={onPriceUpdate} />
+              <PriceEditor 
+                holding={holding} 
+                onPriceUpdate={onPriceUpdate} 
+                currentMonth={currentMonth}
+                currentYear={currentYear}
+              />
             </div>
           </div>
         </div>
@@ -705,7 +718,7 @@ const StockTracker = ({ currentMonth: _currentMonth, currentYear: _currentYear, 
   const handleDelete = async (id: number) => {
     if (!window.confirm('Delete this stock holding?')) return;
     try {
-      await fetch(`/api/stocks/${id}`, { method: 'DELETE' });
+      await fetch(`/api/stocks/${id}?month=${currentMonth}&year=${currentYear}`, { method: 'DELETE' });
       loadHoldings();
     } catch (err) {
       console.error('Delete failed:', err);
@@ -996,6 +1009,8 @@ const StockTracker = ({ currentMonth: _currentMonth, currentYear: _currentYear, 
               onDelete={handleDelete}
               onEdit={setEditingHolding}
               onPriceUpdate={() => { loadHoldings(); onPortfolioUpdate?.(); }}
+              currentMonth={currentMonth}
+              currentYear={currentYear}
             />
           ))}
         </div>
@@ -1006,6 +1021,8 @@ const StockTracker = ({ currentMonth: _currentMonth, currentYear: _currentYear, 
         <AddStockModal
           onClose={() => setShowAddModal(false)}
           onAdd={loadHoldings}
+          currentMonth={currentMonth}
+          currentYear={currentYear}
         />
       )}
       {editingHolding && (
@@ -1013,6 +1030,8 @@ const StockTracker = ({ currentMonth: _currentMonth, currentYear: _currentYear, 
           holding={editingHolding}
           onClose={() => setEditingHolding(null)}
           onSave={loadHoldings}
+          currentMonth={currentMonth}
+          currentYear={currentYear}
         />
       )}
     </div>

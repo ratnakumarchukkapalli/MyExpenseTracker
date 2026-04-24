@@ -46,5 +46,18 @@ export async function POST(request: NextRequest) {
     .single();
 
   if (dbError) return Response.json({ error: dbError.message }, { status: 500 });
+
+  // Chain Reaction: Sync wealth snapshot for the provided month/year
+  const { searchParams } = request.nextUrl;
+  const m = parseInt(searchParams.get("month") || "", 10);
+  const y = parseInt(searchParams.get("year") || "", 10);
+
+  if (m && y) {
+    after(async () => {
+      const { syncMonthlyWealthSnapshot } = await import("@/lib/monthly-totals");
+      await syncMonthlyWealthSnapshot(supabase, user.id, m, y);
+    });
+  }
+
   return Response.json({ id: data.id }, { status: 201 });
 }

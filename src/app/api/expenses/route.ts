@@ -78,7 +78,14 @@ export async function POST(request: NextRequest) {
   const newBalance = await updateMonthlyExpenseTotal(supabase, user.id, m, y, newTotal, existingSummary);
 
   after(async () => {
-    await cascadeUpdateFutureMonths(supabase, user.id, m, y, newBalance);
+    await cascadeUpdateFutureMonths(supabase, user.id, m, y, {
+      remaining_amount: newBalance,
+      savings_fd: Number(existingSummary?.savings_fd ?? 0),
+      savings_sip: Number(existingSummary?.savings_sip ?? 0),
+      savings_shares: Number(existingSummary?.savings_shares ?? 0),
+      savings_nps: Number(existingSummary?.savings_nps ?? 0),
+      savings_pf: Number(existingSummary?.savings_pf ?? 0),
+    });
   });
 
   // 3. Return both the new expense and the updated summary (Round-trip 2)

@@ -33,6 +33,20 @@ export async function PUT(
     .eq("id", holdingId);
 
   if (dbError) return Response.json({ error: dbError.message }, { status: 500 });
+
+  // Chain Reaction: Sync wealth snapshot for the provided month/year
+  const { searchParams } = request.nextUrl;
+  const m = parseInt(searchParams.get("month") || "", 10);
+  const y = parseInt(searchParams.get("year") || "", 10);
+
+  if (m && y) {
+    const { after } = await import("next/server");
+    after(async () => {
+      const { syncMonthlyWealthSnapshot } = await import("@/lib/monthly-totals");
+      await syncMonthlyWealthSnapshot(supabase, user.id, m, y);
+    });
+  }
+
   return Response.json({ success: true });
 }
 
@@ -55,5 +69,19 @@ export async function DELETE(
     .eq("id", holdingId);
 
   if (dbError) return Response.json({ error: dbError.message }, { status: 500 });
+
+  // Chain Reaction: Sync wealth snapshot for the provided month/year
+  const { searchParams } = _request.nextUrl;
+  const m = parseInt(searchParams.get("month") || "", 10);
+  const y = parseInt(searchParams.get("year") || "", 10);
+
+  if (m && y) {
+    const { after } = await import("next/server");
+    after(async () => {
+      const { syncMonthlyWealthSnapshot } = await import("@/lib/monthly-totals");
+      await syncMonthlyWealthSnapshot(supabase, user.id, m, y);
+    });
+  }
+
   return Response.json({ success: true });
 }

@@ -62,9 +62,17 @@ export async function PUT(
 
   after(async () => {
     await Promise.all(
-      monthsToUpdate.map((m, i) =>
-        cascadeUpdateFutureMonths(supabase, user.id, m.month, m.year, results[i])
-      )
+      monthsToUpdate.map((m, i) => {
+        const summary = results[i];
+        return cascadeUpdateFutureMonths(supabase, user.id, m.month, m.year, {
+          remaining_amount: summary.remaining_amount,
+          savings_fd: summary.savings_fd,
+          savings_sip: summary.savings_sip,
+          savings_shares: summary.savings_shares,
+          savings_nps: summary.savings_nps,
+          savings_pf: summary.savings_pf,
+        });
+      })
     );
   });
 
@@ -112,10 +120,17 @@ export async function DELETE(
   // Update summary with new total (Round-trip 3)
   const oldTotal = Number(summary?.total_expenses ?? 0);
   const newTotal = oldTotal - Number(deleted.amount);
-  const newBalance = await updateMonthlyExpenseTotal(supabase, user.id, m, y, newTotal);
+  const updatedSummary = await updateMonthlyExpenseTotal(supabase, user.id, m, y, newTotal);
 
   after(async () => {
-    await cascadeUpdateFutureMonths(supabase, user.id, m, y, newBalance);
+    await cascadeUpdateFutureMonths(supabase, user.id, m, y, {
+      remaining_amount: updatedSummary.remaining_amount,
+      savings_fd: updatedSummary.savings_fd,
+      savings_sip: updatedSummary.savings_sip,
+      savings_shares: updatedSummary.savings_shares,
+      savings_nps: updatedSummary.savings_nps,
+      savings_pf: updatedSummary.savings_pf,
+    });
   });
 
 

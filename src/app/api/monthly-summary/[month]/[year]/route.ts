@@ -31,21 +31,48 @@ export async function GET(_req: NextRequest, { params }: RouteParams) {
   const prev = prevResult.data;
   const expectedOpening = Number(prev?.remaining_amount ?? 0);
 
-  // If record exists, check if opening balance is stale.
+  // If record exists, check if opening balance or investment snapshots are stale.
   // Only auto-sync carry-forward rows (no salary/expense data recorded yet).
-  // Real months have authoritative remaining_amount set by the user.
   if (row) {
     const isCarryForward = Number(row.salary) === 0 && Number(row.total_expenses) === 0;
-    if (isCarryForward && Number(row.previous_month_remaining) !== expectedOpening) {
-      // Auto-sync stale opening balance for carry-forward rows only
-      const newRemaining = expectedOpening + Number(row.salary) + Number(row.interest_income) - Number(row.total_expenses);
+    const isStaleOpening = isCarryForward && (Number(row.previous_month_remaining) !== expectedOpening);
+    const isStaleSIP = Number(row.savings_sip) !== Number(prev?.savings_sip ?? 0);
+    const isStaleStocks = Number(row.savings_shares) !== Number(prev?.savings_shares ?? 0);
+    
+    // For manual fields, we only sync if it's a pure carry-forward month
+    const isStaleFD = isCarryForward && (Number(row.savings_fd) !== Number(prev?.savings_fd ?? 0));
+    const isStaleNPS = isCarryForward && (Number(row.savings_nps) !== Number(prev?.savings_nps ?? 0));
+    const isStalePF = isCarryForward && (Number(row.savings_pf) !== Number(prev?.savings_pf ?? 0));
+
+    if (isStaleOpening || isStaleSIP || isStaleStocks || isStaleFD || isStaleNPS || isStalePF) {
+      // Auto-sync stale values
+      const newRemaining = isStaleOpening 
+        ? (expectedOpening + Number(row.salary) + Number(row.interest_income) - Number(row.total_expenses))
+        : Number(row.remaining_amount);
+        
+      const updateData: any = {
+        savings_sip: Number(prev?.savings_sip ?? 0),
+        savings_shares: Number(prev?.savings_shares ?? 0),
+      };
+
+      if (isStaleOpening) {
+        updateData.previous_month_remaining = expectedOpening;
+        updateData.remaining_amount = newRemaining;
+      }
+      if (isCarryForward) {
+        updateData.savings_fd = Number(prev?.savings_fd ?? 0);
+        updateData.savings_nps = Number(prev?.savings_nps ?? 0);
+        updateData.savings_pf = Number(prev?.savings_pf ?? 0);
+      }
+      
+      updateData.cash_equivalents = (updateData.remaining_amount ?? row.remaining_amount) + 
+        (updateData.savings_fd ?? row.savings_fd) + 
+        (updateData.savings_sip ?? row.savings_sip) + 
+        (updateData.savings_shares ?? row.savings_shares);
+
       const { data: updatedRow } = await supabase
         .from("monthly_summary")
-        .update({
-          previous_month_remaining: expectedOpening,
-          remaining_amount: newRemaining,
-          cash_equivalents: newRemaining + Number(row.savings_fd) + Number(row.savings_sip) + Number(row.savings_shares)
-        })
+        .update(updateData)
         .eq("id", row.id)
         .select()
         .single();
@@ -158,9 +185,16 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
   if (dbError) return Response.json({ error: dbError.message }, { status: 500 });
 
-  // Chain Reaction: Update all future months' opening balances
+  // Chain Reaction: Update all future months' opening balances and investment snapshots
   after(async () => {
-    await cascadeUpdateFutureMonths(supabase, user.id, d.month, d.year, remaining_amount);
+    await cascadeUpdateFutureMonths(supabase, user.id, d.month, d.year, {
+      remaining_amount,
+      savings_fd: d.savings_fd,
+      savings_sip: d.savings_sip,
+      savings_shares: d.savings_shares,
+      savings_nps: d.savings_nps,
+      savings_pf: d.savings_pf,
+    });
   });
 
   return Response.json({ ...upsertData });
