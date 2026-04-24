@@ -1,6 +1,6 @@
-import { requireAuth, requireAuthFast } from "@/lib/auth-guard";
+import { requireAuthFast } from "@/lib/auth-guard";
 import { ExpenseCreateSchema } from "@/lib/schemas/expense";
-import { updateMonthlyExpenseTotal } from "@/lib/monthly-totals";
+import { updateMonthlyExpenseTotal, cascadeUpdateFutureMonths } from "@/lib/monthly-totals";
 import { after } from "next/server";
 import { NextRequest } from "next/server";
 
@@ -40,7 +40,7 @@ export async function GET(request: NextRequest) {
 
 // POST /api/expenses
 export async function POST(request: NextRequest) {
-  const { user, supabase, error } = await requireAuth();
+  const { user, supabase, error } = await requireAuthFast();
   if (error) return error;
 
   const body = await request.json().catch(() => null);
@@ -48,24 +48,48 @@ export async function POST(request: NextRequest) {
   if (!parsed.success) {
     return Response.json({ error: parsed.error.flatten() }, { status: 400 });
   }
-  const { data, error: dbError } = await supabase
-    .from("expenses")
-    .insert({ ...parsed.data, user_id: user.id })
-    .select()
-    .single();
-
-  if (dbError) return Response.json({ error: dbError.message }, { status: 500 });
-
   const expenseDate = new Date(parsed.data.date);
+  const m = expenseDate.getMonth() + 1;
+  const y = expenseDate.getFullYear();
+
+  // 1. Parallelize Insert and Summary Fetch (Round-trip 1)
+  const [insertRes, summaryRes] = await Promise.all([
+    supabase
+      .from("expenses")
+      .insert({ ...parsed.data, user_id: user.id })
+      .select()
+      .single(),
+    supabase
+      .from("monthly_summary")
+      .select("*")
+      .eq("user_id", user.id)
+      .eq("month", m)
+      .eq("year", y)
+      .maybeSingle(),
+  ]);
+
+  if (insertRes.error) return Response.json({ error: insertRes.error.message }, { status: 500 });
+  const data = insertRes.data;
+
+  // 2. Recalculate total manually and update (Round-trip 2)
+  const existingSummary = summaryRes.data;
+  const oldTotal = Number(existingSummary?.total_expenses ?? 0);
+  const newTotal = oldTotal + Number(parsed.data.amount);
+  const newBalance = await updateMonthlyExpenseTotal(supabase, user.id, m, y, newTotal, existingSummary);
+
   after(async () => {
-    await updateMonthlyExpenseTotal(
-      supabase,
-      user.id,
-      expenseDate.getMonth() + 1,
-      expenseDate.getFullYear()
-    );
+    await cascadeUpdateFutureMonths(supabase, user.id, m, y, newBalance);
   });
 
-
-  return Response.json({ id: data.id }, { status: 201 });
+  // 3. Return both the new expense and the updated summary (Round-trip 2)
+  return Response.json({ 
+    id: data.id, 
+    expense: data,
+    summary: {
+      ...existingSummary,
+      total_expenses: newTotal,
+      remaining_amount: newBalance,
+      cash_equivalents: newBalance + Number(existingSummary?.savings_fd ?? 0) + Number(existingSummary?.savings_sip ?? 0) + Number(existingSummary?.savings_shares ?? 0)
+    }
+  }, { status: 201 });
 }

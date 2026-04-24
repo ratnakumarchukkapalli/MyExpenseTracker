@@ -6,7 +6,7 @@ import {
   Receipt, 
   Plus, 
   TrendingUp, 
-  Sparkles, 
+  BarChart2, 
   MoreHorizontal,
   X,
   Calendar,
@@ -28,7 +28,7 @@ const MobileNav: React.FC<MobileNavProps> = ({ currentView, onViewChange, onQuic
     { id: 'dashboard', label: 'Home', icon: LayoutDashboard },
     { id: 'expenses', label: 'Expenses', icon: Receipt },
     { id: 'sip', label: 'SIP', icon: TrendingUp },
-    { id: 'stocks', label: 'Stocks', icon: Sparkles },
+    { id: 'stocks', label: 'Stocks', icon: BarChart2 },
   ];
 
   const moreItems = [

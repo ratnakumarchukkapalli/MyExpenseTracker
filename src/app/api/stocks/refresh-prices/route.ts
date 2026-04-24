@@ -5,20 +5,23 @@ import { after } from "next/server";
 
 const PYTHON_API = "http://127.0.0.1:8765";
 
-import { unstable_cache } from "next/cache";
+import { unstable_cache, revalidateTag } from "next/cache";
+
+async function fetchStockPrice(ticker: string) {
+  const res = await fetch(`${PYTHON_API}/stocks/quote`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ticker }),
+    signal: AbortSignal.timeout(8000),
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const data = await res.json();
+  const price = data?.price ?? data?.current_price ?? null;
+  return (price != null && !isNaN(price)) ? price : null;
+}
 
 const getCachedQuote = unstable_cache(
-  async (ticker: string) => {
-    const res = await fetch(`${PYTHON_API}/stocks/quote`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ticker }),
-      signal: AbortSignal.timeout(8000),
-    });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const data = await res.json();
-    return data?.price ?? data?.current_price ?? null;
-  },
+  async (ticker: string) => fetchStockPrice(ticker),
   ['stock-quotes'],
   { revalidate: 3600 }
 );
@@ -39,12 +42,12 @@ export async function POST() {
 
   const today = new Date().toISOString().split("T")[0];
 
-  // Fetch all prices in parallel
+  // Fetch all prices in parallel - BYPASS CACHE during manual refresh
   const priceResults = await Promise.all(
     holdings.map(async (h) => {
       try {
-        const price = await getCachedQuote(h.ticker);
-        if (price != null && !isNaN(price)) {
+        const price = await fetchStockPrice(h.ticker);
+        if (price != null) {
           return { id: h.id, ticker: h.ticker, price, success: true };
         } else {
           return { id: h.id, ticker: h.ticker, price: null, success: false, error: "No price in response" };
@@ -80,6 +83,9 @@ export async function POST() {
     await syncStocksToMonthlySummary(client, user.id);
   });
 
+
+  // Purge the stock-quotes cache so other components (like dashboard) see fresh data
+  revalidateTag('stock-quotes');
 
   return Response.json({ results, updatedCount: successfulUpdates.length });
 }

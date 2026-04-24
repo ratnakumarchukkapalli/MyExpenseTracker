@@ -773,64 +773,69 @@ const LogSIPModal = ({ funds, onLog, onCancel }: LogSIPModalProps) => {
   };
 
   return (
-    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 animate-in fade-in duration-200">
       {/* Backdrop */}
       <div 
-        className="absolute inset-0 bg-gray-900/40 backdrop-blur-md transition-opacity"
+        className="absolute inset-0 bg-gray-900/40 backdrop-blur-md transition-opacity cursor-pointer"
         onClick={onCancel}
       />
 
-      {/* Light Glass Modal */}
-      <div className="relative z-10 w-full max-w-md bg-white/95 backdrop-blur-2xl border border-white/20 rounded-[24px] shadow-[0_32px_80px_rgba(0,0,0,0.12)] overflow-hidden">
+      {/* Premium Glass Modal */}
+      <div className="relative z-10 w-full max-w-md bg-white dark:bg-surface-900/90 backdrop-blur-2xl border border-gray-100 dark:border-surface-800 rounded-[32px] shadow-[0_32px_80px_rgba(0,0,0,0.15)] overflow-hidden animate-in zoom-in-95 duration-200">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100 bg-gray-50/50">
-          <div>
-            <div className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.12em] mb-1">SIP Tracker</div>
-            <h2 className="text-xl font-bold text-gray-900 tracking-tight">Log Monthly SIP</h2>
+        <div className="flex items-center justify-between px-8 py-6 border-b border-gray-100 dark:border-surface-800 bg-gray-50/50 dark:bg-surface-800/30">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-primary-50 dark:bg-primary-900/20 flex items-center justify-center">
+              <TrendingUp size={18} className="text-primary-600 dark:text-primary-400" />
+            </div>
+            <div>
+              <div className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-[0.12em] mb-1">SIP Tracker</div>
+              <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100 tracking-tight serif">Log Monthly SIP</h2>
+            </div>
           </div>
           <button
             onClick={onCancel}
-            className="w-9 h-9 flex items-center justify-center rounded-full bg-gray-100 text-gray-500 hover:bg-gray-200 hover:text-gray-900 transition-all cursor-pointer"
+            className="w-9 h-9 flex items-center justify-center rounded-full bg-gray-100 dark:bg-surface-800 text-gray-500 hover:bg-gray-200 dark:hover:bg-surface-700 hover:text-gray-900 dark:hover:text-gray-100 transition-all cursor-pointer"
           >
             <X size={18} />
           </button>
         </div>
 
-        <div className="p-6 space-y-5">
+        <div className="p-8 space-y-6">
           {/* Fund Selection */}
           <div>
-            <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2">Fund Selection</label>
+            <label className="block text-[11px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-2">Fund Selection</label>
             <select
               value={selectedFundId}
               onChange={e => setSelectedFundId(e.target.value)}
-              className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 transition-all text-sm cursor-pointer"
+              className="w-full px-4 py-3 bg-gray-50 dark:bg-surface-800 border border-gray-200 dark:border-surface-700 rounded-2xl text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-4 focus:ring-primary-500/5 focus:border-primary-500 transition-all text-sm cursor-pointer"
             >
               {activeFunds.map(f => (
                 <option key={f.id} value={f.id}>{f.fund_name}</option>
               ))}
             </select>
             {selectedFund && (
-              <div className="mt-2 text-[10px] text-gray-500 font-medium">
-                SIP amount: <span className="text-blue-600">₹{(selectedFund.sip_amount || 0).toLocaleString()}/mo</span>
-                {selectedFund.folio_number && <span className="ml-2 opacity-50">· Folio {selectedFund.folio_number}</span>}
+              <div className="mt-2 text-[10px] text-gray-500 dark:text-gray-400 font-medium px-1 flex justify-between">
+                <span>SIP: <span className="text-primary-600 dark:text-primary-400 font-bold">₹{(selectedFund.sip_amount || 0).toLocaleString()}</span></span>
+                {selectedFund.folio_number && <span className="opacity-60">Folio {selectedFund.folio_number}</span>}
               </div>
             )}
           </div>
 
           {/* SIP Date + Fetch NAV */}
           <div>
-            <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2">SIP Date</label>
+            <label className="block text-[11px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-2">SIP Date</label>
             <div className="flex gap-3">
               <input
                 type="date"
                 value={date}
                 onChange={e => setDate(e.target.value)}
-                className="flex-1 px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 transition-all text-sm cursor-pointer"
+                className="flex-1 px-4 py-3 bg-gray-50 dark:bg-surface-800 border border-gray-200 dark:border-surface-700 rounded-2xl text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-4 focus:ring-primary-500/5 focus:border-primary-500 transition-all text-sm cursor-pointer"
               />
               <button
                 onClick={fetchNavForDate}
                 disabled={loading || !selectedFund?.scheme_code}
-                className="px-4 py-2.5 bg-indigo-50 text-indigo-600 rounded-xl font-bold text-xs flex items-center gap-2 hover:bg-indigo-100 transition-all cursor-pointer disabled:opacity-50"
+                className="px-5 py-3 bg-primary-50 dark:bg-primary-900/20 text-primary-600 dark:text-primary-400 rounded-2xl font-bold text-xs flex items-center gap-2 hover:bg-primary-100 dark:hover:bg-primary-900/30 transition-all cursor-pointer disabled:opacity-50"
               >
                 <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
                 {loading ? 'Fetching...' : 'Fetch NAV'}
@@ -840,50 +845,57 @@ const LogSIPModal = ({ funds, onLog, onCancel }: LogSIPModalProps) => {
 
           {/* Amount */}
           <div>
-            <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2">Amount (₹)</label>
-            <input
-              type="number"
-              value={amount}
-              onChange={e => setAmount(e.target.value)}
-              placeholder="e.g. 5000"
-              className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 transition-all text-sm font-bold"
-            />
+            <label className="block text-[11px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-2">Amount (₹)</label>
+            <div className="relative">
+              <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-sm">₹</div>
+              <input
+                type="number"
+                value={amount}
+                onChange={e => setAmount(e.target.value)}
+                placeholder="e.g. 5000"
+                className="w-full pl-8 pr-4 py-3 bg-gray-50 dark:bg-surface-800 border border-gray-200 dark:border-surface-700 rounded-2xl text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-4 focus:ring-primary-500/5 focus:border-primary-500 transition-all text-sm font-bold tabular-nums"
+              />
+            </div>
           </div>
 
           {/* NAV + Units */}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2">NAV (₹)</label>
+              <label className="block text-[11px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-2">NAV (₹)</label>
               <input
                 type="number"
                 value={nav}
                 step="0.0001"
                 onChange={e => setNav(e.target.value)}
                 placeholder="Auto-fetched"
-                className={`w-full px-4 py-2.5 bg-gray-50 border ${nav ? 'border-emerald-200 bg-emerald-50/30' : 'border-gray-200'} rounded-xl text-gray-900 focus:outline-none focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 transition-all text-sm`}
+                className={`w-full px-4 py-3 bg-gray-50 dark:bg-surface-800 border ${nav ? 'border-emerald-200 dark:border-emerald-900/50 bg-emerald-50/30 dark:bg-emerald-900/10' : 'border-gray-200 dark:border-surface-700'} rounded-2xl text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-4 focus:ring-primary-500/5 focus:border-primary-500 transition-all text-sm tabular-nums`}
               />
             </div>
             <div>
-              <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2">Units Allotted</label>
+              <label className="block text-[11px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-2">Units Allotted</label>
               <input
                 type="number"
                 value={units}
                 step="0.0001"
                 readOnly
                 placeholder="Calculated"
-                className="w-full px-4 py-2.5 bg-gray-100 border border-gray-200 rounded-xl text-gray-400 text-sm cursor-not-allowed"
+                className="w-full px-4 py-3 bg-gray-100 dark:bg-surface-900/50 border border-gray-200 dark:border-surface-700 rounded-2xl text-gray-400 dark:text-gray-500 text-sm cursor-not-allowed tabular-nums"
               />
             </div>
           </div>
 
           {nav && amount && units && (
-            <div className="bg-indigo-50 border border-indigo-100 rounded-2xl p-4 flex items-center justify-between">
-              <div className="text-[11px] text-indigo-900/60 font-medium">
-                <span className="text-indigo-900 font-bold">₹{parseFloat(amount).toLocaleString()}</span>
-                <span className="mx-1 opacity-40">/</span>
-                <span className="text-indigo-900 font-bold">₹{parseFloat(nav).toFixed(4)}</span>
+            <div className="bg-primary-50 dark:bg-primary-900/20 border border-primary-100 dark:border-primary-800/50 rounded-[20px] p-5 flex items-center justify-between animate-in zoom-in-95 duration-300">
+              <div className="space-y-1">
+                <div className="text-[10px] font-bold text-primary-900/40 dark:text-primary-400/40 uppercase tracking-wider">Calculation</div>
+                <div className="text-sm font-bold text-primary-900 dark:text-primary-100 tabular-nums">
+                  ₹{parseFloat(amount).toLocaleString()} <span className="mx-1 opacity-20">/</span> ₹{parseFloat(nav).toFixed(4)}
+                </div>
               </div>
-              <div className="text-sm font-bold text-indigo-600">{parseFloat(units).toFixed(4)} units</div>
+              <div className="text-right">
+                <div className="text-[10px] font-bold text-primary-900/40 dark:text-primary-400/40 uppercase tracking-wider">Total Units</div>
+                <div className="text-lg font-bold text-primary-600 dark:text-primary-400 tabular-nums leading-none mt-0.5">{parseFloat(units).toFixed(4)}</div>
+              </div>
             </div>
           )}
 
@@ -892,16 +904,16 @@ const LogSIPModal = ({ funds, onLog, onCancel }: LogSIPModalProps) => {
             <button
               type="button"
               onClick={onCancel}
-              className="flex-1 py-3.5 rounded-2xl border border-gray-200 text-gray-600 font-bold text-sm hover:bg-gray-50 transition-all cursor-pointer"
+              className="flex-1 py-4 rounded-2xl border border-gray-200 dark:border-surface-700 text-gray-600 dark:text-gray-400 font-bold text-sm hover:bg-gray-50 dark:hover:bg-surface-800 transition-all cursor-pointer"
             >
               Cancel
             </button>
             <button
               onClick={handleSubmit}
               disabled={!selectedFundId || !date || !amount || !nav}
-              className="flex-1 py-3.5 rounded-2xl bg-blue-600 text-white font-bold text-sm shadow-xl shadow-blue-600/20 hover:bg-blue-700 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+              className="flex-1 py-4 rounded-2xl bg-primary-600 text-white font-bold text-sm shadow-xl shadow-primary-600/20 hover:bg-primary-700 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 active:scale-[0.98]"
             >
-              Log SIP
+              Log SIP Transaction
             </button>
           </div>
         </div>
@@ -1025,6 +1037,7 @@ const SIPTracker = ({ currentMonth: _currentMonth, currentYear: _currentYear, on
   const [holdingsPreview, setHoldingsPreview] = useState<HoldingsImportFund[] | null>(null);
   const [showLogSIP, setShowLogSIP] = useState(false);
   const [importing, setImporting] = useState(false);
+  const [autoRefreshing, setAutoRefreshing] = useState(false);
 
   const holdingsFileRef = useRef<HTMLInputElement>(null);
   const capitalGainsFileRef = useRef<HTMLInputElement>(null);
@@ -1052,9 +1065,71 @@ const SIPTracker = ({ currentMonth: _currentMonth, currentYear: _currentYear, on
     }
   }, []);
 
+  const autoRefreshAllNavs = useCallback(async (fundsToRefresh: SipFund[]) => {
+    const codes = fundsToRefresh
+      .map(f => f.scheme_code)
+      .filter(Boolean) as string[];
+    
+    if (codes.length === 0) return;
+    
+    setAutoRefreshing(true);
+    try {
+      const navMap = await fetchAmfiNavMap(codes);
+      const updates = [];
+      
+      for (const fund of fundsToRefresh) {
+        if (!fund.scheme_code) continue;
+        const entry = navMap[fund.scheme_code];
+        if (entry) {
+          // Update fund NAV
+          updates.push(fetch(`/api/sip/funds/${fund.id}/nav`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ currentNav: entry.nav, lastNavUpdate: entry.date }),
+          }));
+          
+          // Update NAV history
+          updates.push(fetch('/api/sip/nav-history', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              schemeCode: fund.scheme_code,
+              navData: [{ date: entry.date, nav: String(entry.nav) }],
+            }),
+          }));
+        }
+      }
+      
+      if (updates.length > 0) {
+        await Promise.all(updates);
+        // Reload funds to reflect new NAVs
+        const res = await fetch('/api/sip/funds');
+        if (res.ok) {
+          const data = await res.json();
+          setFunds(Array.isArray(data) ? data : []);
+        }
+        if (onPortfolioUpdate) onPortfolioUpdate();
+      }
+      
+      localStorage.setItem('lastSipRefreshDate', new Date().toDateString());
+    } catch (e) {
+      console.error('Auto-refresh failed:', e);
+    } finally {
+      setAutoRefreshing(false);
+    }
+  }, [onPortfolioUpdate]);
+
   useEffect(() => {
-    loadFunds();
-  }, [loadFunds]);
+    loadFunds().then(loadedFunds => {
+      if (loadedFunds && loadedFunds.length > 0) {
+        const lastRefresh = localStorage.getItem('lastSipRefreshDate');
+        const today = new Date().toDateString();
+        if (lastRefresh !== today) {
+          void autoRefreshAllNavs(loadedFunds);
+        }
+      }
+    });
+  }, [loadFunds, autoRefreshAllNavs]);
 
   const handleImportHoldings = () => holdingsFileRef.current?.click();
 
@@ -1143,8 +1218,55 @@ const SIPTracker = ({ currentMonth: _currentMonth, currentYear: _currentYear, on
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-gray-400 text-sm">Loading SIP Tracker…</div>
+      <div className="space-y-6 animate-pulse">
+        {/* Header Skeleton */}
+        <div className="flex items-center justify-between">
+          <div className="space-y-2">
+            <div className="h-8 w-48 bg-gray-200 dark:bg-surface-800 rounded-lg" />
+            <div className="h-4 w-32 bg-gray-100 dark:bg-surface-800 rounded-lg" />
+          </div>
+          <div className="flex gap-2">
+            <div className="h-10 w-24 bg-gray-100 dark:bg-surface-800 rounded-xl" />
+            <div className="h-10 w-32 bg-gray-100 dark:bg-surface-800 rounded-xl" />
+            <div className="h-10 w-32 bg-gray-100 dark:bg-surface-800 rounded-xl" />
+          </div>
+        </div>
+
+        {/* Summary Cards Skeleton */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="bg-white dark:bg-surface-900 border border-gray-100 dark:border-surface-800 rounded-2xl p-5 shadow-sm">
+              <div className="h-3 w-20 bg-gray-100 dark:bg-surface-800 rounded mb-2" />
+              <div className="h-6 w-28 bg-gray-200 dark:bg-surface-800 rounded" />
+            </div>
+          ))}
+        </div>
+
+        {/* Funds List Skeleton */}
+        <div className="space-y-4">
+          {[1, 2].map((i) => (
+            <div key={i} className="bg-white dark:bg-surface-900 border border-gray-100 dark:border-surface-800 rounded-2xl p-5 shadow-sm">
+              <div className="flex justify-between mb-4">
+                <div className="space-y-2">
+                  <div className="h-5 w-48 bg-gray-200 dark:bg-surface-800 rounded" />
+                  <div className="h-3 w-32 bg-gray-100 dark:bg-surface-800 rounded" />
+                </div>
+                <div className="flex gap-2">
+                  <div className="h-8 w-8 bg-gray-100 dark:bg-surface-800 rounded-lg" />
+                  <div className="h-8 w-8 bg-gray-100 dark:bg-surface-800 rounded-lg" />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                {[1, 2, 3, 4].map((j) => (
+                  <div key={j} className="space-y-1">
+                    <div className="h-3 w-16 bg-gray-100 dark:bg-surface-800 rounded" />
+                    <div className="h-4 w-20 bg-gray-200 dark:bg-surface-800 rounded" />
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     );
   }
@@ -1173,12 +1295,19 @@ const SIPTracker = ({ currentMonth: _currentMonth, currentYear: _currentYear, on
       <input ref={holdingsFileRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={handleHoldingsFileChange} />
       <input ref={capitalGainsFileRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={handleCapitalGainsFileChange} />
 
+      {autoRefreshing && (
+        <div className="flex items-center gap-2 px-4 py-2 bg-primary-50 dark:bg-primary-950/30 border border-primary-100 dark:border-primary-900/30 rounded-xl text-primary-700 dark:text-primary-400 animate-pulse">
+          <RefreshCw size={14} className="animate-spin" />
+          <span className="text-xs font-medium">Auto-refreshing live NAV prices…</span>
+        </div>
+      )}
+
       {/* Action Bar */}
       <div className="flex flex-wrap items-center gap-3">
         <button
           onClick={handleImportHoldings}
           disabled={importing}
-          className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium bg-white dark:bg-surface-900 border border-gray-200 dark:border-surface-700 text-gray-700 dark:text-gray-300 rounded-xl hover:bg-gray-50 dark:hover:bg-surface-800 transition-all"
+          className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium bg-white dark:bg-surface-900 border border-gray-200 dark:border-surface-700 text-gray-700 dark:text-gray-300 rounded-xl hover:bg-gray-50 dark:hover:bg-surface-800 transition-all cursor-pointer"
         >
           <Upload className="h-4 w-4 text-primary-600" />
           Import Holdings
@@ -1186,7 +1315,7 @@ const SIPTracker = ({ currentMonth: _currentMonth, currentYear: _currentYear, on
         <button
           onClick={handleImportCapitalGains}
           disabled={importing}
-          className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium bg-white dark:bg-surface-900 border border-gray-200 dark:border-surface-700 text-gray-700 dark:text-gray-300 rounded-xl hover:bg-gray-50 dark:hover:bg-surface-800 transition-all"
+          className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium bg-white dark:bg-surface-900 border border-gray-200 dark:border-surface-700 text-gray-700 dark:text-gray-300 rounded-xl hover:bg-gray-50 dark:hover:bg-surface-800 transition-all cursor-pointer"
         >
           <Upload className="h-4 w-4 text-amber-600" />
           Import Capital Gains
@@ -1194,7 +1323,7 @@ const SIPTracker = ({ currentMonth: _currentMonth, currentYear: _currentYear, on
         {activeFunds.length > 0 && (
           <button
             onClick={() => setShowLogSIP(true)}
-            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-primary-600 hover:bg-primary-700 rounded-xl shadow-sm transition-all"
+            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-primary-600 hover:bg-primary-700 rounded-xl shadow-sm transition-all cursor-pointer"
           >
             <Plus className="h-4 w-4" />
             Log Monthly SIP
@@ -1247,7 +1376,7 @@ const SIPTracker = ({ currentMonth: _currentMonth, currentYear: _currentYear, on
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`px-4 py-1.5 text-sm font-medium rounded-lg transition-all ${
+              className={`px-4 py-1.5 text-sm font-medium rounded-lg transition-all cursor-pointer ${
                 activeTab === tab.id
                   ? 'bg-white dark:bg-surface-700 text-gray-900 dark:text-gray-100 shadow-sm'
                   : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'

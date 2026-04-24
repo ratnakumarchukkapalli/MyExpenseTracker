@@ -112,32 +112,37 @@ const AddStockModal = ({ onClose, onAdd }: AddStockModalProps) => {
   const inputCls = "w-full px-3 py-2 text-sm rounded-xl border border-gray-200 dark:border-surface-700 bg-white dark:bg-surface-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none";
 
   return (
-    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 animate-in fade-in duration-200">
       {/* Backdrop */}
       <div 
-        className="absolute inset-0 bg-gray-900/40 backdrop-blur-md transition-opacity"
+        className="absolute inset-0 bg-gray-900/40 backdrop-blur-md transition-opacity cursor-pointer"
         onClick={onClose}
       />
 
-      {/* Light Glass Modal */}
-      <div className="relative z-10 w-full max-w-md bg-white/95 backdrop-blur-2xl border border-white/20 rounded-[24px] shadow-[0_32px_80px_rgba(0,0,0,0.12)] overflow-hidden">
+      {/* Premium Glass Modal */}
+      <div className="relative z-10 w-full max-w-md bg-white dark:bg-surface-900/90 backdrop-blur-2xl border border-gray-100 dark:border-surface-800 rounded-[32px] shadow-[0_32px_80px_rgba(0,0,0,0.15)] overflow-hidden animate-in zoom-in-95 duration-200">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100 bg-gray-50/50">
-          <div>
-            <div className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.12em] mb-1">Portfolio</div>
-            <h2 className="text-xl font-bold text-gray-900 tracking-tight">Add Stock Holding</h2>
+        <div className="flex items-center justify-between px-8 py-6 border-b border-gray-100 dark:border-surface-800 bg-gray-50/50 dark:bg-surface-800/30">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-primary-50 dark:bg-primary-900/20 flex items-center justify-center">
+              <TrendingUp size={18} className="text-primary-600 dark:text-primary-400" />
+            </div>
+            <div>
+              <div className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-[0.12em] mb-1">Portfolio</div>
+              <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100 tracking-tight serif">Add Stock Holding</h2>
+            </div>
           </div>
           <button
             onClick={onClose}
-            className="w-9 h-9 flex items-center justify-center rounded-full bg-gray-100 text-gray-500 hover:bg-gray-200 hover:text-gray-900 transition-all cursor-pointer"
+            className="w-9 h-9 flex items-center justify-center rounded-full bg-gray-100 dark:bg-surface-800 text-gray-500 hover:bg-gray-200 dark:hover:bg-surface-700 hover:text-gray-900 dark:hover:text-gray-100 transition-all cursor-pointer"
           >
             <X size={18} />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-5">
+        <form onSubmit={handleSubmit} className="p-8 space-y-6">
           {error && (
-            <div className="flex items-center gap-2 p-3 bg-red-50 rounded-xl text-sm text-red-600">
+            <div className="flex items-center gap-2 p-4 bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-900/50 rounded-2xl text-sm text-red-600 dark:text-red-400 animate-in slide-in-from-top-2">
               <AlertCircle className="h-4 w-4 flex-shrink-0" />
               {error}
             </div>
@@ -145,67 +150,67 @@ const AddStockModal = ({ onClose, onAdd }: AddStockModalProps) => {
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2">Ticker Symbol *</label>
+              <label className="block text-[11px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-2">Ticker Symbol *</label>
               <input 
                 type="text" 
                 value={form.ticker} 
                 onChange={e => setForm(f => ({ ...f, ticker: e.target.value }))}
                 placeholder="e.g. LAURUS" 
-                className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 transition-all text-sm uppercase" 
+                className="w-full px-4 py-3 bg-gray-50 dark:bg-surface-800 border border-gray-200 dark:border-surface-700 rounded-2xl text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-primary-500/5 focus:border-primary-500 transition-all text-sm uppercase font-bold" 
               />
             </div>
             <div>
-              <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2">Buy Date</label>
+              <label className="block text-[11px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-2">Buy Date</label>
               <input 
                 type="date" 
                 value={form.buy_date} 
                 onChange={e => setForm(f => ({ ...f, buy_date: e.target.value }))}
-                className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 transition-all text-sm" 
+                className="w-full px-4 py-3 bg-gray-50 dark:bg-surface-800 border border-gray-200 dark:border-surface-700 rounded-2xl text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-4 focus:ring-primary-500/5 focus:border-primary-500 transition-all text-sm cursor-pointer" 
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2">Company Name *</label>
+            <label className="block text-[11px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-2">Company Name *</label>
             <input 
               type="text" 
               value={form.company_name} 
               onChange={e => setForm(f => ({ ...f, company_name: e.target.value }))}
               placeholder="e.g. Laurus Labs" 
-              className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 transition-all text-sm" 
+              className="w-full px-4 py-3 bg-gray-50 dark:bg-surface-800 border border-gray-200 dark:border-surface-700 rounded-2xl text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-primary-500/5 focus:border-primary-500 transition-all text-sm" 
             />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2">Shares *</label>
+              <label className="block text-[11px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-2">Shares *</label>
               <input 
                 type="number" 
                 value={form.shares} 
                 onChange={e => setForm(f => ({ ...f, shares: e.target.value }))}
-                placeholder="e.g. 100" 
+                placeholder="0" 
                 min="0" 
                 step="any" 
-                className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 transition-all text-sm" 
+                className="w-full px-4 py-3 bg-gray-50 dark:bg-surface-800 border border-gray-200 dark:border-surface-700 rounded-2xl text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-primary-500/5 focus:border-primary-500 transition-all text-sm font-bold tabular-nums" 
               />
             </div>
             <div>
-              <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2">Avg Buy Price (₹) *</label>
+              <label className="block text-[11px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-2">Avg Buy Price (₹) *</label>
               <input 
                 type="number" 
                 value={form.buy_price} 
                 onChange={e => setForm(f => ({ ...f, buy_price: e.target.value }))}
-                placeholder="e.g. 450.50" 
+                placeholder="0.00" 
                 min="0" 
                 step="any" 
-                className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 transition-all text-sm" 
+                className="w-full px-4 py-3 bg-gray-50 dark:bg-surface-800 border border-gray-200 dark:border-surface-700 rounded-2xl text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-primary-500/5 focus:border-primary-500 transition-all text-sm font-bold tabular-nums" 
               />
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2">Current Price (₹)</label>
+              <label className="block text-[11px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-2">Current Price (₹)</label>
               <input 
                 type="number" 
                 value={form.current_price} 
@@ -213,17 +218,17 @@ const AddStockModal = ({ onClose, onAdd }: AddStockModalProps) => {
                 placeholder="Optional" 
                 min="0" 
                 step="any" 
-                className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 transition-all text-sm" 
+                className="w-full px-4 py-3 bg-gray-50 dark:bg-surface-800 border border-gray-200 dark:border-surface-700 rounded-2xl text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-primary-500/5 focus:border-primary-500 transition-all text-sm font-bold tabular-nums" 
               />
             </div>
             <div>
-              <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2">Notes</label>
+              <label className="block text-[11px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-2">Notes</label>
               <input 
                 type="text" 
                 value={form.notes} 
                 onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
                 placeholder="Optional" 
-                className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 transition-all text-sm" 
+                className="w-full px-4 py-3 bg-gray-50 dark:bg-surface-800 border border-gray-200 dark:border-surface-700 rounded-2xl text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-primary-500/5 focus:border-primary-500 transition-all text-sm" 
               />
             </div>
           </div>
@@ -232,14 +237,14 @@ const AddStockModal = ({ onClose, onAdd }: AddStockModalProps) => {
             <button 
               type="button" 
               onClick={onClose}
-              className="flex-1 py-3.5 rounded-2xl border border-gray-200 text-gray-600 font-bold text-sm hover:bg-gray-50 transition-all cursor-pointer"
+              className="flex-1 py-4 rounded-2xl border border-gray-200 dark:border-surface-700 text-gray-600 dark:text-gray-400 font-bold text-sm hover:bg-gray-50 dark:hover:bg-surface-800 transition-all cursor-pointer"
             >
               Cancel
             </button>
             <button 
               type="submit" 
               disabled={saving}
-              className="flex-1 py-3.5 rounded-2xl bg-blue-600 text-white font-bold text-sm shadow-xl shadow-blue-600/20 hover:bg-blue-700 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+              className="flex-1 py-4 rounded-2xl bg-primary-600 text-white font-bold text-sm shadow-xl shadow-primary-600/20 hover:bg-primary-700 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 active:scale-[0.98]"
             >
               {saving ? 'Saving...' : 'Add Stock'}
             </button>
@@ -308,32 +313,37 @@ const EditStockModal = ({ holding, onClose, onSave }: EditStockModalProps) => {
   const inputCls = "w-full px-3 py-2 text-sm rounded-xl border border-gray-200 dark:border-surface-700 bg-white dark:bg-surface-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-primary-500 outline-none";
 
   return (
-    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 animate-in fade-in duration-200">
       {/* Backdrop */}
       <div 
-        className="absolute inset-0 bg-gray-900/40 backdrop-blur-md transition-opacity"
+        className="absolute inset-0 bg-gray-900/40 backdrop-blur-md transition-opacity cursor-pointer"
         onClick={onClose}
       />
 
-      {/* Light Glass Modal */}
-      <div className="relative z-10 w-full max-w-md bg-white/95 backdrop-blur-2xl border border-white/20 rounded-[24px] shadow-[0_32px_80px_rgba(0,0,0,0.12)] overflow-hidden">
+      {/* Premium Glass Modal */}
+      <div className="relative z-10 w-full max-w-md bg-white dark:bg-surface-900/90 backdrop-blur-2xl border border-gray-100 dark:border-surface-800 rounded-[32px] shadow-[0_32px_80px_rgba(0,0,0,0.15)] overflow-hidden animate-in zoom-in-95 duration-200">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100 bg-gray-50/50">
-          <div>
-            <div className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.12em] mb-1">Portfolio</div>
-            <h2 className="text-xl font-bold text-gray-900 tracking-tight">Update Stock</h2>
+        <div className="flex items-center justify-between px-8 py-6 border-b border-gray-100 dark:border-surface-800 bg-gray-50/50 dark:bg-surface-800/30">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-primary-50 dark:bg-primary-900/20 flex items-center justify-center">
+              <TrendingUp size={18} className="text-primary-600 dark:text-primary-400" />
+            </div>
+            <div>
+              <div className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-[0.12em] mb-1">Portfolio</div>
+              <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100 tracking-tight serif">Update Stock</h2>
+            </div>
           </div>
           <button
             onClick={onClose}
-            className="w-9 h-9 flex items-center justify-center rounded-full bg-gray-100 text-gray-500 hover:bg-gray-200 hover:text-gray-900 transition-all cursor-pointer"
+            className="w-9 h-9 flex items-center justify-center rounded-full bg-gray-100 dark:bg-surface-800 text-gray-500 hover:bg-gray-200 dark:hover:bg-surface-700 hover:text-gray-900 dark:hover:text-gray-100 transition-all cursor-pointer"
           >
             <X size={18} />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-5">
+        <form onSubmit={handleSubmit} className="p-8 space-y-6">
           {error && (
-            <div className="flex items-center gap-2 p-3 bg-red-50 rounded-xl text-sm text-red-600">
+            <div className="flex items-center gap-2 p-4 bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-900/50 rounded-2xl text-sm text-red-600 dark:text-red-400 animate-in slide-in-from-top-2">
               <AlertCircle className="h-4 w-4 flex-shrink-0" />
               {error}
             </div>
@@ -341,72 +351,72 @@ const EditStockModal = ({ holding, onClose, onSave }: EditStockModalProps) => {
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2">Ticker Symbol *</label>
+              <label className="block text-[11px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-2">Ticker Symbol *</label>
               <input 
                 type="text" 
                 value={form.ticker} 
                 onChange={e => setForm(f => ({ ...f, ticker: e.target.value }))}
                 placeholder="e.g. LAURUS" 
-                className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 transition-all text-sm uppercase" 
+                className="w-full px-4 py-3 bg-gray-50 dark:bg-surface-800 border border-gray-200 dark:border-surface-700 rounded-2xl text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-primary-500/5 focus:border-primary-500 transition-all text-sm uppercase font-bold" 
               />
             </div>
             <div>
-              <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2">Buy Date</label>
+              <label className="block text-[11px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-2">Buy Date</label>
               <input 
                 type="date" 
                 value={form.buy_date} 
                 onChange={e => setForm(f => ({ ...f, buy_date: e.target.value }))}
-                className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 transition-all text-sm" 
+                className="w-full px-4 py-3 bg-gray-50 dark:bg-surface-800 border border-gray-200 dark:border-surface-700 rounded-2xl text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-4 focus:ring-primary-500/5 focus:border-primary-500 transition-all text-sm cursor-pointer" 
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2">Company Name *</label>
+            <label className="block text-[11px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-2">Company Name *</label>
             <input 
               type="text" 
               value={form.company_name} 
               onChange={e => setForm(f => ({ ...f, company_name: e.target.value }))}
               placeholder="e.g. Laurus Labs" 
-              className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 transition-all text-sm" 
+              className="w-full px-4 py-3 bg-gray-50 dark:bg-surface-800 border border-gray-200 dark:border-surface-700 rounded-2xl text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-primary-500/5 focus:border-primary-500 transition-all text-sm" 
             />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2">Shares *</label>
+              <label className="block text-[11px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-2">Shares *</label>
               <input 
                 type="number" 
                 value={form.shares} 
                 onChange={e => setForm(f => ({ ...f, shares: e.target.value }))}
-                placeholder="e.g. 100" 
+                placeholder="0" 
                 min="0" 
                 step="any" 
-                className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 transition-all text-sm" 
+                className="w-full px-4 py-3 bg-gray-50 dark:bg-surface-800 border border-gray-200 dark:border-surface-700 rounded-2xl text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-primary-500/5 focus:border-primary-500 transition-all text-sm font-bold tabular-nums" 
               />
             </div>
             <div>
-              <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2">Avg Buy Price (₹) *</label>
+              <label className="block text-[11px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-2">Avg Buy Price (₹) *</label>
               <input 
                 type="number" 
                 value={form.buy_price} 
                 onChange={e => setForm(f => ({ ...f, buy_price: e.target.value }))}
-                placeholder="e.g. 450.50" 
+                placeholder="0.00" 
                 min="0" 
                 step="any" 
-                className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 transition-all text-sm" 
+                className="w-full px-4 py-3 bg-gray-50 dark:bg-surface-800 border border-gray-200 dark:border-surface-700 rounded-2xl text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-primary-500/5 focus:border-primary-500 transition-all text-sm font-bold tabular-nums" 
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2">Notes</label>
+            <label className="block text-[11px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-2">Notes</label>
             <input 
               type="text" 
               value={form.notes} 
               onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
               placeholder="Optional" 
-              className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all resize-none text-sm" 
+              className="w-full px-4 py-3 bg-gray-50 dark:bg-surface-800 border border-gray-200 dark:border-surface-700 rounded-2xl text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-primary-500/5 focus:border-primary-500 transition-all text-sm" 
             />
           </div>
 
@@ -414,14 +424,14 @@ const EditStockModal = ({ holding, onClose, onSave }: EditStockModalProps) => {
             <button 
               type="button" 
               onClick={onClose}
-              className="flex-1 py-3.5 rounded-2xl border border-gray-200 text-gray-600 font-bold text-sm hover:bg-gray-50 transition-all cursor-pointer"
+              className="flex-1 py-4 rounded-2xl border border-gray-200 dark:border-surface-700 text-gray-600 dark:text-gray-400 font-bold text-sm hover:bg-gray-50 dark:hover:bg-surface-800 transition-all cursor-pointer"
             >
               Cancel
             </button>
             <button 
               type="submit" 
               disabled={saving}
-              className="flex-1 py-3.5 rounded-2xl bg-blue-600 text-white font-bold text-sm shadow-xl shadow-blue-600/20 hover:bg-blue-700 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+              className="flex-1 py-4 rounded-2xl bg-primary-600 text-white font-bold text-sm shadow-xl shadow-primary-600/20 hover:bg-primary-700 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 active:scale-[0.98]"
             >
               {saving ? 'Saving...' : 'Update Stock'}
             </button>
@@ -742,8 +752,56 @@ const StockTracker = ({ currentMonth: _currentMonth, currentYear: _currentYear, 
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-gray-400 text-sm">Loading…</div>
+      <div className="space-y-6 animate-pulse">
+        {/* Header Skeleton */}
+        <div className="flex items-center justify-between">
+          <div className="space-y-2">
+            <div className="h-8 w-48 bg-gray-200 dark:bg-surface-800 rounded-lg" />
+            <div className="h-4 w-32 bg-gray-100 dark:bg-surface-800 rounded-lg" />
+          </div>
+          <div className="flex gap-2">
+            <div className="h-10 w-24 bg-gray-100 dark:bg-surface-800 rounded-xl" />
+            <div className="h-10 w-32 bg-gray-100 dark:bg-surface-800 rounded-xl" />
+            <div className="h-10 w-32 bg-gray-100 dark:bg-surface-800 rounded-xl" />
+          </div>
+        </div>
+
+        {/* Summary Cards Skeleton */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="bg-white dark:bg-surface-900 border border-gray-100 dark:border-surface-800 rounded-2xl p-5 shadow-sm">
+              <div className="h-3 w-20 bg-gray-100 dark:bg-surface-800 rounded mb-2" />
+              <div className="h-7 w-32 bg-gray-200 dark:bg-surface-800 rounded" />
+              <div className="h-3 w-24 bg-gray-50 dark:bg-surface-800 rounded mt-2" />
+            </div>
+          ))}
+        </div>
+
+        {/* Stocks List Skeleton */}
+        <div className="space-y-4">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="bg-white dark:bg-surface-900 border border-gray-100 dark:border-surface-800 rounded-2xl p-5 shadow-sm">
+              <div className="flex justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <div className="h-7 w-20 bg-primary-100 dark:bg-primary-900/20 rounded-xl" />
+                  <div className="h-5 w-40 bg-gray-200 dark:bg-surface-800 rounded" />
+                </div>
+                <div className="flex gap-2">
+                  <div className="h-8 w-8 bg-gray-100 dark:bg-surface-800 rounded-lg" />
+                  <div className="h-8 w-8 bg-gray-100 dark:bg-surface-800 rounded-lg" />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                {[1, 2, 3, 4].map((j) => (
+                  <div key={j} className="space-y-1">
+                    <div className="h-3 w-16 bg-gray-100 dark:bg-surface-800 rounded" />
+                    <div className="h-4 w-24 bg-gray-200 dark:bg-surface-800 rounded" />
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     );
   }
@@ -780,7 +838,7 @@ const StockTracker = ({ currentMonth: _currentMonth, currentYear: _currentYear, 
           {holdings.length > 0 && (
             <button
               onClick={() => setShowChart(v => !v)}
-              className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-xl border transition-colors ${
+              className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-xl border transition-colors cursor-pointer ${
                 showChart
                   ? 'bg-primary-100 text-primary-700 border-primary-200 dark:bg-primary-900/30 dark:text-primary-400 dark:border-primary-800'
                   : 'bg-white dark:bg-surface-800 text-gray-600 dark:text-gray-400 border-gray-200 dark:border-surface-700 hover:border-primary-300'
@@ -793,7 +851,7 @@ const StockTracker = ({ currentMonth: _currentMonth, currentYear: _currentYear, 
           <button
             onClick={handleRefreshPrices}
             disabled={refreshing || holdings.length === 0}
-            className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-gray-600 dark:text-gray-400 bg-white dark:bg-surface-800 border border-gray-200 dark:border-surface-700 rounded-xl hover:border-primary-300 disabled:opacity-50 transition-colors"
+            className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-gray-600 dark:text-gray-400 bg-white dark:bg-surface-800 border border-gray-200 dark:border-surface-700 rounded-xl hover:border-primary-300 disabled:opacity-50 transition-colors cursor-pointer"
             title="Fetch live NSE prices"
           >
             <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
@@ -801,7 +859,7 @@ const StockTracker = ({ currentMonth: _currentMonth, currentYear: _currentYear, 
           </button>
           <button
             onClick={() => setShowAddModal(true)}
-            className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-white bg-primary-600 rounded-xl hover:bg-primary-700 transition-colors shadow-sm"
+            className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-white bg-primary-600 rounded-xl hover:bg-primary-700 transition-colors shadow-sm cursor-pointer"
           >
             <Plus className="h-4 w-4" />
             Add Stock

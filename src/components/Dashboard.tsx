@@ -102,14 +102,13 @@ function formatCurrency(amount: number) {
 
 function Dashboard({ expenses, subscriptions, monthlySummary, currentMonth, currentYear, onFinancialsUpdate }: Props) {
   const [prevMonthCategoryTotals, setPrevMonthCategoryTotals] = useState<Record<string, number>>({});
-  const [yearlyNetWorth, setYearlyNetWorth] = useState<Array<{ month: string; total: number }>>([]);
-  const [yearlySavings, setYearlySavings] = useState<YearlyRow[]>([]);
+  const [rawYearlyRows, setRawYearlyRows] = useState<YearlyRow[]>([]);
   const [loanMilestones, setLoanMilestones] = useState<LoanMilestone[]>([]);
   const [categoryBudgets, setCategoryBudgets] = useState<BudgetMap>({});
   const [showBudgetSettings, setShowBudgetSettings] = useState(false);
   const [showEditFinancials, setShowEditFinancials] = useState(false);
   const [savingFinancials, setSavingFinancials] = useState(false);
-  const [liveNetWorth, setLiveNetWorth] = useState<number | null>(null);
+  const [liveWealth, setLiveWealth] = useState<{ sip: number; stocks: number; total: number } | null>(null);
   const [previousMonthExpenses, setPreviousMonthExpenses] = useState<Expense[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
@@ -142,21 +141,10 @@ function Dashboard({ expenses, subscriptions, monthlySummary, currentMonth, curr
       try {
         const res = await fetch(`/api/monthly-summary/yearly?year=${currentYear}`);
         const rows: YearlyRow[] = res.ok ? await res.json() : [];
-        const data = MONTHS_SHORT.map((name, index) => {
-          const month = index + 1;
-          const row = rows.find((item) => item.month === month);
-          if (!row) return { month: name, total: 0 };
-          return {
-            month: name,
-            total: Number(row.cash || 0) + Number(row.fd || 0) + Number(row.sip || 0) + Number(row.shares || 0) + Number(row.nps_pf || 0),
-          };
-        });
-        setYearlyNetWorth(data);
-        setYearlySavings(rows);
+        setRawYearlyRows(rows);
       } catch (error) {
         console.error(error);
-        setYearlyNetWorth([]);
-        setYearlySavings([]);
+        setRawYearlyRows([]);
       }
     };
 
@@ -188,7 +176,11 @@ function Dashboard({ expenses, subscriptions, monthlySummary, currentMonth, curr
         const res = await fetch('/api/wealth/total');
         if (res.ok) {
           const data = await res.json();
-          setLiveNetWorth(data.live_portfolio_total);
+          setLiveWealth({
+            sip: data.breakdown?.sip || 0,
+            stocks: data.breakdown?.stocks || 0,
+            total: data.live_portfolio_total || 0
+          });
         }
 
         // Background refresh for stocks
@@ -197,7 +189,11 @@ function Dashboard({ expenses, subscriptions, monthlySummary, currentMonth, curr
           const updatedRes = await fetch('/api/wealth/total');
           if (updatedRes.ok) {
             const updatedData = await updatedRes.json();
-            setLiveNetWorth(updatedData.live_portfolio_total);
+            setLiveWealth({
+              sip: updatedData.breakdown?.sip || 0,
+              stocks: updatedData.breakdown?.stocks || 0,
+              total: updatedData.live_portfolio_total || 0
+            });
           }
         }
       } catch (error) {
@@ -210,7 +206,43 @@ function Dashboard({ expenses, subscriptions, monthlySummary, currentMonth, curr
     void loadBudgets();
     void loadLoanMilestones();
     void loadLiveWealth();
-  }, [currentMonth, currentYear]);
+  }, [currentMonth, currentYear, monthlySummary]);
+
+  const yearlySavings = useMemo(() => {
+    const now = new Date();
+    const isThisYear = currentYear === now.getFullYear();
+    const thisMonth = now.getMonth() + 1;
+
+    return rawYearlyRows.map(row => {
+      if (isThisYear && row.month === thisMonth && liveWealth) {
+        return {
+          ...row,
+          sip: liveWealth.sip,
+          shares: liveWealth.stocks,
+          // Recalculate savings for current month based on live portfolio?
+          // Actually, 'savings' in the row might be different, but for net worth charts we care about components.
+        };
+      }
+      return row;
+    });
+  }, [rawYearlyRows, liveWealth, currentYear]);
+
+  const yearlyNetWorth = useMemo(() => {
+    const now = new Date();
+    const isThisYear = currentYear === now.getFullYear();
+    const thisMonth = now.getMonth() + 1;
+
+    return MONTHS_SHORT.map((name, index) => {
+      const month = index + 1;
+      const row = yearlySavings.find((item) => item.month === month);
+      if (!row) return { month: name, total: 0 };
+      
+      return {
+        month: name,
+        total: Number(row.cash || 0) + Number(row.fd || 0) + Number(row.sip || 0) + Number(row.shares || 0) + Number(row.nps_pf || 0),
+      };
+    });
+  }, [yearlySavings]);
 
   const categoryTotals = useMemo(() => {
     return expenses.reduce<Record<string, number>>((acc, expense) => {
@@ -231,10 +263,14 @@ function Dashboard({ expenses, subscriptions, monthlySummary, currentMonth, curr
   const currentShares = Number(monthlySummary?.savings_shares || 0);
   const currentNPS_PF = Number(monthlySummary?.savings_nps || 0) + Number(monthlySummary?.savings_pf || 0);
 
-  // Source of truth for portfolio (SIP+Stocks): Live API > DB Snapshot
-  const livePortfolio = liveNetWorth;
+  const livePortfolio = liveWealth?.total ?? null;
   const dbPortfolio = currentSIP + currentShares;
-  const portfolioTotal = livePortfolio ?? dbPortfolio;
+
+  // Use live prices only for current month; past months use stored monthly snapshot
+  const isCurrentMonth = currentMonth === new Date().getMonth() + 1 && currentYear === new Date().getFullYear();
+  const portfolioTotal = (isCurrentMonth && livePortfolio !== null) ? livePortfolio : dbPortfolio;
+  const displaySIP = (isCurrentMonth && liveWealth) ? liveWealth.sip : currentSIP;
+  const displayShares = (isCurrentMonth && liveWealth) ? liveWealth.stocks : currentShares;
 
   // BANK BALANCE definition: For the UI, we'll show "Liquid Cash" as the bank balance.
   // We'll treat FD as a separate asset to avoid "duplication" confusion.
@@ -437,6 +473,14 @@ function Dashboard({ expenses, subscriptions, monthlySummary, currentMonth, curr
           </div>
           <div className="hr" />
           <div className="stat-bar-row">
+            <div className="eyebrow">Carryover</div>
+            <div className="dash-stat-small" style={{ fontSize: 16, marginTop: 4, color: 'var(--ink)', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
+              {formatCurrency(Number(monthlySummary?.previous_month_remaining ?? 0))}
+            </div>
+            <div style={{ fontSize: 11, color: 'var(--ink-light)', marginTop: 2 }}>from last month</div>
+          </div>
+          <div className="hr" />
+          <div className="stat-bar-row">
             <div className="eyebrow">Future savings</div>
             <div className="dash-stat-small" style={{ fontSize: 16, marginTop: 4, color: 'var(--ink)', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
               {formatCurrency(currentNPS_PF)}
@@ -543,8 +587,8 @@ function Dashboard({ expenses, subscriptions, monthlySummary, currentMonth, curr
 
           {[
             { label: 'FD', value: monthlySummary?.savings_fd, dot: '#3b82f6' },
-            { label: 'SIP', value: monthlySummary?.savings_sip, dot: '#8b5cf6' },
-            { label: 'Shares', value: monthlySummary?.savings_shares, dot: '#f59e0b' },
+            { label: 'SIP', value: displaySIP, dot: '#8b5cf6' },
+            { label: 'Shares', value: displayShares, dot: '#f59e0b' },
             { label: 'NPS', value: monthlySummary?.savings_nps, dot: '#6366f1' },
             { label: 'PF', value: monthlySummary?.savings_pf, dot: '#10b981' },
             { label: 'Interest', value: monthlySummary?.interest_income, dot: '#f97316' },

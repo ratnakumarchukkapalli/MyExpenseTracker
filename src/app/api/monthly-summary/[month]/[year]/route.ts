@@ -1,5 +1,6 @@
 import { requireAuth, requireAuthFast } from "@/lib/auth-guard";
 import { MonthlySummaryUpdateSchema } from "@/lib/schemas/monthly-summary";
+import { cascadeUpdateFutureMonths } from "@/lib/monthly-totals";
 import { after } from "next/server";
 import { NextRequest } from "next/server";
 
@@ -30,14 +31,17 @@ export async function GET(_req: NextRequest, { params }: RouteParams) {
   const prev = prevResult.data;
   const expectedOpening = Number(prev?.remaining_amount ?? 0);
 
-  // If record exists, check if opening balance is stale
+  // If record exists, check if opening balance is stale.
+  // Only auto-sync carry-forward rows (no salary/expense data recorded yet).
+  // Real months have authoritative remaining_amount set by the user.
   if (row) {
-    if (Number(row.previous_month_remaining) !== expectedOpening) {
-      // Auto-sync stale opening balance
+    const isCarryForward = Number(row.salary) === 0 && Number(row.total_expenses) === 0;
+    if (isCarryForward && Number(row.previous_month_remaining) !== expectedOpening) {
+      // Auto-sync stale opening balance for carry-forward rows only
       const newRemaining = expectedOpening + Number(row.salary) + Number(row.interest_income) - Number(row.total_expenses);
       const { data: updatedRow } = await supabase
         .from("monthly_summary")
-        .update({ 
+        .update({
           previous_month_remaining: expectedOpening,
           remaining_amount: newRemaining,
           cash_equivalents: newRemaining + Number(row.savings_fd) + Number(row.savings_sip) + Number(row.savings_shares)
@@ -45,11 +49,11 @@ export async function GET(_req: NextRequest, { params }: RouteParams) {
         .eq("id", row.id)
         .select()
         .single();
-      
+
       return Response.json(updatedRow || row);
     }
     return Response.json(row, {
-      headers: { "Cache-Control": "private, max-age=0, stale-while-revalidate=60" },
+      headers: { "Cache-Control": "no-store, max-age=0" },
     });
   }
 
@@ -84,7 +88,7 @@ export async function GET(_req: NextRequest, { params }: RouteParams) {
 
 
   return Response.json(carryForward, {
-    headers: { "Cache-Control": "private, max-age=30, stale-while-revalidate=60" },
+    headers: { "Cache-Control": "no-store, max-age=0" },
   });
 }
 
@@ -154,42 +158,9 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
   if (dbError) return Response.json({ error: dbError.message }, { status: 500 });
 
-  // Chain Reaction: Update next month's opening balance if it exists
-  const nextMonth = d.month === 12 ? 1 : d.month + 1;
-  const nextYear = d.month === 12 ? d.year + 1 : d.year;
-
+  // Chain Reaction: Update all future months' opening balances
   after(async () => {
-    // 1. Update next month's opening balance
-    const { data: nextRow } = await supabase
-      .from("monthly_summary")
-      .select("id, salary, interest_income, savings_fd, savings_sip, savings_shares")
-      .eq("user_id", user.id)
-      .eq("month", nextMonth)
-      .eq("year", nextYear)
-      .maybeSingle();
-
-    if (nextRow) {
-      // Re-calculate next month's remaining based on the NEW opening balance from this month
-      // We need next month's expenses too for a full recalculation
-      const { data: nextExpenses } = await supabase
-        .from("expenses")
-        .select("amount")
-        .eq("user_id", user.id)
-        .gte("date", `${nextYear}-${String(nextMonth).padStart(2, "0")}-01`)
-        .lt("date", nextMonth === 12 ? `${nextYear + 1}-01-01` : `${nextYear}-${String(nextMonth + 1).padStart(2, "0")}-01`);
-      
-      const nextTotalExp = (nextExpenses ?? []).reduce((s, e) => s + Number(e.amount), 0);
-      const nextRemaining = remaining_amount + Number(nextRow.salary) + Number(nextRow.interest_income) - nextTotalExp;
-      
-      await supabase
-        .from("monthly_summary")
-        .update({
-          previous_month_remaining: remaining_amount,
-          remaining_amount: nextRemaining,
-          cash_equivalents: nextRemaining + Number(nextRow.savings_fd) + Number(nextRow.savings_sip) + Number(nextRow.savings_shares)
-        })
-        .eq("id", nextRow.id);
-    }
+    await cascadeUpdateFutureMonths(supabase, user.id, d.month, d.year, remaining_amount);
   });
 
   return Response.json({ ...upsertData });

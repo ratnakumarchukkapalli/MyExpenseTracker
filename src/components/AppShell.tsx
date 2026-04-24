@@ -12,7 +12,7 @@ import {
   Plus,
   Receipt,
   Shield,
-  Sparkles,
+  BarChart2,
   Sun,
   TrendingUp,
 } from 'lucide-react';
@@ -116,7 +116,7 @@ const NAV_SECTIONS: Array<{
     label: 'Wealth',
     items: [
       { id: 'sip', label: 'SIP Tracker', icon: TrendingUp },
-      { id: 'stocks', label: 'Stocks', icon: Sparkles },
+      { id: 'stocks', label: 'Stocks', icon: BarChart2 },
     ],
   },
   {
@@ -179,28 +179,20 @@ function AppShell() {
 
 
   const loadCoreData = async () => {
-    setLoading(true);
+    if (!monthlySummary) setLoading(true);
     setErrorMessage(null);
     try {
-      const [expensesRes, subscriptionsRes, monthlySummaryRes] = await Promise.all([
-        fetch(`/api/expenses?month=${currentMonth}&year=${currentYear}`),
-        fetch('/api/subscriptions'),
-        fetch(`/api/monthly-summary/${currentMonth}/${currentYear}`),
-      ]);
+      const res = await fetch(`/api/bootstrap?month=${currentMonth}&year=${currentYear}`);
 
-      if (!expensesRes.ok || !subscriptionsRes.ok || !monthlySummaryRes.ok) {
+      if (!res.ok) {
         throw new Error('Failed to load webapp data');
       }
 
-      const [expensesData, subscriptionsData, monthlySummaryData] = await Promise.all([
-        expensesRes.json(),
-        subscriptionsRes.json(),
-        monthlySummaryRes.json(),
-      ]);
+      const data = await res.json();
 
-      setExpenses(expensesData ?? []);
-      setSubscriptions(subscriptionsData ?? []);
-      setMonthlySummary(monthlySummaryData ?? null);
+      setExpenses(data.expenses ?? []);
+      setSubscriptions(data.subscriptions ?? []);
+      setMonthlySummary(data.summary ?? null);
     } catch (error) {
       console.error(error);
       setErrorMessage(error instanceof Error ? error.message : 'Failed to load data');
@@ -246,6 +238,26 @@ function AppShell() {
   const triggerRefresh = () => setRefreshKey((value) => value + 1);
 
   const handleExpenseSubmit = async (payload: Omit<Expense, 'id'>) => {
+    // Optimistic Update
+    const tempId = Date.now();
+    const optimisticExpense: Expense = { ...payload, id: tempId };
+    
+    // Update expenses list immediately
+    setExpenses((prev) => [optimisticExpense, ...prev]);
+    
+    // Update monthly summary immediately
+    if (monthlySummary) {
+      const amount = Number(payload.amount);
+      const newTotal = (Number(monthlySummary.total_expenses || 0)) + amount;
+      const newRemaining = Number(monthlySummary.remaining_amount || 0) - amount;
+      setMonthlySummary({
+        ...monthlySummary,
+        total_expenses: newTotal,
+        remaining_amount: newRemaining,
+        cash_equivalents: (Number(monthlySummary.cash_equivalents || 0)) - amount
+      });
+    }
+
     const res = await fetch('/api/expenses', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -254,7 +266,7 @@ function AppShell() {
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
       alert(`Failed to save expense: ${err?.error ?? res.statusText}`);
-      return;
+      // Rollback on error? For now just trigger refresh
     }
     setShowExpenseForm(false);
     setEditingExpense(null);
@@ -262,6 +274,8 @@ function AppShell() {
   };
 
   const handleExpenseUpdate = async (expense: Expense) => {
+    // For update, we'll just trigger refresh for now to keep it simple, 
+    // but we'll stop the loading screen flicker.
     const res = await fetch(`/api/expenses/${expense.id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
@@ -284,6 +298,22 @@ function AppShell() {
   };
 
   const handleExpenseDelete = async (id: number) => {
+    // Optimistic Update
+    const expenseToDelete = expenses.find(e => e.id === id);
+    setExpenses((prev) => prev.filter((e) => e.id !== id));
+
+    if (monthlySummary && expenseToDelete) {
+      const amount = Number(expenseToDelete.amount);
+      const newTotal = (Number(monthlySummary.total_expenses || 0)) - amount;
+      const newRemaining = Number(monthlySummary.remaining_amount || 0) + amount;
+      setMonthlySummary({
+        ...monthlySummary,
+        total_expenses: newTotal,
+        remaining_amount: newRemaining,
+        cash_equivalents: (Number(monthlySummary.cash_equivalents || 0)) + amount
+      });
+    }
+
     await fetch(`/api/expenses/${id}`, { method: 'DELETE' });
     triggerRefresh();
   };
@@ -430,8 +460,18 @@ function AppShell() {
                 <p style={{ color: 'var(--ink-muted)' }}>{errorMessage}</p>
               </div>
             ) : loading ? (
-              <div className="pane" style={{ padding: 24 }}>
-                <div style={{ color: 'var(--ink-muted)' }}>Loading {currentLabel.toLowerCase()}…</div>
+              <div className="space-y-8 animate-pulse">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                  {[1, 2, 3, 4].map(i => (
+                    <div key={i} className="h-32 bg-white dark:bg-surface-900 border border-gray-100 dark:border-surface-800 rounded-2xl shadow-sm" />
+                  ))}
+                </div>
+                <div className="h-64 bg-white dark:bg-surface-900 border border-gray-100 dark:border-surface-800 rounded-2xl shadow-sm" />
+                <div className="space-y-4">
+                  {[1, 2, 3].map(i => (
+                    <div key={i} className="h-20 bg-white dark:bg-surface-900 border border-gray-100 dark:border-surface-800 rounded-2xl shadow-sm" />
+                  ))}
+                </div>
               </div>
             ) : (
               <>
