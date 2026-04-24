@@ -112,7 +112,7 @@ function MonthlyReport({ currentMonth, currentYear }: Props) {
             {report.textInsights.slice(0, 8).map((insight, index) => {
               const text = typeof insight === 'string' ? insight : (typeof insight === 'object' && insight !== null && 'text' in insight ? String((insight as any).text) : JSON.stringify(insight));
               return (
-                <div key={index} className="rounded-2xl border border-[var(--hairline)] bg-white/60 px-4 py-3 text-sm text-[var(--ink-soft)]">
+                <div key={index} className="rounded-2xl border px-4 py-3 text-sm" style={{ background: 'var(--surface-solid)', borderColor: 'var(--hairline)', color: 'var(--ink-soft)' }}>
                   {text}
                 </div>
               );
@@ -129,7 +129,7 @@ function MonthlyReport({ currentMonth, currentYear }: Props) {
           <div className="mt-4 space-y-3">
             {analysisEntries.length === 0 && <p className="text-sm text-[var(--ink-muted)]">No structured analysis keys were stored.</p>}
             {analysisEntries.map(([key, value]) => (
-              <div key={key} className="rounded-2xl border border-[var(--hairline)] bg-white/55 px-4 py-3">
+              <div key={key} className="rounded-2xl border px-4 py-3" style={{ background: 'var(--surface-solid)', borderColor: 'var(--hairline)' }}>
                 <p className="text-xs uppercase tracking-[0.14em] text-[var(--ink-muted)]">{key}</p>
                 <pre className="mt-2 whitespace-pre-wrap text-sm text-[var(--ink-soft)]">{formatValue(value)}</pre>
               </div>
@@ -142,7 +142,7 @@ function MonthlyReport({ currentMonth, currentYear }: Props) {
           <div className="mt-4 space-y-3">
             {predictionEntries.length === 0 && <p className="text-sm text-[var(--ink-muted)]">No prediction payload was stored.</p>}
             {predictionEntries.map(([key, value]) => (
-              <div key={key} className="rounded-2xl border border-[var(--hairline)] bg-white/55 px-4 py-3">
+              <div key={key} className="rounded-2xl border px-4 py-3" style={{ background: 'var(--surface-solid)', borderColor: 'var(--hairline)' }}>
                 <p className="text-xs uppercase tracking-[0.14em] text-[var(--ink-muted)]">{key}</p>
                 <pre className="mt-2 whitespace-pre-wrap text-sm text-[var(--ink-soft)]">{formatValue(value)}</pre>
               </div>

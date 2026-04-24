@@ -428,7 +428,7 @@ function Dashboard({ expenses, subscriptions, monthlySummary, currentMonth, curr
                 })}
               </svg>
               <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
-                <div className="serif dash-hero-pct" style={{ fontSize: 34, lineHeight: 1 }}>{spentPct}%</div>
+                <div className="serif dash-hero-pct" style={{ fontSize: 34, lineHeight: 1, color: 'var(--ink)' }}>{spentPct}%</div>
                 <div style={{ fontSize: 11, color: 'var(--ink-muted)', marginTop: 3 }}>of salary spent</div>
               </div>
 
@@ -919,15 +919,16 @@ function FinancialEditModal({
   return (
     <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-gray-900/40 backdrop-blur-md" onClick={onClose} />
-      <div className="relative z-10 w-full max-w-lg bg-white/95 backdrop-blur-2xl border border-white/20 rounded-[24px] shadow-[0_32px_80px_rgba(0,0,0,0.12)] overflow-hidden flex flex-col max-h-[90vh]">
-        <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100 bg-gray-50/50">
+      <div className="relative z-10 w-full max-w-lg rounded-[24px] shadow-[0_32px_80px_rgba(0,0,0,0.12)] overflow-hidden flex flex-col max-h-[90vh]" style={{ background: 'var(--pane-strong)', backdropFilter: 'blur(32px)', border: '1px solid var(--hairline)' }}>
+        <div className="flex items-center justify-between px-6 py-5 border-b" style={{ borderColor: 'var(--hairline)', background: 'var(--accent-bg)' }}>
           <div>
-            <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Financials</div>
-            <h2 className="text-xl font-bold text-gray-900 tracking-tight italic serif">Month-End Summary</h2>
+            <div className="text-[10px] font-bold uppercase tracking-widest mb-1" style={{ color: 'var(--ink-faint)' }}>Financials</div>
+            <h2 className="text-xl font-bold tracking-tight italic serif" style={{ color: 'var(--ink)' }}>Month-End Summary</h2>
           </div>
           <button
             onClick={onClose}
-            className="w-9 h-9 flex items-center justify-center rounded-full bg-gray-100 text-gray-500 hover:bg-gray-200 hover:text-gray-900 transition-all cursor-pointer"
+            className="w-9 h-9 flex items-center justify-center rounded-full transition-all cursor-pointer"
+            style={{ background: 'var(--hairline)', color: 'var(--ink-muted)' }}
           >
             <X size={18} />
           </button>
@@ -937,16 +938,17 @@ function FinancialEditModal({
           <div className="grid grid-cols-2 gap-x-6 gap-y-5">
             {fields.map(({ key, label }) => (
               <div key={key}>
-                <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2">
+                <label className="block text-[11px] font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--ink-faint)' }}>
                   {label}
                 </label>
                 <div className="relative">
-                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 font-medium text-sm">₹</span>
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 font-medium text-sm" style={{ color: 'var(--ink-muted)' }}>₹</span>
                   <input
                     type="number"
                     value={form[key]}
                     onChange={(e) => setForm((prev) => ({ ...prev, [key]: parseFloat(e.target.value) || 0 }))}
-                    className="w-full pl-8 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl text-gray-900 focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all text-sm font-medium"
+                    className="w-full pl-8 pr-4 py-3 rounded-2xl focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all text-sm font-medium"
+                    style={{ background: 'var(--surface-solid)', border: '1px solid var(--hairline)', color: 'var(--ink)' }}
                   />
                 </div>
               </div>
@@ -957,7 +959,8 @@ function FinancialEditModal({
             <button
               onClick={onClose}
               disabled={saving}
-              className="flex-1 py-4 rounded-2xl border border-gray-200 text-gray-600 font-bold text-sm hover:bg-gray-50 transition-all cursor-pointer"
+              className="flex-1 py-4 rounded-2xl font-bold text-sm transition-all cursor-pointer"
+              style={{ background: 'var(--hairline)', color: 'var(--ink-muted)' }}
             >
               Cancel
             </button>

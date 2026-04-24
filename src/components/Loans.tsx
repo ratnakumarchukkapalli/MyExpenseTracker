@@ -144,8 +144,8 @@ function Loans({ onShowForm, onEdit, refreshKey, currentMonth, currentYear }: Pr
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Loans & EMIs</h2>
-          <p className="text-sm text-gray-500">Track your fixed monthly payments</p>
+          <h2 className="text-2xl font-bold" style={{ color: 'var(--ink)' }}>Loans & EMIs</h2>
+          <p className="text-sm" style={{ color: 'var(--ink-muted)' }}>Track your fixed monthly payments</p>
         </div>
         <div className="flex items-center gap-3">
           <button
@@ -160,114 +160,116 @@ function Loans({ onShowForm, onEdit, refreshKey, currentMonth, currentYear }: Pr
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="bg-gradient-to-br from-blue-50 to-white rounded-2xl border border-blue-100 p-5">
+        <div className="rounded-2xl p-5" style={{ background: 'var(--pane)', border: '1px solid var(--hairline)' }}>
           <div className="flex items-center gap-3 mb-2">
-            <div className="p-2 bg-blue-100 rounded-lg"><DollarSign className="h-5 w-5 text-blue-600" /></div>
-            <p className="text-sm font-medium text-blue-900">Monthly EMI</p>
+            <div className="p-2 rounded-lg" style={{ background: 'var(--accent-bg)', color: 'var(--accent)' }}><DollarSign className="h-5 w-5" /></div>
+            <p className="text-sm font-medium" style={{ color: 'var(--ink-muted)' }}>Monthly EMI</p>
           </div>
-          <p className="text-2xl font-bold text-blue-900">₹{totalMonthlyEMI.toLocaleString()}</p>
+          <p className="text-2xl font-bold" style={{ color: 'var(--ink)' }}>₹{totalMonthlyEMI.toLocaleString()}</p>
         </div>
 
-        <div className="bg-gradient-to-br from-purple-50 to-white rounded-2xl border border-purple-100 p-5">
+        <div className="rounded-2xl p-5" style={{ background: 'var(--pane)', border: '1px solid var(--hairline)' }}>
           <div className="flex items-center gap-3 mb-2">
-            <div className="p-2 bg-purple-100 rounded-lg"><Calendar className="h-5 w-5 text-purple-600" /></div>
-            <p className="text-sm font-medium text-purple-900">Yearly EMI</p>
+            <div className="p-2 rounded-lg" style={{ background: 'var(--pos-bg)', color: 'var(--pos)' }}><Calendar className="h-5 w-5" /></div>
+            <p className="text-sm font-medium" style={{ color: 'var(--ink-muted)' }}>Yearly EMI</p>
           </div>
-          <p className="text-2xl font-bold text-purple-900">₹{totalYearlyEMI.toLocaleString()}</p>
+          <p className="text-2xl font-bold" style={{ color: 'var(--ink)' }}>₹{totalYearlyEMI.toLocaleString()}</p>
         </div>
 
-        <div className="bg-gradient-to-br from-green-50 to-white rounded-2xl border border-green-100 p-5">
+        <div className="rounded-2xl p-5" style={{ background: 'var(--pane)', border: '1px solid var(--hairline)' }}>
           <div className="flex items-center gap-3 mb-2">
-            <div className="p-2 bg-green-100 rounded-lg"><CheckCircle className="h-5 w-5 text-green-600" /></div>
-            <p className="text-sm font-medium text-green-900">Active Loans</p>
+            <div className="p-2 rounded-lg" style={{ background: 'var(--accent-bg)', color: 'var(--accent)' }}><CheckCircle className="h-5 w-5" /></div>
+            <p className="text-sm font-medium" style={{ color: 'var(--ink-muted)' }}>Active Loans</p>
           </div>
-          <p className="text-2xl font-bold text-green-900">{activeLoans.length}</p>
+          <p className="text-2xl font-bold" style={{ color: 'var(--ink)' }}>{activeLoans.length}</p>
         </div>
 
-        <div className="bg-gradient-to-br from-orange-50 to-white rounded-2xl border border-orange-100 p-5">
+        <div className="rounded-2xl p-5" style={{ background: 'var(--pane)', border: '1px solid var(--hairline)' }}>
           <div className="flex items-center gap-3 mb-2">
-            <div className="p-2 bg-orange-100 rounded-lg"><Clock className="h-5 w-5 text-orange-600" /></div>
-            <p className="text-sm font-medium text-orange-900">Total Loans</p>
+            <div className="p-2 rounded-lg" style={{ background: 'var(--warn-bg)', color: 'var(--warn)' }}><Clock className="h-5 w-5" /></div>
+            <p className="text-sm font-medium" style={{ color: 'var(--ink-muted)' }}>Total Loans</p>
           </div>
-          <p className="text-2xl font-bold text-orange-900">{loans.length}</p>
+          <p className="text-2xl font-bold" style={{ color: 'var(--ink)' }}>{loans.length}</p>
         </div>
       </div>
 
       {/* Loans Table */}
       {visibleLoans.length === 0 ? (
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-12 text-center">
-          <Landmark className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-          <h3 className="text-lg font-semibold text-gray-900">No loans yet</h3>
-          <p className="mt-2 text-gray-500">Add your loans and EMIs to track them automatically.</p>
+        <div className="pane p-12 text-center">
+          <Landmark className="h-12 w-12 mx-auto mb-4" style={{ color: 'var(--ink-faint)' }} />
+          <h3 className="text-lg font-semibold" style={{ color: 'var(--ink)' }}>No loans yet</h3>
+          <p className="mt-2" style={{ color: 'var(--ink-muted)' }}>Add your loans and EMIs to track them automatically.</p>
         </div>
       ) : (
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+        <div className="rounded-2xl overflow-hidden" style={{ background: 'var(--pane)', border: '1px solid var(--hairline)', boxShadow: 'var(--shadow-sm)' }}>
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="bg-gray-50/50 border-b border-gray-100">
+              <thead style={{ background: 'color-mix(in srgb, var(--bg-tint) 40%, transparent)', borderBottom: '1px solid var(--hairline)' }}>
                 <tr>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Loan</th>
-                  <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">EMI</th>
-                  <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase">Due Day</th>
-                  <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase">Duration</th>
-                  <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase">Remaining</th>
-                  <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase">Status</th>
-                  <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Actions</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase" style={{ color: 'var(--ink-faint)' }}>Loan</th>
+                  <th className="px-4 py-3 text-right text-xs font-semibold uppercase" style={{ color: 'var(--ink-faint)' }}>EMI</th>
+                  <th className="px-4 py-3 text-center text-xs font-semibold uppercase" style={{ color: 'var(--ink-faint)' }}>Due Day</th>
+                  <th className="px-4 py-3 text-center text-xs font-semibold uppercase" style={{ color: 'var(--ink-faint)' }}>Duration</th>
+                  <th className="px-4 py-3 text-center text-xs font-semibold uppercase" style={{ color: 'var(--ink-faint)' }}>Remaining</th>
+                  <th className="px-4 py-3 text-center text-xs font-semibold uppercase" style={{ color: 'var(--ink-faint)' }}>Status</th>
+                  <th className="px-4 py-3 text-right text-xs font-semibold uppercase" style={{ color: 'var(--ink-faint)' }}>Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody className="divide-y" style={{ borderColor: 'var(--hairline)' }}>
                 {visibleLoans.map((loan) => {
                   const monthsRemaining = getMonthsRemaining(loan.end_date);
                   return (
-                    <tr key={loan.id} className="hover:bg-gray-50 group">
+                    <tr key={loan.id} className="group">
                       <td className="px-4 py-4">
                         <div className="flex items-center gap-3">
-                          <div className="h-10 w-10 rounded-xl bg-indigo-50 flex items-center justify-center">
-                            <Landmark className="h-5 w-5 text-indigo-600" />
+                          <div className="h-10 w-10 rounded-xl flex items-center justify-center" style={{ background: 'var(--accent-bg)', color: 'var(--accent)' }}>
+                            <Landmark className="h-5 w-5" />
                           </div>
                           <div>
-                            <p className="font-semibold text-gray-900">{loan.name}</p>
-                            <p className="text-xs text-gray-500">{loan.category}</p>
+                            <p className="font-semibold" style={{ color: 'var(--ink)' }}>{loan.name}</p>
+                            <p className="text-xs" style={{ color: 'var(--ink-muted)' }}>{loan.category}</p>
                           </div>
                         </div>
                       </td>
                       <td className="px-4 py-4 text-right">
-                        <span className="font-bold text-gray-900">₹{loan.amount.toLocaleString()}</span>
+                        <span className="font-bold" style={{ color: 'var(--ink)' }}>₹{loan.amount.toLocaleString()}</span>
                       </td>
                       <td className="px-4 py-4 text-center">
-                        <span className="inline-flex items-center px-2.5 py-1 bg-gray-100 text-gray-700 text-sm font-medium rounded-lg">
+                        <span className="inline-flex items-center px-2.5 py-1 text-sm font-medium rounded-lg" style={{ background: 'var(--bg-tint)', border: '1px solid var(--hairline)', color: 'var(--ink-soft)' }}>
                           {loan.due_day}
-                          <span className="text-xs text-gray-500 ml-1">of month</span>
+                          <span className="text-xs ml-1" style={{ color: 'var(--ink-faint)' }}>of month</span>
                         </span>
                       </td>
-                      <td className="px-4 py-4 text-center text-sm text-gray-600">
+                      <td className="px-4 py-4 text-center text-sm" style={{ color: 'var(--ink-soft)' }}>
                         {formatDate(loan.start_date)} - {loan.end_date ? formatDate(loan.end_date) : 'Ongoing'}
                       </td>
                       <td className="px-4 py-4 text-center">
                         {monthsRemaining !== null ? (
                           monthsRemaining === 0 ? (
-                            <span className="inline-flex px-2 py-1 text-xs font-medium rounded-lg bg-amber-100 text-amber-700">
+                            <span className="inline-flex px-2 py-1 text-xs font-medium rounded-lg" style={{ background: 'var(--warn-bg)', color: 'var(--warn)' }}>
                               Last month
                             </span>
                           ) : (
-                            <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-lg ${
-                              monthsRemaining <= 3 ? 'bg-green-100 text-green-700' :
-                              monthsRemaining <= 12 ? 'bg-yellow-100 text-yellow-700' :
-                              'bg-blue-100 text-blue-700'
-                            }`}>
+                            <span className="inline-flex px-2 py-1 text-xs font-medium rounded-lg" 
+                              style={{ 
+                                background: monthsRemaining <= 3 ? 'var(--pos-bg)' : monthsRemaining <= 12 ? 'var(--warn-bg)' : 'var(--accent-bg)', 
+                                color: monthsRemaining <= 3 ? 'var(--pos)' : monthsRemaining <= 12 ? 'var(--warn)' : 'var(--accent)' 
+                              }}
+                            >
                               {monthsRemaining} months
                             </span>
                           )
                         ) : (
-                          <span className="text-gray-400">-</span>
+                          <span style={{ color: 'var(--ink-faint)' }}>-</span>
                         )}
                       </td>
                       <td className="px-4 py-4 text-center">
-                        <span className={`inline-flex px-2 py-0.5 text-xs font-medium rounded-full ${
-                          loan.status === 'active' ? 'bg-green-100 text-green-700' :
-                          loan.status === 'completed' ? 'bg-gray-100 text-gray-600' :
-                          'bg-orange-100 text-orange-700'
-                        }`}>
+                        <span className="inline-flex px-2 py-0.5 text-xs font-medium rounded-full"
+                          style={{ 
+                            background: loan.status === 'active' ? 'var(--pos-bg)' : loan.status === 'completed' ? 'var(--hairline)' : 'var(--warn-bg)',
+                            color: loan.status === 'active' ? 'var(--pos)' : loan.status === 'completed' ? 'var(--ink-muted)' : 'var(--warn)'
+                          }}
+                        >
                           {loan.status}
                         </span>
                       </td>
@@ -275,13 +277,15 @@ function Loans({ onShowForm, onEdit, refreshKey, currentMonth, currentYear }: Pr
                         <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                           <button
                             onClick={() => onEdit(loan)}
-                            className="p-1.5 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg cursor-pointer"
+                            className="p-1.5 rounded-lg cursor-pointer transition-colors"
+                            style={{ color: 'var(--ink-faint)' }}
                           >
                             <Edit2 className="h-4 w-4" />
                           </button>
                           <button
                             onClick={() => handleDelete(loan.id, loan.name)}
-                            className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg cursor-pointer"
+                            className="p-1.5 rounded-lg cursor-pointer transition-colors"
+                            style={{ color: 'var(--ink-faint)' }}
                           >
                             <Trash2 className="h-4 w-4" />
                           </button>
@@ -297,9 +301,9 @@ function Loans({ onShowForm, onEdit, refreshKey, currentMonth, currentYear }: Pr
       )}
 
       {/* Info Note */}
-      <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 flex items-start gap-3">
-        <AlertCircle className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
-        <div className="text-sm text-blue-800">
+      <div className="rounded-xl p-4 flex items-start gap-3" style={{ background: 'var(--accent-bg)', border: '1px solid var(--hairline)' }}>
+        <AlertCircle className="h-5 w-5 mt-0.5 flex-shrink-0" style={{ color: 'var(--accent)' }} />
+        <div className="text-sm" style={{ color: 'var(--ink-soft)' }}>
           <p className="font-medium mb-1">How it works</p>
           <p>Loan expenses are auto-generated monthly. Add a loan and it will appear in your expenses each month until the end date.</p>
         </div>

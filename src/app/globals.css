@@ -1,5 +1,8 @@
 @import "tailwindcss";
 
+/* Use .dark class (set by AppShell toggle) for dark: variant */
+@custom-variant dark (&:where(.dark, .dark *));
+
 :root {
   --background: #ffffff;
   --foreground: #171717;
@@ -10,6 +13,21 @@
   --color-foreground: var(--foreground);
   --font-sans: Arial, Helvetica, sans-serif;
   --font-mono: "SFMono-Regular", "Menlo", "Monaco", ui-monospace, monospace;
+
+  /* Primary scale — references CSS vars so they adapt light↔dark */
+  --color-primary-50:  var(--accent-bg);
+  --color-primary-100: var(--accent-bg-2);
+  --color-primary-400: var(--accent-soft);
+  --color-primary-500: var(--accent-soft);
+  --color-primary-600: var(--accent);
+  --color-primary-700: var(--accent);
+  --color-primary-900: #2A2460;
+
+  /* Surface scale — fixed dark values, only used with dark: prefix */
+  --color-surface-600: #2D2545;
+  --color-surface-700: #241E38;
+  --color-surface-800: #1A1624;
+  --color-surface-900: #0E0B14;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -577,11 +595,109 @@ button:disabled {
 
 [data-theme="dark"] .bg-white                { background-color: rgba(32, 28, 44, 0.60) !important; }
 [data-theme="dark"] .bg-gray-50              { background-color: var(--bg-tint) !important; }
-[data-theme="dark"] .text-gray-900           { color: var(--ink) !important; }
-[data-theme="dark"] .text-gray-700           { color: var(--ink-soft) !important; }
-[data-theme="dark"] .text-gray-500           { color: var(--ink-muted) !important; }
+[data-theme="dark"] .bg-gray-100             { background-color: var(--bg-tint) !important; }
+/* bg-gray-50 with opacity modifier — must be overridden separately */
+[data-theme="dark"] .bg-gray-50\/50          { background-color: var(--surface-solid) !important; }
+[data-theme="dark"] .bg-gray-50\/80          { background-color: var(--surface-solid) !important; }
+[data-theme="dark"] .hover\:bg-gray-50\/50:hover { background-color: rgba(255,255,255,0.04) !important; }
+[data-theme="dark"] .text-gray-900           { color: var(--ink) !important; }       /* #F3F1F7 */
+[data-theme="dark"] .text-gray-800           { color: var(--ink) !important; }       /* same brightness */
+[data-theme="dark"] .text-gray-700           { color: var(--ink-soft) !important; }  /* #C8C4D6 */
+[data-theme="dark"] .text-gray-600           { color: var(--ink-soft) !important; }  /* bumped from muted */
+[data-theme="dark"] .text-gray-500           { color: var(--ink-soft) !important; }  /* #C8C4D6 — bumped for small text readability */
+[data-theme="dark"] .text-gray-400           { color: var(--ink-muted) !important; } /* #8B869A */
+[data-theme="dark"] .text-gray-300           { color: var(--ink-faint) !important; } /* #5E5968 */
 [data-theme="dark"] .border-gray-100,
-[data-theme="dark"] .border-gray-200         { border-color: var(--hairline) !important; }
+[data-theme="dark"] .border-gray-200,
+[data-theme="dark"] .border-gray-300         { border-color: var(--hairline) !important; }
+
+/* Keep hairline for elements that need a subtle separator (non-card borders) */
+[data-theme="dark"] .border-t.border-gray-100,
+[data-theme="dark"] .border-b.border-gray-100  { border-color: var(--hairline) !important; }
+
+/* divide-y uses a CSS variable on the parent — override both the variable and child borders */
+[data-theme="dark"] .divide-gray-100,
+[data-theme="dark"] .divide-gray-200    { --tw-divide-color: var(--hairline) !important; }
+[data-theme="dark"] .divide-gray-100 > :not([hidden]) ~ :not([hidden]),
+[data-theme="dark"] .divide-gray-200 > :not([hidden]) ~ :not([hidden]) { border-color: var(--hairline) !important; }
+
+/* bg-gray-200 used as a thin divider element (e.g. h-8 w-px bg-gray-200) */
+[data-theme="dark"] .bg-gray-200        { background-color: var(--hairline) !important; }
+[data-theme="dark"] .hover\:bg-gray-100:hover { background-color: var(--bg-tint) !important; }
+[data-theme="dark"] .hover\:bg-gray-200:hover { background-color: rgba(255,255,255,0.08) !important; }
+[data-theme="dark"] .hover\:bg-gray-50:hover  { background-color: var(--bg-tint) !important; }
+
+/* Modal / card white backgrounds with opacity */
+[data-theme="dark"] .bg-white\/95            { background-color: var(--surface-solid) !important; }
+[data-theme="dark"] .bg-white\/90            { background-color: var(--surface-solid) !important; }
+[data-theme="dark"] .bg-white\/80            { background-color: rgba(26, 22, 36, 0.80) !important; }
+[data-theme="dark"] .bg-white\/60            { background-color: rgba(26, 22, 36, 0.60) !important; }
+[data-theme="dark"] .bg-white\/55            { background-color: rgba(26, 22, 36, 0.55) !important; }
+
+/* Native select element */
+[data-theme="dark"] select                   { background-color: var(--bg-tint) !important; color: var(--ink) !important; }
+
+/* ── Colored stat cards (from-*-50 to-white gradient) ───────────────── */
+/* Remove the light gradient; replace with solid dark surface */
+[data-theme="dark"] .from-blue-50.to-white,
+[data-theme="dark"] .from-purple-50.to-white,
+[data-theme="dark"] .from-green-50.to-white,
+[data-theme="dark"] .from-orange-50.to-white,
+[data-theme="dark"] .from-red-50.to-white    { background-image: none !important; background-color: var(--surface-solid) !important; }
+
+/* Colored text-*-900 → readable light tint in dark mode */
+[data-theme="dark"] .text-blue-900           { color: #93C5FD !important; }
+[data-theme="dark"] .text-purple-900         { color: #C4B5FD !important; }
+[data-theme="dark"] .text-green-900          { color: #6EE7B7 !important; }
+[data-theme="dark"] .text-orange-900         { color: #FCD34D !important; }
+[data-theme="dark"] .text-red-900            { color: #FCA5A5 !important; }
+
+/* Colored icon backgrounds */
+[data-theme="dark"] .bg-blue-100             { background-color: rgba(59, 130, 246, 0.15) !important; }
+[data-theme="dark"] .bg-purple-100           { background-color: rgba(139, 92, 246, 0.15) !important; }
+[data-theme="dark"] .bg-green-100            { background-color: rgba(16, 185, 129, 0.15) !important; }
+[data-theme="dark"] .bg-orange-100           { background-color: rgba(245, 158, 11, 0.15) !important; }
+[data-theme="dark"] .bg-red-100              { background-color: rgba(239, 68, 68, 0.15) !important; }
+
+/* Colored tint backgrounds (bg-*-50) */
+[data-theme="dark"] .bg-blue-50              { background-color: rgba(59, 130, 246, 0.12) !important; }
+[data-theme="dark"] .bg-purple-50            { background-color: rgba(139, 92, 246, 0.12) !important; }
+[data-theme="dark"] .bg-green-50             { background-color: rgba(16, 185, 129, 0.12) !important; }
+[data-theme="dark"] .bg-orange-50            { background-color: rgba(245, 158, 11, 0.12) !important; }
+[data-theme="dark"] .bg-red-50               { background-color: rgba(239, 68, 68, 0.12) !important; }
+[data-theme="dark"] .bg-amber-50             { background-color: rgba(245, 158, 11, 0.12) !important; }
+[data-theme="dark"] .bg-yellow-50            { background-color: rgba(234, 179, 8, 0.12) !important; }
+[data-theme="dark"] .bg-yellow-100           { background-color: rgba(234, 179, 8, 0.18) !important; }
+[data-theme="dark"] .bg-indigo-50            { background-color: rgba(99, 102, 241, 0.12) !important; }
+
+/* Colored borders → subtle tint in dark mode */
+[data-theme="dark"] .border-blue-100         { border-color: rgba(59, 130, 246, 0.20) !important; }
+[data-theme="dark"] .border-purple-100       { border-color: rgba(139, 92, 246, 0.20) !important; }
+[data-theme="dark"] .border-green-100        { border-color: rgba(16, 185, 129, 0.20) !important; }
+[data-theme="dark"] .border-orange-100       { border-color: rgba(245, 158, 11, 0.20) !important; }
+[data-theme="dark"] .border-red-100          { border-color: rgba(239, 68, 68, 0.20) !important; }
+[data-theme="dark"] .border-blue-200         { border-color: rgba(59, 130, 246, 0.25) !important; }
+[data-theme="dark"] .border-red-200          { border-color: rgba(239, 68, 68, 0.25) !important; }
+
+/* Colored text — *-700 variants used in category badges */
+[data-theme="dark"] .text-blue-700           { color: #93C5FD !important; }
+[data-theme="dark"] .text-purple-700         { color: #C4B5FD !important; }
+[data-theme="dark"] .text-green-700          { color: #6EE7B7 !important; }
+[data-theme="dark"] .text-yellow-700         { color: #FDE68A !important; }
+[data-theme="dark"] .text-orange-700         { color: #FCD34D !important; }
+[data-theme="dark"] .text-red-700            { color: #FCA5A5 !important; }
+[data-theme="dark"] .text-indigo-700         { color: #A5B4FC !important; }
+
+/* Colored text — *-600 variants for icons */
+[data-theme="dark"] .text-blue-600           { color: #60A5FA !important; }
+[data-theme="dark"] .text-purple-600         { color: #A78BFA !important; }
+[data-theme="dark"] .text-green-600          { color: #34D399 !important; }
+[data-theme="dark"] .text-orange-600         { color: #FBBF24 !important; }
+[data-theme="dark"] .text-red-600            { color: #F87171 !important; }
+[data-theme="dark"] .text-yellow-600         { color: #FDE68A !important; }
+[data-theme="dark"] .text-amber-600,
+[data-theme="dark"] .text-amber-700          { color: #FCD34D !important; }
+[data-theme="dark"] .text-indigo-600         { color: #818CF8 !important; }
 
 .bg-white.rounded-2xl,
 .bg-white.rounded-xl {

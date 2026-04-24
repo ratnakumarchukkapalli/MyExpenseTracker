@@ -79,13 +79,13 @@ function Subscriptions({ subscriptions, onAdd, onEdit, onDelete, onPay, currentM
   };
 
   const getRenewalStatus = (dateString?: string | null, isPaid?: boolean) => {
-    if (isPaid) return { color: 'bg-green-100 text-green-700', text: 'Paid' };
+    if (isPaid) return { style: { background: 'var(--pos-bg)', color: 'var(--pos)' }, text: 'Paid' };
     const daysUntil = getDaysUntilRenewal(dateString);
-    if (daysUntil === null) return { color: 'bg-gray-100 text-gray-600', text: 'No date' };
-    if (daysUntil < 0) return { color: 'bg-red-100 text-red-700', text: 'Overdue' };
-    if (daysUntil <= 7) return { color: 'bg-orange-100 text-orange-700', text: 'Due soon' };
-    if (daysUntil <= 30) return { color: 'bg-yellow-100 text-yellow-700', text: 'Upcoming' };
-    return { color: 'bg-blue-100 text-blue-700', text: 'Active' };
+    if (daysUntil === null) return { style: { background: 'var(--hairline)', color: 'var(--ink-muted)' }, text: 'No date' };
+    if (daysUntil < 0) return { style: { background: 'var(--neg-bg)', color: 'var(--neg)' }, text: 'Overdue' };
+    if (daysUntil <= 7) return { style: { background: 'var(--warn-bg)', color: 'var(--warn)' }, text: 'Due soon' };
+    if (daysUntil <= 30) return { style: { background: 'var(--accent-bg)', color: 'var(--accent)' }, text: 'Upcoming' };
+    return { style: { background: 'var(--accent-bg)', color: 'var(--accent)' }, text: 'Active' };
   };
 
   const filteredSubscriptions = useMemo(() => {
@@ -157,34 +157,34 @@ function Subscriptions({ subscriptions, onAdd, onEdit, onDelete, onPay, currentM
 
     return (
       <>
-        <tr className="hover:bg-gray-50 group">
+        <tr className="group" style={{ borderTop: '1px solid var(--hairline)' }}>
           <td className="px-4 py-3">
             <div className="flex items-center gap-3">
-              <div className={`h-8 w-8 rounded-lg flex items-center justify-center flex-shrink-0 ${subscription.billing_type === 'monthly' ? 'bg-blue-50 text-blue-600' : 'bg-purple-50 text-purple-600'}`}>
+              <div className="h-8 w-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: subscription.billing_type === 'monthly' ? 'var(--accent-bg)' : 'var(--pos-bg)', color: subscription.billing_type === 'monthly' ? 'var(--accent)' : 'var(--pos)' }}>
                 <CreditCard className="h-4 w-4" />
               </div>
               <div className="min-w-0">
-                <p className="font-medium text-gray-900 truncate">{subscription.name}</p>
+                <p className="font-medium truncate" style={{ color: 'var(--ink)' }}>{subscription.name}</p>
               </div>
             </div>
           </td>
           <td className="px-4 py-3">
-            <span className="text-xs bg-gray-50 border border-gray-200 rounded-lg px-2 py-1 text-gray-600">
+            <span className="text-xs px-2 py-1 rounded-lg" style={{ background: 'var(--bg-tint)', border: '1px solid var(--hairline)', color: 'var(--ink-soft)' }}>
               {subscription.category || 'Other'}
             </span>
           </td>
           <td className="px-4 py-3 text-right">
-            <span className="font-semibold text-gray-900">₹{subscription.amount.toLocaleString()}</span>
+            <span className="font-semibold" style={{ color: 'var(--ink)' }}>₹{subscription.amount.toLocaleString()}</span>
           </td>
-          <td className="px-4 py-3 text-center text-sm text-gray-600">
+          <td className="px-4 py-3 text-center text-sm" style={{ color: 'var(--ink-soft)' }}>
             {formatDate(projectedDate)}
           </td>
           <td className="px-4 py-3 text-center">
-            <span className={`inline-flex px-2 py-0.5 text-xs font-medium rounded-full ${status.color}`}>
+            <span className="inline-flex px-2 py-0.5 text-xs font-medium rounded-full" style={status.style}>
               {status.text}
             </span>
           </td>
-          <td className="px-4 py-3 text-center text-xs text-gray-500">
+          <td className="px-4 py-3 text-center text-xs" style={{ color: 'var(--ink-faint)' }}>
             {subscription.last_paid_date ? formatDate(subscription.last_paid_date) : '-'}
           </td>
           <td className="px-4 py-3">
@@ -193,15 +193,12 @@ function Subscriptions({ subscriptions, onAdd, onEdit, onDelete, onPay, currentM
                 <button 
                   onClick={() => handleMarkPaid(subscription)} 
                   disabled={payingId === subscription.id}
-                  className={`p-1.5 rounded-lg transition-all cursor-pointer ${
-                    payingId === subscription.id 
-                      ? 'text-gray-400 bg-gray-50' 
-                      : 'text-green-600 hover:bg-green-50'
-                  }`} 
+                  className="p-1.5 rounded-lg transition-all cursor-pointer"
+                  style={{ color: payingId === subscription.id ? 'var(--ink-faint)' : 'var(--pos)' }}
                   title="Mark Paid"
                 >
                   {payingId === subscription.id ? (
-                    <div className="h-4 w-4 border-2 border-green-600 border-t-transparent rounded-full animate-spin" />
+                    <div className="h-4 w-4 border-2 border-t-transparent rounded-full animate-spin" style={{ borderColor: 'var(--pos)' }} />
                   ) : (
                     <CheckCircle className="h-4 w-4" />
                   )}
@@ -209,15 +206,16 @@ function Subscriptions({ subscriptions, onAdd, onEdit, onDelete, onPay, currentM
               )}
               <button
                 onClick={() => setExpandedPaymentHistory(isExpanded ? null : subscription.id)}
-                className={`p-1.5 rounded-lg cursor-pointer ${isExpanded ? 'text-primary-600 bg-primary-50' : 'text-gray-400 hover:text-primary-600 hover:bg-primary-50'}`}
+                className="p-1.5 rounded-lg cursor-pointer transition-colors"
+                style={{ color: isExpanded ? 'var(--accent)' : 'var(--ink-faint)', background: isExpanded ? 'var(--accent-bg)' : 'transparent' }}
                 title="Payment History"
               >
                 <History className="h-4 w-4" />
               </button>
-              <button onClick={() => onEdit(subscription)} className="p-1.5 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg cursor-pointer" title="Edit">
+              <button onClick={() => onEdit(subscription)} className="p-1.5 rounded-lg cursor-pointer transition-colors" style={{ color: 'var(--ink-faint)' }} title="Edit">
                 <Edit2 className="h-4 w-4" />
               </button>
-              <button onClick={() => { if (window.confirm(`Delete ${subscription.name}?`)) onDelete(subscription.id); }} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg cursor-pointer" title="Delete">
+              <button onClick={() => { if (window.confirm(`Delete ${subscription.name}?`)) onDelete(subscription.id); }} className="p-1.5 rounded-lg cursor-pointer transition-colors" style={{ color: 'var(--ink-faint)' }} title="Delete">
                 <Trash2 className="h-4 w-4" />
               </button>
             </div>
@@ -225,20 +223,20 @@ function Subscriptions({ subscriptions, onAdd, onEdit, onDelete, onPay, currentM
         </tr>
         {isExpanded && (
           <tr>
-            <td colSpan={7} className="bg-gray-50 px-4 py-3">
+            <td colSpan={7} className="px-4 py-3" style={{ background: 'var(--bg-tint)' }}>
               <div className="ml-11">
-                <p className="text-xs font-medium text-gray-500 mb-2">PAYMENT HISTORY</p>
+                <p className="text-xs font-medium mb-2" style={{ color: 'var(--ink-faint)' }}>PAYMENT HISTORY</p>
                 {history.length > 0 ? (
                   <div className="space-y-1">
                     {history.slice(0, 5).map((payment, idx) => (
                       <div key={idx} className="flex items-center justify-between text-sm max-w-xs">
-                        <span className="text-gray-600">{formatDate(payment.paid_date)}</span>
-                        <span className="font-medium text-gray-900">₹{payment.amount.toLocaleString()}</span>
+                        <span style={{ color: 'var(--ink-soft)' }}>{formatDate(payment.paid_date)}</span>
+                        <span className="font-medium" style={{ color: 'var(--ink)' }}>₹{payment.amount.toLocaleString()}</span>
                       </div>
                     ))}
                   </div>
                 ) : (
-                  <p className="text-sm text-gray-500">No payment history yet</p>
+                  <p className="text-sm" style={{ color: 'var(--ink-faint)' }}>No payment history yet</p>
                 )}
               </div>
             </td>
@@ -256,49 +254,50 @@ function Subscriptions({ subscriptions, onAdd, onEdit, onDelete, onPay, currentM
   }) => {
     const isCollapsed = collapsedSections[type];
     return (
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+      <div className="rounded-2xl overflow-hidden" style={{ background: 'var(--pane)', border: '1px solid var(--hairline)', boxShadow: 'var(--shadow-sm)' }}>
         <button
           onClick={() => toggleSection(type)}
-          className="w-full flex items-center justify-between px-5 py-4 bg-gray-50/50 hover:bg-gray-50 transition-colors cursor-pointer"
+          className="w-full flex items-center justify-between px-5 py-4 transition-colors cursor-pointer"
+          style={{ background: 'color-mix(in srgb, var(--bg-tint) 40%, transparent)' }}
         >
           <div className="flex items-center gap-3">
-            {isCollapsed ? <ChevronRight className="h-4 w-4 text-gray-400" /> : <ChevronDown className="h-4 w-4 text-gray-400" />}
+            {isCollapsed ? <ChevronRight className="h-4 w-4" style={{ color: 'var(--ink-faint)' }} /> : <ChevronDown className="h-4 w-4" style={{ color: 'var(--ink-faint)' }} />}
             <div className={`p-2 rounded-lg ${color}`}>
               <Icon className="h-4 w-4" />
             </div>
             <div className="text-left">
-              <span className="font-bold text-gray-900">{title}</span>
-              <span className="text-sm text-gray-500 ml-2">({subs.length})</span>
+              <span className="font-bold" style={{ color: 'var(--ink)' }}>{title}</span>
+              <span className="text-sm ml-2" style={{ color: 'var(--ink-muted)' }}>({subs.length})</span>
             </div>
           </div>
           <div className="text-right">
-            <p className="font-bold text-gray-900">₹{total.toLocaleString()}</p>
-            <p className="text-xs text-gray-500">{type === 'monthly' ? 'per month' : 'per year'}</p>
+            <p className="font-bold" style={{ color: 'var(--ink)' }}>₹{total.toLocaleString()}</p>
+            <p className="text-xs" style={{ color: 'var(--ink-muted)' }}>{type === 'monthly' ? 'per month' : 'per year'}</p>
           </div>
         </button>
 
         {!isCollapsed && subs.length > 0 && (
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="bg-gray-50/50 border-t border-gray-100">
+              <thead style={{ background: 'transparent', borderTop: '1px solid var(--hairline)' }}>
                 <tr>
-                  <th className="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase">Name</th>
-                  <th className="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase w-28">Category</th>
-                  <th className="px-4 py-2 text-right text-xs font-semibold text-gray-500 uppercase w-24">Amount</th>
-                  <th className="px-4 py-2 text-center text-xs font-semibold text-gray-500 uppercase w-24">Due</th>
-                  <th className="px-4 py-2 text-center text-xs font-semibold text-gray-500 uppercase w-24">Status</th>
-                  <th className="px-4 py-2 text-center text-xs font-semibold text-gray-500 uppercase w-24">Last Paid</th>
-                  <th className="px-4 py-2 text-right text-xs font-semibold text-gray-500 uppercase w-32">Actions</th>
+                  <th className="px-4 py-2 text-left text-xs font-semibold uppercase" style={{ color: 'var(--ink-faint)' }}>Name</th>
+                  <th className="px-4 py-2 text-left text-xs font-semibold uppercase w-28" style={{ color: 'var(--ink-faint)' }}>Category</th>
+                  <th className="px-4 py-2 text-right text-xs font-semibold uppercase w-24" style={{ color: 'var(--ink-faint)' }}>Amount</th>
+                  <th className="px-4 py-2 text-center text-xs font-semibold uppercase w-24" style={{ color: 'var(--ink-faint)' }}>Due</th>
+                  <th className="px-4 py-2 text-center text-xs font-semibold uppercase w-24" style={{ color: 'var(--ink-faint)' }}>Status</th>
+                  <th className="px-4 py-2 text-center text-xs font-semibold uppercase w-24" style={{ color: 'var(--ink-faint)' }}>Last Paid</th>
+                  <th className="px-4 py-2 text-right text-xs font-semibold uppercase w-32" style={{ color: 'var(--ink-faint)' }}>Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody style={{ borderTop: '1px solid var(--hairline)' }}>
                 {subs.map(sub => <SubscriptionRow key={sub.id} subscription={sub} />)}
               </tbody>
             </table>
           </div>
         )}
         {!isCollapsed && subs.length === 0 && (
-          <div className="p-6 text-center text-gray-500">No {type} subscriptions</div>
+          <div className="p-6 text-center" style={{ color: 'var(--ink-faint)' }}>No {type} subscriptions</div>
         )}
       </div>
     );
@@ -308,15 +307,15 @@ function Subscriptions({ subscriptions, onAdd, onEdit, onDelete, onPay, currentM
     return (
       <div className="space-y-6">
         <div className="flex items-center justify-between">
-          <h2 className="text-2xl font-bold text-gray-900">Subscriptions</h2>
+          <h2 className="text-2xl font-bold" style={{ color: 'var(--ink)' }}>Subscriptions</h2>
           <button onClick={onAdd} className="btn btn-accent cursor-pointer">
             <Plus size={14} /> Add Subscription
           </button>
         </div>
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-12 text-center">
-          <CreditCard className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-          <h3 className="text-lg font-semibold text-gray-900">No subscriptions yet</h3>
-          <p className="mt-2 text-gray-500">Track your recurring payments and never miss a renewal date.</p>
+        <div className="pane p-12 text-center">
+          <CreditCard className="h-12 w-12 mx-auto mb-4" style={{ color: 'var(--ink-faint)' }} />
+          <h3 className="text-lg font-semibold" style={{ color: 'var(--ink)' }}>No subscriptions yet</h3>
+          <p className="mt-2" style={{ color: 'var(--ink-muted)' }}>Track your recurring payments and never miss a renewal date.</p>
         </div>
       </div>
     );
@@ -382,42 +381,42 @@ function Subscriptions({ subscriptions, onAdd, onEdit, onDelete, onPay, currentM
       )}
 
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-        <div className="bg-gradient-to-br from-blue-50 to-white rounded-2xl border border-blue-100 p-4">
+        <div className="rounded-2xl p-4" style={{ background: 'var(--pane)', border: '1px solid var(--hairline)' }}>
           <div className="flex items-center gap-2 mb-1">
-            <div className="p-1.5 bg-blue-100 rounded-lg"><DollarSign className="h-4 w-4 text-blue-600" /></div>
-            <p className="text-xs font-medium text-blue-900">Monthly</p>
+            <div className="p-1.5 rounded-lg" style={{ background: 'var(--accent-bg)', color: 'var(--accent)' }}><DollarSign className="h-4 w-4" /></div>
+            <p className="text-xs font-medium" style={{ color: 'var(--ink-muted)' }}>Monthly</p>
           </div>
-          <p className="text-xl font-bold text-blue-900">₹{monthlyTotal.toLocaleString()}</p>
+          <p className="text-xl font-bold" style={{ color: 'var(--ink)' }}>₹{monthlyTotal.toLocaleString()}</p>
         </div>
-        <div className="bg-gradient-to-br from-purple-50 to-white rounded-2xl border border-purple-100 p-4">
+        <div className="rounded-2xl p-4" style={{ background: 'var(--pane)', border: '1px solid var(--hairline)' }}>
           <div className="flex items-center gap-2 mb-1">
-            <div className="p-1.5 bg-purple-100 rounded-lg"><Calendar className="h-4 w-4 text-purple-600" /></div>
-            <p className="text-xs font-medium text-purple-900">Yearly</p>
+            <div className="p-1.5 rounded-lg" style={{ background: 'var(--pos-bg)', color: 'var(--pos)' }}><Calendar className="h-4 w-4" /></div>
+            <p className="text-xs font-medium" style={{ color: 'var(--ink-muted)' }}>Yearly</p>
           </div>
-          <p className="text-xl font-bold text-purple-900">₹{yearlyTotal.toLocaleString()}</p>
+          <p className="text-xl font-bold" style={{ color: 'var(--ink)' }}>₹{yearlyTotal.toLocaleString()}</p>
         </div>
-        <div className="bg-gradient-to-br from-green-50 to-white rounded-2xl border border-green-100 p-4">
+        <div className="rounded-2xl p-4" style={{ background: 'var(--pane)', border: '1px solid var(--hairline)' }}>
           <div className="flex items-center gap-2 mb-1">
-            <div className="p-1.5 bg-green-100 rounded-lg"><CheckCircle className="h-4 w-4 text-green-600" /></div>
-            <p className="text-xs font-medium text-green-900">Annual Projection</p>
+            <div className="p-1.5 rounded-lg" style={{ background: 'var(--accent-bg)', color: 'var(--accent)' }}><CheckCircle className="h-4 w-4" /></div>
+            <p className="text-xs font-medium" style={{ color: 'var(--ink-muted)' }}>Annual Projection</p>
           </div>
-          <p className="text-xl font-bold text-green-900">₹{yearlyProjection.toLocaleString()}</p>
+          <p className="text-xl font-bold" style={{ color: 'var(--ink)' }}>₹{yearlyProjection.toLocaleString()}</p>
         </div>
-        <div className="bg-gradient-to-br from-orange-50 to-white rounded-2xl border border-orange-100 p-4">
+        <div className="rounded-2xl p-4" style={{ background: 'var(--pane)', border: '1px solid var(--hairline)' }}>
           <div className="flex items-center gap-2 mb-1">
-            <div className="p-1.5 bg-orange-100 rounded-lg"><AlertCircle className="h-4 w-4 text-orange-600" /></div>
-            <p className="text-xs font-medium text-orange-900">Due Soon</p>
+            <div className="p-1.5 rounded-lg" style={{ background: 'var(--warn-bg)', color: 'var(--warn)' }}><AlertCircle className="h-4 w-4" /></div>
+            <p className="text-xs font-medium" style={{ color: 'var(--ink-muted)' }}>Due Soon</p>
           </div>
-          <p className="text-xl font-bold text-orange-900">{dueSoonCount}</p>
-          <p className="text-xs text-orange-600">within 7 days</p>
+          <p className="text-xl font-bold" style={{ color: 'var(--ink)' }}>{dueSoonCount}</p>
+          <p className="text-xs" style={{ color: 'var(--warn)' }}>within 7 days</p>
         </div>
-        <div className="bg-gradient-to-br from-red-50 to-white rounded-2xl border border-red-100 p-4">
+        <div className="rounded-2xl p-4" style={{ background: 'var(--pane)', border: '1px solid var(--hairline)' }}>
           <div className="flex items-center gap-2 mb-1">
-            <div className="p-1.5 bg-red-100 rounded-lg"><X className="h-4 w-4 text-red-600" /></div>
-            <p className="text-xs font-medium text-red-900">Overdue</p>
+            <div className="p-1.5 rounded-lg" style={{ background: 'var(--neg-bg)', color: 'var(--neg)' }}><X className="h-4 w-4" /></div>
+            <p className="text-xs font-medium" style={{ color: 'var(--ink-muted)' }}>Overdue</p>
           </div>
-          <p className="text-xl font-bold text-red-900">{overdueSubscriptions.length}</p>
-          <p className="text-xs text-red-600">needs payment</p>
+          <p className="text-xl font-bold" style={{ color: 'var(--ink)' }}>{overdueSubscriptions.length}</p>
+          <p className="text-xs" style={{ color: 'var(--neg)' }}>needs payment</p>
         </div>
       </div>
 

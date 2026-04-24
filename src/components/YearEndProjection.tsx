@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useMemo, useState } from 'react';
+import { useDarkMode } from '@/hooks/useDarkMode';
 import { Calculator, TrendingUp } from 'lucide-react';
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip } from 'recharts';
 
@@ -21,6 +22,7 @@ type YearlyRow = {
 };
 
 function YearEndProjection({ currentMonth, currentYear }: Props) {
+  const { chartColors } = useDarkMode();
   const [rows, setRows] = useState<YearlyRow[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -63,7 +65,7 @@ function YearEndProjection({ currentMonth, currentYear }: Props) {
             <p className="eyebrow">Yearly Net Worth</p>
             <h2 className="mt-2 text-2xl font-semibold">Projected from monthly summary snapshots</h2>
           </div>
-          <div className="rounded-2xl border border-[var(--hairline)] bg-white/55 px-4 py-3 text-right">
+          <div className="rounded-2xl border px-4 py-3 text-right" style={{ background: 'var(--surface-solid)', borderColor: 'var(--hairline)' }}>
             <p className="text-xs uppercase tracking-[0.14em] text-[var(--ink-muted)]">Delta to year-end</p>
             <p className="mt-2 text-xl font-semibold text-[var(--accent)]">₹{gap.toLocaleString('en-IN')}</p>
           </div>
@@ -74,8 +76,8 @@ function YearEndProjection({ currentMonth, currentYear }: Props) {
             <AreaChart data={chartData}>
               <defs>
                 <linearGradient id="projectionGradient" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#1f8a5b" stopOpacity={0.4} />
-                  <stop offset="100%" stopColor="#1f8a5b" stopOpacity={0.03} />
+                  <stop offset="0%" stopColor={chartColors.pos} stopOpacity={0.4} />
+                  <stop offset="100%" stopColor={chartColors.pos} stopOpacity={0.03} />
                 </linearGradient>
               </defs>
               <CartesianGrid vertical={false} stroke="rgba(100,100,120,0.14)" />
@@ -85,7 +87,7 @@ function YearEndProjection({ currentMonth, currentYear }: Props) {
                   return [`₹${amount.toLocaleString('en-IN')}`, 'Net Worth'];
                 }}
               />
-              <Area type="monotone" dataKey="netWorth" stroke="#1f8a5b" strokeWidth={2.5} fill="url(#projectionGradient)" />
+              <Area type="monotone" dataKey="netWorth" stroke={chartColors.pos} strokeWidth={2.5} fill="url(#projectionGradient)" />
             </AreaChart>
           </ResponsiveContainer>
         </div>
@@ -101,15 +103,15 @@ function YearEndProjection({ currentMonth, currentYear }: Props) {
             <p className="mt-4 text-sm text-[var(--ink-muted)]">Loading yearly data…</p>
           ) : (
             <div className="mt-4 space-y-3 text-sm">
-              <div className="rounded-2xl border border-[var(--hairline)] bg-white/60 px-4 py-3">
+              <div className="rounded-2xl border px-4 py-3" style={{ background: 'var(--surface-solid)', borderColor: 'var(--hairline)' }}>
                 <p className="text-xs uppercase tracking-[0.14em] text-[var(--ink-muted)]">Current month net worth</p>
                 <p className="mt-2 text-2xl font-semibold">₹{Math.round(current?.netWorth ?? 0).toLocaleString('en-IN')}</p>
               </div>
-              <div className="rounded-2xl border border-[var(--hairline)] bg-white/60 px-4 py-3">
+              <div className="rounded-2xl border px-4 py-3" style={{ background: 'var(--surface-solid)', borderColor: 'var(--hairline)' }}>
                 <p className="text-xs uppercase tracking-[0.14em] text-[var(--ink-muted)]">Cash</p>
                 <p className="mt-2 text-xl font-semibold">₹{Math.round(current?.cash ?? 0).toLocaleString('en-IN')}</p>
               </div>
-              <div className="rounded-2xl border border-[var(--hairline)] bg-white/60 px-4 py-3">
+              <div className="rounded-2xl border px-4 py-3" style={{ background: 'var(--surface-solid)', borderColor: 'var(--hairline)' }}>
                 <p className="text-xs uppercase tracking-[0.14em] text-[var(--ink-muted)]">Investments</p>
                 <p className="mt-2 text-xl font-semibold">₹{Math.round(current?.investments ?? 0).toLocaleString('en-IN')}</p>
               </div>

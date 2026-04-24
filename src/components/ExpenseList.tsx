@@ -165,12 +165,12 @@ function ExpenseList({ expenses, onEdit, onDelete, onAdd, categoryIcons = {} }: 
 
   if (expenses.length === 0) {
     return (
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-12 text-center">
-        <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4">
-          <Calendar className="h-8 w-8 text-gray-400" />
+      <div className="pane p-12 text-center" style={{ background: 'var(--pane)', borderColor: 'var(--hairline)' }}>
+        <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4" style={{ background: 'var(--bg-tint)' }}>
+          <Calendar className="h-8 w-8" style={{ color: 'var(--ink-faint)' }} />
         </div>
-        <h3 className="text-lg font-semibold text-gray-900">No expenses found</h3>
-        <p className="mt-2 text-gray-500 max-w-sm mx-auto">
+        <h3 className="text-lg font-semibold" style={{ color: 'var(--ink)' }}>No expenses found</h3>
+        <p className="mt-2 max-w-sm mx-auto" style={{ color: 'var(--ink-muted)' }}>
           Get started by adding your first expense to track your spending.
         </p>
       </div>
@@ -287,34 +287,42 @@ function ExpenseList({ expenses, onEdit, onDelete, onAdd, categoryIcons = {} }: 
       {/* Grouped Expenses */}
       <div className="space-y-3">
         {groupedExpenses.map(group => (
-          <div key={group.date} className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+          <div key={group.date} className="rounded-2xl overflow-hidden" style={{ background: 'var(--pane)', border: '1px solid var(--hairline)', boxShadow: 'var(--shadow-sm)' }}>
             <button
               onClick={() => toggleDateGroup(group.date)}
-              className="w-full flex items-center justify-between px-5 py-3 bg-gray-50/50 hover:bg-gray-50 transition-colors cursor-pointer"
+              className="w-full flex items-center justify-between px-5 py-3 transition-colors cursor-pointer"
+              style={{ background: 'color-mix(in srgb, var(--bg-tint) 40%, transparent)' }}
             >
               <div className="flex items-center gap-3">
                 {collapsedDates[group.date] ? (
-                  <ChevronRight className="h-4 w-4 text-gray-400" />
+                  <ChevronRight className="h-4 w-4" style={{ color: 'var(--ink-faint)' }} />
                 ) : (
-                  <ChevronDown className="h-4 w-4 text-gray-400" />
+                  <ChevronDown className="h-4 w-4" style={{ color: 'var(--ink-faint)' }} />
                 )}
-                <span className="font-semibold text-gray-900">{group.displayDate}</span>
-                <span className="text-sm text-gray-500">
+                <span className="font-semibold" style={{ color: 'var(--ink)' }}>{group.displayDate}</span>
+                <span className="text-sm" style={{ color: 'var(--ink-muted)' }}>
                   {group.expenses.length} expense{group.expenses.length !== 1 ? 's' : ''}
                 </span>
               </div>
-              <span className="font-bold text-gray-900">₹{group.total.toLocaleString('en-IN')}</span>
+              <span className="font-bold" style={{ color: 'var(--ink)' }}>₹{group.total.toLocaleString('en-IN')}</span>
             </button>
 
             {!collapsedDates[group.date] && (
-              <div className="divide-y divide-gray-100">
-                {group.expenses.map((expense) => {
+              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                {group.expenses.map((expense, idx) => {
                   const Icon = categoryIcons[expense.category];
                   const isEditingDesc = editingCell?.id === expense.id && editingCell?.field === 'description';
                   const isEditingAmount = editingCell?.id === expense.id && editingCell?.field === 'amount';
 
                   return (
-                    <div key={expense.id} className="flex items-center px-5 py-3 hover:bg-gray-50/50 transition-colors group">
+                    <div 
+                      key={expense.id} 
+                      className="flex items-center px-5 py-3 transition-colors group"
+                      style={{ 
+                        borderTop: idx === 0 ? 'none' : '1px solid var(--hairline)',
+                        background: 'transparent'
+                      }}
+                    >
                       <div className={`h-9 w-9 rounded-lg flex items-center justify-center mr-4 ${getCategoryColor(expense.category).split(' ')[0]}`}>
                         {Icon ? <Icon className="h-4 w-4 opacity-70" /> : <div className="h-2 w-2 rounded-full bg-current" />}
                       </div>
@@ -343,7 +351,8 @@ function ExpenseList({ expenses, onEdit, onDelete, onAdd, categoryIcons = {} }: 
                         ) : (
                           <div className="flex items-center gap-2">
                             <p
-                              className="text-sm font-medium text-gray-900 truncate cursor-pointer hover:text-primary-600"
+                              className="text-sm font-medium truncate cursor-pointer hover:text-primary-600"
+                              style={{ color: 'var(--ink)' }}
                               onClick={() => startEditing(expense.id, 'description', expense.description)}
                               title="Click to edit"
                             >
@@ -360,7 +369,7 @@ function ExpenseList({ expenses, onEdit, onDelete, onAdd, categoryIcons = {} }: 
                           {expense.category}
                         </span>
                         {expense.note && (
-                          <p className="mt-0.5 text-xs text-gray-400 italic truncate" title={expense.note}>
+                          <p className="mt-0.5 text-xs italic truncate" style={{ color: 'var(--ink-faint)' }} title={expense.note}>
                             {expense.note}
                           </p>
                         )}
@@ -381,7 +390,7 @@ function ExpenseList({ expenses, onEdit, onDelete, onAdd, categoryIcons = {} }: 
                               className="w-20 px-2 py-1 border border-primary-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500/20 text-sm text-right"
                               autoFocus
                             />
-                            <button onClick={() => saveEdit(expense)} className="p-1 text-green-600 hover:bg-green-50 rounded">
+                            <button onClick={() => saveEdit(expense)} className="p-1 hover:bg-green-50 rounded" style={{ color: 'var(--pos)' }}>
                               <Check className="h-3 w-3" />
                             </button>
                           </div>
@@ -399,14 +408,16 @@ function ExpenseList({ expenses, onEdit, onDelete, onAdd, categoryIcons = {} }: 
                       <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                         <button
                           onClick={() => duplicateExpense(expense)}
-                          className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
+                          className="p-1.5 rounded-lg transition-colors cursor-pointer"
+                          style={{ color: 'var(--ink-faint)' }}
                           title="Duplicate"
                         >
                           <Copy className="h-4 w-4" />
                         </button>
                         <button
                           onClick={() => onEdit(expense, 'open-form')}
-                          className="p-1.5 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors cursor-pointer"
+                          className="p-1.5 rounded-lg transition-colors cursor-pointer"
+                          style={{ color: 'var(--ink-faint)' }}
                           title="Edit"
                         >
                           <Edit2 className="h-4 w-4" />
@@ -417,7 +428,8 @@ function ExpenseList({ expenses, onEdit, onDelete, onAdd, categoryIcons = {} }: 
                               onDelete(expense.id);
                             }
                           }}
-                          className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
+                          className="p-1.5 rounded-lg transition-colors cursor-pointer"
+                          style={{ color: 'var(--ink-faint)' }}
                           title="Delete"
                         >
                           <Trash2 className="h-4 w-4" />
@@ -433,16 +445,16 @@ function ExpenseList({ expenses, onEdit, onDelete, onAdd, categoryIcons = {} }: 
       </div>
 
       {/* Running Total Footer */}
-      <div className="sticky bottom-4 bg-white/90 backdrop-blur-sm rounded-2xl shadow-lg border border-gray-200 p-4 flex items-center justify-between">
+      <div className="sticky bottom-4 rounded-2xl shadow-lg p-4 flex items-center justify-between" style={{ background: 'var(--pane-strong)', backdropFilter: 'blur(12px)', border: '1px solid var(--hairline)' }}>
         <div className="flex items-center gap-4">
           <div>
-            <p className="text-xs text-gray-500">Total Transactions</p>
-            <p className="text-lg font-bold text-gray-900">{filteredExpenses.length}</p>
+            <p className="text-xs" style={{ color: 'var(--ink-muted)' }}>Total Transactions</p>
+            <p className="text-lg font-bold" style={{ color: 'var(--ink)' }}>{filteredExpenses.length}</p>
           </div>
-          <div className="h-8 w-px bg-gray-200" />
+          <div className="h-8 w-px" style={{ background: 'var(--hairline)' }} />
           <div>
-            <p className="text-xs text-gray-500">Average</p>
-            <p className="text-lg font-bold text-gray-900">
+            <p className="text-xs" style={{ color: 'var(--ink-muted)' }}>Average</p>
+            <p className="text-lg font-bold" style={{ color: 'var(--ink)' }}>
               ₹{filteredExpenses.length > 0
                 ? Math.round(filteredExpenses.reduce((s, e) => s + e.amount, 0) / filteredExpenses.length).toLocaleString('en-IN')
                 : 0}
@@ -450,8 +462,8 @@ function ExpenseList({ expenses, onEdit, onDelete, onAdd, categoryIcons = {} }: 
           </div>
         </div>
         <div className="text-right">
-          <p className="text-xs text-gray-500">Total Amount</p>
-          <p className="text-2xl font-bold text-primary-600">
+          <p className="text-xs" style={{ color: 'var(--ink-muted)' }}>Total Amount</p>
+          <p className="text-2xl font-bold" style={{ color: 'var(--accent)' }}>
             ₹{filteredExpenses.reduce((s, e) => s + e.amount, 0).toLocaleString('en-IN')}
           </p>
         </div>

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useDarkMode } from '@/hooks/useDarkMode';
 import {
   ComposedChart, Area, Line, XAxis, YAxis, Tooltip,
   ReferenceLine, ResponsiveContainer, BarChart, Bar,
@@ -11,11 +12,12 @@ import {
   CheckCircle, BarChart2,
 } from 'lucide-react';
 import { formatCurrency } from '@/lib/formatters';
+import { ML_API_URL } from '@/lib/ml/config';
 
 // ── ML via Python FastAPI ──────────────────────────────────────────────────
 const mlAnalyze = async (endpoint: string, payload: unknown) => {
   try {
-    const res = await fetch(`http://127.0.0.1:8765/${endpoint}`, {
+    const res = await fetch(`${ML_API_URL}/${endpoint}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
@@ -136,6 +138,7 @@ interface FundCardProps {
 }
 
 const FundCard = ({ fund, onDelete, onRefreshNav }: FundCardProps) => {
+  const { chartColors } = useDarkMode();
   const [expanded, setExpanded] = useState(false);
   const [mlOpen, setMlOpen] = useState(false);
   const [transactions, setTransactions] = useState<SipTransaction[]>([]);
@@ -467,23 +470,23 @@ const FundCard = ({ fund, onDelete, onRefreshNav }: FundCardProps) => {
                     </p>
                     <ResponsiveContainer width="100%" height={220}>
                       <ComposedChart data={fullData} margin={{ top: 4, right: 12, bottom: 0, left: 0 }}>
-                        <XAxis dataKey="date" tick={{ fontSize: 9 }} interval={Math.floor(fullData.length / 7)} />
-                        <YAxis domain={['auto', 'auto']} tick={{ fontSize: 9 }} width={50} tickFormatter={(v: number) => `₹${v}`} />
+                        <XAxis dataKey="date" tick={{ fontSize: 9, fill: chartColors.axisText }} interval={Math.floor(fullData.length / 7)} />
+                        <YAxis domain={['auto', 'auto']} tick={{ fontSize: 9, fill: chartColors.axisText }} width={50} tickFormatter={(v: number) => `₹${v}`} />
                         <Tooltip
                           formatter={(v: unknown) => v != null ? `₹${parseFloat(String(v)).toFixed(2)}` : null}
-                          contentStyle={{ fontSize: 11 }}
+                          contentStyle={{ fontSize: 11, background: chartColors.tooltipBg, border: `1px solid ${chartColors.tooltipBorder}`, color: chartColors.axisText }}
                         />
-                        <Area type="monotone" dataKey="nav" fill="#e0e7ff" stroke="#6366f1" strokeWidth={1} dot={false} name="NAV" />
-                        <Line type="monotone" dataKey="sma30" stroke="#3b82f6" strokeWidth={1.5} dot={false} name="30d SMA" connectNulls />
-                        <Line type="monotone" dataKey="sma90" stroke="#f59e0b" strokeWidth={1.5} dot={false} name="90d SMA" connectNulls />
-                        <Line type="monotone" dataKey="predicted" stroke="#10b981" strokeWidth={2} strokeDasharray="6 3" dot={{ r: 3, fill: '#10b981' }} name="Predicted" connectNulls />
+                        <Area type="monotone" dataKey="nav" fill={chartColors.accentFill} stroke={chartColors.accent} strokeWidth={1} dot={false} name="NAV" />
+                        <Line type="monotone" dataKey="sma30" stroke={chartColors.blue} strokeWidth={1.5} dot={false} name="30d SMA" connectNulls />
+                        <Line type="monotone" dataKey="sma90" stroke={chartColors.amber} strokeWidth={1.5} dot={false} name="90d SMA" connectNulls />
+                        <Line type="monotone" dataKey="predicted" stroke={chartColors.emerald} strokeWidth={2} strokeDasharray="6 3" dot={{ r: 3, fill: chartColors.emerald }} name="Predicted" connectNulls />
                         {breakevenNav > 0 && (
-                          <ReferenceLine y={breakevenNav} stroke="#ef4444" strokeDasharray="4 3"
-                            label={{ value: `Breakeven ₹${breakevenNav.toFixed(2)}`, fontSize: 9, fill: '#ef4444', position: 'insideTopRight' }} />
+                          <ReferenceLine y={breakevenNav} stroke={chartColors.neg} strokeDasharray="4 3"
+                            label={{ value: `Breakeven ₹${breakevenNav.toFixed(2)}`, fontSize: 9, fill: chartColors.neg, position: 'insideTopRight' }} />
                         )}
                         {todayLabel && (
-                          <ReferenceLine x={todayLabel} stroke="#9ca3af" strokeDasharray="3 3"
-                            label={{ value: 'Today', fontSize: 9, fill: '#9ca3af', position: 'insideTopLeft' }} />
+                          <ReferenceLine x={todayLabel} stroke={chartColors.gray} strokeDasharray="3 3"
+                            label={{ value: 'Today', fontSize: 9, fill: chartColors.gray, position: 'insideTopLeft' }} />
                         )}
                       </ComposedChart>
                     </ResponsiveContainer>
@@ -758,20 +761,6 @@ const LogSIPModal = ({ funds, onLog, onCancel }: LogSIPModalProps) => {
     });
   };
 
-  const DARK = {
-    bg: '#16121f', surface: '#1e1830', border: 'rgba(255,255,255,0.10)',
-    ink: '#f0eeff', muted: '#8b869a', input: '#120f1c',
-  };
-  const inputStyle: React.CSSProperties = {
-    width: '100%', padding: '10px 13px', border: `1px solid ${DARK.border}`,
-    borderRadius: 10, fontSize: 14, background: DARK.input, color: DARK.ink,
-    outline: 'none', boxSizing: 'border-box', colorScheme: 'dark',
-  };
-  const labelStyle: React.CSSProperties = {
-    display: 'block', fontSize: 10, fontWeight: 700, color: DARK.muted,
-    marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.07em',
-  };
-
   return (
     <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 animate-in fade-in duration-200">
       {/* Backdrop */}
@@ -931,6 +920,7 @@ interface GoalTrackerProps {
 }
 
 const GoalTracker = ({ totalCurrent, monthlyRSIP }: GoalTrackerProps) => {
+  const { chartColors } = useDarkMode();
   const [target, setTarget] = useState('');
   const [targetDate, setTargetDate] = useState('');
 
@@ -1005,13 +995,13 @@ const GoalTracker = ({ totalCurrent, monthlyRSIP }: GoalTrackerProps) => {
         </p>
         <ResponsiveContainer width="100%" height={160}>
           <BarChart data={projectionData} margin={{ top: 4, right: 8, bottom: 0, left: 0 }}>
-            <XAxis dataKey="month" tick={{ fontSize: 9 }} interval={3} />
-            <YAxis tick={{ fontSize: 9 }} tickFormatter={(v: number) => `₹${v}L`} width={42} />
-            <Tooltip formatter={(v: unknown) => `₹${v}L`} contentStyle={{ fontSize: 11 }} />
-            <Bar dataKey="value" fill="#6366f1" radius={[3, 3, 0, 0]} name="Portfolio" />
+            <XAxis dataKey="month" tick={{ fontSize: 9, fill: chartColors.axisText }} interval={3} />
+            <YAxis tick={{ fontSize: 9, fill: chartColors.axisText }} tickFormatter={(v: number) => `₹${v}L`} width={42} />
+            <Tooltip formatter={(v: unknown) => `₹${v}L`} contentStyle={{ fontSize: 11, background: chartColors.tooltipBg, border: `1px solid ${chartColors.tooltipBorder}` }} />
+            <Bar dataKey="value" fill={chartColors.accent} radius={[3, 3, 0, 0]} name="Portfolio" />
             {targetAmt > 0 && (
-              <ReferenceLine y={targetAmt / 100000} stroke="#10b981" strokeDasharray="4 3"
-                label={{ value: `Target ₹${target}L`, fontSize: 9, fill: '#10b981', position: 'insideTopRight' }} />
+              <ReferenceLine y={targetAmt / 100000} stroke={chartColors.emerald} strokeDasharray="4 3"
+                label={{ value: `Target ₹${target}L`, fontSize: 9, fill: chartColors.emerald, position: 'insideTopRight' }} />
             )}
           </BarChart>
         </ResponsiveContainer>
@@ -1487,11 +1477,12 @@ const SIPTracker = ({ currentMonth: _currentMonth, currentYear: _currentYear, on
             { label: 'Funds', value: String(activeFunds.length), sub: `+ ${histFunds.length} historical`, color: 'orange' },
           ].map(({ label, value, sub, color }) => (
             <div key={label}
-              className={`bg-gradient-to-br from-${color}-50 to-white dark:from-${color}-950/30 dark:to-surface-900 rounded-2xl border border-${color}-100 dark:border-${color}-900/30 p-4`}
+              className="rounded-2xl border p-4"
+              style={{ background: 'var(--pane)', borderColor: 'var(--hairline)' }}
             >
-              <p className={`text-xs font-semibold text-${color}-700 dark:text-${color}-400 uppercase tracking-wide`}>{label}</p>
-              <p className="text-xl font-bold text-gray-900 dark:text-gray-100 mt-1 num">{value}</p>
-              {sub && <p className={`text-xs text-${color}-600 dark:text-${color}-500 mt-0.5`}>{sub}</p>}
+              <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: `var(--ink-muted)` }}>{label}</p>
+              <p className="text-xl font-bold mt-1 num" style={{ color: 'var(--ink)' }}>{value}</p>
+              {sub && <p className="text-xs mt-0.5" style={{ color: 'var(--ink-faint)' }}>{sub}</p>}
             </div>
           ))}
         </div>
@@ -1499,7 +1490,7 @@ const SIPTracker = ({ currentMonth: _currentMonth, currentYear: _currentYear, on
 
       {/* Tabs */}
       {funds.length > 0 && (
-        <div className="flex gap-1 bg-gray-100 dark:bg-surface-800 p-1 rounded-xl w-fit">
+        <div className="flex gap-1 p-1 rounded-xl w-fit" style={{ background: 'var(--hairline)' }}>
           {[
             { id: 'active' as const, label: `Active SIPs (${activeFunds.length})` },
             { id: 'historical' as const, label: `Historical (${histFunds.length})` },
@@ -1510,9 +1501,13 @@ const SIPTracker = ({ currentMonth: _currentMonth, currentYear: _currentYear, on
               onClick={() => setActiveTab(tab.id)}
               className={`px-4 py-1.5 text-sm font-medium rounded-lg transition-all cursor-pointer ${
                 activeTab === tab.id
-                  ? 'bg-white dark:bg-surface-700 text-gray-900 dark:text-gray-100 shadow-sm'
-                  : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+                  ? 'shadow-sm'
+                  : ''
               }`}
+              style={{
+                background: activeTab === tab.id ? 'var(--surface-solid)' : 'transparent',
+                color: activeTab === tab.id ? 'var(--ink)' : 'var(--ink-muted)'
+              }}
             >
               {tab.label}
             </button>

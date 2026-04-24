@@ -78,10 +78,10 @@ const MobileNav: React.FC<MobileNavProps> = ({ currentView, onViewChange, onQuic
       {showMore && (
         <div className="fixed inset-0 z-[600] md:hidden">
           <div className="absolute inset-0 bg-black/40 backdrop-blur-sm animate-in fade-in" onClick={() => setShowMore(false)} />
-          <div className="absolute bottom-0 left-0 right-0 bg-white dark:bg-gray-900 rounded-t-[32px] p-6 pb-[calc(24px+env(safe-area-inset-bottom,0))] animate-in slide-in-from-bottom duration-300">
+          <div className="absolute bottom-0 left-0 right-0 rounded-t-[32px] p-6 pb-[calc(24px+env(safe-area-inset-bottom,0))] animate-in slide-in-from-bottom duration-300" style={{ background: 'var(--pane-strong)', backdropFilter: 'blur(32px)', borderTop: '1px solid var(--hairline)' }}>
             <div className="flex items-center justify-between mb-6">
-              <h3 className="text-lg font-bold text-gray-900 dark:text-white">All Features</h3>
-              <button onClick={() => setShowMore(false)} className="p-2 bg-gray-100 dark:bg-gray-800 rounded-full text-gray-500">
+              <h3 className="text-lg font-bold" style={{ color: 'var(--ink)' }}>All Features</h3>
+              <button onClick={() => setShowMore(false)} className="p-2 rounded-full text-gray-500" style={{ background: 'var(--hairline)' }}>
                 <X size={20} />
               </button>
             </div>
@@ -93,12 +93,13 @@ const MobileNav: React.FC<MobileNavProps> = ({ currentView, onViewChange, onQuic
                     onViewChange(item.id);
                     setShowMore(false);
                   }}
-                  className="flex flex-col items-center gap-3 p-4 rounded-2xl bg-gray-50 dark:bg-gray-800 active:bg-gray-100 transition-colors"
+                  className="flex flex-col items-center gap-3 p-4 rounded-2xl transition-colors active:opacity-70"
+                  style={{ background: 'var(--bg-tint)' }}
                 >
-                  <div className="w-10 h-10 rounded-xl bg-white dark:bg-gray-700 flex items-center justify-center text-indigo-600 shadow-sm">
+                  <div className="w-10 h-10 rounded-xl flex items-center justify-center shadow-sm" style={{ background: 'var(--surface-solid)', color: 'var(--accent)' }}>
                     <item.icon size={20} />
                   </div>
-                  <span className="text-[11px] font-bold text-gray-700 dark:text-gray-300 text-center">{item.label}</span>
+                  <span className="text-[11px] font-bold text-center" style={{ color: 'var(--ink-soft)' }}>{item.label}</span>
                 </button>
               ))}
             </div>

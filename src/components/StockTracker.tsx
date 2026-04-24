@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { useDarkMode } from '@/hooks/useDarkMode';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell,
 } from 'recharts';
@@ -36,10 +37,10 @@ interface ChartDatum {
 // ── Helpers ────────────────────────────────────────────────────────────────
 
 const gainClass = (val: number) =>
-  val >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400';
+  val >= 0 ? 'text-[var(--pos)]' : 'text-[var(--neg)]';
 
 const gainBg = (val: number) =>
-  val >= 0 ? 'bg-green-50 dark:bg-green-900/20' : 'bg-red-50 dark:bg-red-900/20';
+  val >= 0 ? 'bg-[var(--pos-bg)]' : 'bg-[var(--neg-bg)]';
 
 const holdingPeriod = (buyDate?: string | null) => {
   if (!buyDate) return null;
@@ -544,19 +545,19 @@ const StockCard = ({ holding, onDelete, onEdit, onPriceUpdate, currentMonth, cur
   const period = holdingPeriod(holding.buy_date);
 
   return (
-    <div className="bg-white dark:bg-surface-900 rounded-2xl border border-gray-100 dark:border-surface-800 shadow-sm overflow-hidden">
+    <div className="rounded-2xl border shadow-sm overflow-hidden" style={{ background: 'var(--pane)', borderColor: 'var(--hairline)' }}>
       <div className="p-5">
         <div className="flex items-start justify-between gap-3">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="inline-flex px-2.5 py-1 text-sm font-bold rounded-xl bg-primary-100 text-primary-700 dark:bg-primary-900/30 dark:text-primary-400 tracking-wide">
+              <span className="inline-flex px-2.5 py-1 text-sm font-bold rounded-xl tracking-wide" style={{ background: 'var(--accent-bg)', color: 'var(--accent)' }}>
                 {holding.ticker}
               </span>
-              <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 leading-tight truncate">
+              <h3 className="text-sm font-semibold leading-tight truncate" style={{ color: 'var(--ink)' }}>
                 {holding.company_name}
               </h3>
               {gainAmt != null && (
-                <span className={`inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-full ${gainAmt >= 0 ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'}`}>
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-full" style={{ background: gainAmt >= 0 ? 'var(--pos-bg)' : 'var(--neg-bg)', color: gainAmt >= 0 ? 'var(--pos)' : 'var(--neg)' }}>
                   {gainAmt >= 0 ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
                   {gainPct != null ? `${gainPct >= 0 ? '+' : ''}${gainPct.toFixed(2)}%` : '—'}
                 </span>
@@ -584,18 +585,18 @@ const StockCard = ({ holding, onDelete, onEdit, onPriceUpdate, currentMonth, cur
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-4">
           <div>
-            <p className="text-xs text-gray-500 dark:text-gray-400">Invested</p>
-            <p className="text-sm font-semibold text-gray-800 dark:text-gray-200 num">{formatCurrency(invested)}</p>
+            <p className="text-xs" style={{ color: 'var(--ink-muted)' }}>Invested</p>
+            <p className="text-sm font-semibold num" style={{ color: 'var(--ink-soft)' }}>{formatCurrency(invested)}</p>
           </div>
           <div>
-            <p className="text-xs text-gray-500 dark:text-gray-400">Current Value</p>
-            <p className="text-sm font-semibold text-gray-800 dark:text-gray-200 num">
+            <p className="text-xs" style={{ color: 'var(--ink-muted)' }}>Current Value</p>
+            <p className="text-sm font-semibold num" style={{ color: 'var(--ink-soft)' }}>
               {currentValue != null ? formatCurrency(currentValue) : '—'}
             </p>
           </div>
           <div>
-            <p className="text-xs text-gray-500 dark:text-gray-400">Gain / Loss</p>
-            <p className={`text-sm font-semibold num ${gainAmt != null ? gainClass(gainAmt) : 'text-gray-400 dark:text-gray-500'}`}>
+            <p className="text-xs" style={{ color: 'var(--ink-muted)' }}>Gain / Loss</p>
+            <p className={`text-sm font-semibold num ${gainAmt != null ? gainClass(gainAmt) : ''}`} style={!gainAmt ? { color: 'var(--ink-faint)' } : {}}>
               {gainAmt != null ? `${gainAmt >= 0 ? '+' : ''}${formatCurrency(Math.abs(gainAmt))}` : '—'}
             </p>
           </div>
@@ -671,6 +672,7 @@ interface StockTrackerProps {
 }
 
 const StockTracker = ({ currentMonth = new Date().getMonth() + 1, currentYear = new Date().getFullYear(), onPortfolioUpdate }: StockTrackerProps) => {
+  const { chartColors } = useDarkMode();
   const [holdings, setHoldings] = useState<StockHolding[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -842,8 +844,8 @@ const StockTracker = ({ currentMonth = new Date().getMonth() + 1, currentYear = 
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Stock Holdings</h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
+          <h1 className="text-2xl font-bold" style={{ color: 'var(--ink)' }}>Stock Holdings</h1>
+          <p className="text-sm mt-0.5" style={{ color: 'var(--ink-muted)' }}>
             Direct equity portfolio · {holdings.length} stock{holdings.length !== 1 ? 's' : ''}
           </p>
         </div>
@@ -914,31 +916,29 @@ const StockTracker = ({ currentMonth = new Date().getMonth() + 1, currentYear = 
       {/* Summary Cards */}
       {holdings.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="bg-white dark:bg-surface-900 rounded-2xl border border-gray-100 dark:border-surface-800 shadow-sm p-5">
-            <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Total Invested</p>
-            <p className="text-2xl font-bold text-gray-900 dark:text-gray-100 mt-1 num">{formatCurrency(totalInvested)}</p>
-            <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">{holdings.length} holdings</p>
+          <div className="rounded-2xl border shadow-sm p-5" style={{ background: 'var(--pane)', borderColor: 'var(--hairline)' }}>
+            <p className="text-xs font-medium uppercase tracking-wide" style={{ color: 'var(--ink-muted)' }}>Total Invested</p>
+            <p className="text-2xl font-bold mt-1 num" style={{ color: 'var(--ink)' }}>{formatCurrency(totalInvested)}</p>
+            <p className="text-xs mt-1" style={{ color: 'var(--ink-faint)' }}>{holdings.length} holdings</p>
           </div>
-          <div className="bg-white dark:bg-surface-900 rounded-2xl border border-gray-100 dark:border-surface-800 shadow-sm p-5">
-            <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Current Value</p>
-            <p className="text-2xl font-bold text-gray-900 dark:text-gray-100 mt-1 num">
+          <div className="rounded-2xl border shadow-sm p-5" style={{ background: 'var(--pane)', borderColor: 'var(--hairline)' }}>
+            <p className="text-xs font-medium uppercase tracking-wide" style={{ color: 'var(--ink-muted)' }}>Current Value</p>
+            <p className="text-2xl font-bold mt-1 num" style={{ color: 'var(--ink)' }}>
               {priced.length > 0 ? formatCurrency(totalCurrentValue) : '—'}
             </p>
             {unpricedCount > 0 && (
-              <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
+              <p className="text-xs mt-1" style={{ color: 'var(--warn)' }}>
                 {unpricedCount} stock{unpricedCount !== 1 ? 's' : ''} missing price
               </p>
             )}
           </div>
-          <div className={`rounded-2xl border shadow-sm p-5 ${
-            priced.length > 0
-              ? totalGain >= 0
-                ? 'bg-green-50 dark:bg-green-900/10 border-green-100 dark:border-green-900/30'
-                : 'bg-red-50 dark:bg-red-900/10 border-red-100 dark:border-red-900/30'
-              : 'bg-white dark:bg-surface-900 border-gray-100 dark:border-surface-800'
-          }`}>
-            <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Total Gain / Loss</p>
-            <p className={`text-2xl font-bold mt-1 num ${priced.length > 0 ? gainClass(totalGain) : 'text-gray-400'}`}>
+          <div className="rounded-2xl border shadow-sm p-5" style={{ 
+            background: priced.length > 0 ? (totalGain >= 0 ? 'var(--pos-bg)' : 'var(--neg-bg)') : 'var(--pane)',
+            borderColor: priced.length > 0 ? (totalGain >= 0 ? 'var(--pos-soft)' : 'var(--neg-soft)') : 'var(--hairline)',
+            opacity: priced.length > 0 ? 1 : 0.6
+          }}>
+            <p className="text-xs font-medium uppercase tracking-wide" style={{ color: 'var(--ink-muted)' }}>Total Gain / Loss</p>
+            <p className={`text-2xl font-bold mt-1 num ${priced.length > 0 ? gainClass(totalGain) : ''}`} style={priced.length === 0 ? { color: 'var(--ink-faint)' } : {}}>
               {priced.length > 0
                 ? `${totalGain >= 0 ? '+' : ''}${formatCurrency(Math.abs(totalGain))}`
                 : '—'}
@@ -959,17 +959,17 @@ const StockTracker = ({ currentMonth = new Date().getMonth() + 1, currentYear = 
           <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4">Portfolio Value by Stock</h2>
           <ResponsiveContainer width="100%" height={220}>
             <BarChart data={chartData} barCategoryGap="30%">
-              <XAxis dataKey="ticker" tick={{ fontSize: 11, fill: '#6b7280' }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fontSize: 10, fill: '#6b7280' }} axisLine={false} tickLine={false}
+              <XAxis dataKey="ticker" tick={{ fontSize: 11, fill: chartColors.axisText }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fontSize: 10, fill: chartColors.axisText }} axisLine={false} tickLine={false}
                 tickFormatter={(v: number) => v >= 100000 ? `₹${(v / 100000).toFixed(1)}L` : `₹${(v / 1000).toFixed(0)}k`}
               />
               <Tooltip content={<ChartTooltip />} />
               <Bar dataKey="invested" name="Invested" radius={[4, 4, 0, 0]}>
-                {chartData.map((_, i) => <Cell key={i} fill="#c7d2fe" />)}
+                {chartData.map((_, i) => <Cell key={i} fill={chartColors.barInvested} />)}
               </Bar>
               <Bar dataKey="currentValue" name="Current" radius={[4, 4, 0, 0]}>
                 {chartData.map((d, i) => (
-                  <Cell key={i} fill={d.gain >= 0 ? '#86efac' : '#fca5a5'} />
+                  <Cell key={i} fill={d.gain >= 0 ? chartColors.barGain : chartColors.barLoss} />
                 ))}
               </Bar>
             </BarChart>

@@ -67,20 +67,21 @@ function ExpenseForm({ expense, onSubmit, onCancel }: Props) {
       />
 
       {/* Light Glass Modal */}
-      <div className="relative z-10 w-full max-w-md bg-white/95 backdrop-blur-2xl border border-white/20 rounded-[24px] shadow-[0_32px_80px_rgba(0,0,0,0.12)] overflow-hidden">
+      <div className="relative z-10 w-full max-w-md rounded-[24px] shadow-[0_32px_80px_rgba(0,0,0,0.12)] overflow-hidden" style={{ background: 'var(--pane-strong)', backdropFilter: 'blur(32px)', border: '1px solid var(--hairline)' }}>
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100 bg-gray-50/50">
+        <div className="flex items-center justify-between px-6 py-5 border-b" style={{ borderColor: 'var(--hairline)', background: 'var(--accent-bg)' }}>
           <div>
-            <div className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.12em] mb-1">
+            <div className="text-[10px] font-bold uppercase tracking-[0.12em] mb-1" style={{ color: 'var(--ink-faint)' }}>
               {expense ? 'Edit record' : 'Quick add'}
             </div>
-            <h2 className="text-xl font-bold text-gray-900 tracking-tight">
+            <h2 className="text-xl font-bold tracking-tight" style={{ color: 'var(--ink)' }}>
               {expense ? 'Update Expense' : 'New Expense'}
             </h2>
           </div>
           <button
             onClick={onCancel}
-            className="w-9 h-9 flex items-center justify-center rounded-full bg-gray-100 text-gray-500 hover:bg-gray-200 hover:text-gray-900 transition-all cursor-pointer"
+            className="w-9 h-9 flex items-center justify-center rounded-full transition-all cursor-pointer"
+            style={{ background: 'var(--hairline)', color: 'var(--ink-muted)' }}
           >
             <X size={18} />
           </button>
@@ -89,7 +90,7 @@ function ExpenseForm({ expense, onSubmit, onCancel }: Props) {
         <form onSubmit={handleSubmit} className="p-6 space-y-5">
           {/* Description */}
           <div>
-            <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2">Description</label>
+            <label className="block text-[11px] font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--ink-faint)' }}>Description</label>
             <input
               type="text"
               value={formData.description}
@@ -97,16 +98,17 @@ function ExpenseForm({ expense, onSubmit, onCancel }: Props) {
               placeholder="What did you spend on?"
               required
               autoFocus
-              className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 transition-all text-sm"
+              className="w-full px-4 py-2.5 rounded-xl focus:outline-none focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 transition-all text-sm"
+              style={{ background: 'var(--surface-solid)', border: '1px solid var(--hairline)', color: 'var(--ink)' }}
             />
           </div>
 
           {/* Amount + Date */}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2">Amount (₹)</label>
+              <label className="block text-[11px] font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--ink-faint)' }}>Amount (₹)</label>
               <div className="relative">
-                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 font-medium text-sm">₹</span>
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 font-medium text-sm" style={{ color: 'var(--ink-muted)' }}>₹</span>
                 <input
                   type="number"
                   value={formData.amount}
@@ -115,25 +117,27 @@ function ExpenseForm({ expense, onSubmit, onCancel }: Props) {
                   min="0"
                   step="0.01"
                   required
-                  className="w-full pl-8 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 transition-all text-sm"
+                  className="w-full pl-8 pr-4 py-2.5 rounded-xl focus:outline-none focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 transition-all text-sm"
+                  style={{ background: 'var(--surface-solid)', border: '1px solid var(--hairline)', color: 'var(--ink)' }}
                 />
               </div>
             </div>
             <div>
-              <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2">Date</label>
+              <label className="block text-[11px] font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--ink-faint)' }}>Date</label>
               <input
                 type="date"
                 value={formData.date}
                 onChange={(e) => setFormData((p) => ({ ...p, date: e.target.value }))}
                 required
-                className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 transition-all text-sm"
+                className="w-full px-4 py-2.5 rounded-xl focus:outline-none focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 transition-all text-sm"
+                style={{ background: 'var(--surface-solid)', border: '1px solid var(--hairline)', color: 'var(--ink)' }}
               />
             </div>
           </div>
 
           {/* Category Selection */}
           <div>
-            <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-3">Category</label>
+            <label className="block text-[11px] font-bold uppercase tracking-wider mb-3" style={{ color: 'var(--ink-faint)' }}>Category</label>
             <div className="flex flex-wrap gap-2">
               {EXPENSE_CATEGORIES.map((cat) => {
                 const active = formData.category === cat;
@@ -147,10 +151,12 @@ function ExpenseForm({ expense, onSubmit, onCancel }: Props) {
                       px-3 py-1.5 rounded-full text-[11px] font-bold border-2 transition-all flex items-center gap-1.5 cursor-pointer
                       ${active 
                         ? 'border-transparent text-white shadow-sm' 
-                        : 'border-gray-100 text-gray-400 hover:border-gray-200'}
+                        : 'text-gray-400 hover:border-gray-200'}
                     `}
                     style={{ 
-                      backgroundColor: active ? color : '#F9FAFB'
+                      backgroundColor: active ? color : 'var(--bg-tint)',
+                      borderColor: active ? 'transparent' : 'var(--hairline)',
+                      color: active ? 'white' : 'var(--ink-muted)'
                     }}
                   >
                     {active && <Check size={12} />}
@@ -164,13 +170,14 @@ function ExpenseForm({ expense, onSubmit, onCancel }: Props) {
 
           {/* Note */}
           <div>
-            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Note (optional)</label>
+            <label className="block text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--ink-faint)' }}>Note (optional)</label>
             <textarea
               value={formData.note}
               onChange={(e) => setFormData((p) => ({ ...p, note: e.target.value }))}
               placeholder="Any details…"
               rows={2}
-              className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all resize-none"
+              className="w-full px-4 py-3 rounded-2xl focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all resize-none"
+              style={{ background: 'var(--surface-solid)', border: '1px solid var(--hairline)', color: 'var(--ink)' }}
             />
           </div>
 
@@ -179,7 +186,8 @@ function ExpenseForm({ expense, onSubmit, onCancel }: Props) {
             <button
               type="button"
               onClick={onCancel}
-              className="flex-1 py-3.5 rounded-2xl border border-gray-200 text-gray-600 font-bold text-sm hover:bg-gray-50 transition-all cursor-pointer"
+              className="flex-1 py-3.5 rounded-2xl font-bold text-sm transition-all cursor-pointer"
+              style={{ background: 'var(--hairline)', color: 'var(--ink-muted)' }}
             >
               Cancel
             </button>

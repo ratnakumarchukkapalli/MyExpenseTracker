@@ -88,31 +88,31 @@ function PolicyCard({ policy, onEdit, onDelete, onMarkPaid }: any) {
   };
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm hover:shadow-md transition-shadow">
+    <div className="rounded-2xl p-5 shadow-sm transition-shadow" style={{ background: 'var(--pane)', border: '1px solid var(--hairline)' }}>
       <div className="flex items-start justify-between gap-3 mb-3">
         <div className="flex items-start gap-3 min-w-0">
           <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${cfg.color}`}>
             <TypeIcon className="h-4 w-4" />
           </div>
           <div className="min-w-0">
-            <p className="font-semibold text-gray-800 truncate">{policy.name}</p>
-            <p className="text-xs text-gray-500 truncate">{policy.insurer}</p>
+            <p className="font-semibold truncate" style={{ color: 'var(--ink)' }}>{policy.name}</p>
+            <p className="text-xs truncate" style={{ color: 'var(--ink-muted)' }}>{policy.insurer}</p>
             {policy.policy_number && (
-              <p className="text-xs text-gray-400 font-mono mt-0.5">{policy.policy_number}</p>
+              <p className="text-xs font-mono mt-0.5" style={{ color: 'var(--ink-faint)' }}>{policy.policy_number}</p>
             )}
           </div>
         </div>
         <div className="flex items-center gap-1.5 flex-shrink-0">
           <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${cfg.color}`}>{cfg.label}</span>
           {days !== null && days <= 30 && policy.premium_mode !== 'single' && (
-            <button onClick={() => onMarkPaid(policy.id)} title="Mark as paid" className="p-1.5 rounded-lg text-green-600 hover:text-green-700 hover:bg-green-50 transition-colors">
+            <button onClick={() => onMarkPaid(policy.id)} title="Mark as paid" className="p-1.5 rounded-lg transition-colors" style={{ color: 'var(--pos)' }}>
               <Check className="h-3.5 w-3.5" />
             </button>
           )}
-          <button onClick={() => onEdit(policy)} className="p-1.5 rounded-lg text-gray-400 hover:text-primary-600 hover:bg-primary-50 transition-colors">
+          <button onClick={() => onEdit(policy)} className="p-1.5 rounded-lg transition-colors" style={{ color: 'var(--ink-faint)' }}>
             <Edit2 className="h-3.5 w-3.5" />
           </button>
-          <button onClick={() => onDelete(policy.id)} className="p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors">
+          <button onClick={() => onDelete(policy.id)} className="p-1.5 rounded-lg transition-colors" style={{ color: 'var(--ink-faint)' }}>
             <Trash2 className="h-3.5 w-3.5" />
           </button>
         </div>
@@ -120,43 +120,43 @@ function PolicyCard({ policy, onEdit, onDelete, onMarkPaid }: any) {
 
       <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm mb-3">
         <div>
-          <p className="text-xs text-gray-400 mb-0.5">Sum Insured / IDV</p>
-          <p className="font-semibold text-gray-800">{formatCurrencyLocal(policy.sum_insured)}</p>
+          <p className="text-xs mb-0.5" style={{ color: 'var(--ink-faint)' }}>Sum Insured / IDV</p>
+          <p className="font-semibold" style={{ color: 'var(--ink)' }}>{formatCurrencyLocal(policy.sum_insured)}</p>
         </div>
         <div>
-          <p className="text-xs text-gray-400 mb-0.5">Premium</p>
-          <p className="font-semibold text-gray-800 text-xs">{premiumLabel()}</p>
+          <p className="text-xs mb-0.5" style={{ color: 'var(--ink-faint)' }}>Premium</p>
+          <p className="font-semibold text-xs" style={{ color: 'var(--ink)' }}>{premiumLabel()}</p>
         </div>
         <div>
-          <p className="text-xs text-gray-400 mb-0.5">Next Due</p>
+          <p className="text-xs mb-0.5" style={{ color: 'var(--ink-faint)' }}>Next Due</p>
           <div className="flex items-center gap-1.5">
-            <p className={`font-medium ${days !== null && days <= 30 ? 'text-red-600' : days !== null && days <= 90 ? 'text-yellow-600' : 'text-gray-800'}`}>
+            <p className={`font-medium ${days !== null && days <= 30 ? 'text-red-600' : days !== null && days <= 90 ? 'text-yellow-600' : ''}`} style={days !== null && days > 90 ? { color: 'var(--ink)' } : {}}>
               {formatDateLocal(policy.next_due_date)}
             </p>
             {dueBadge}
           </div>
         </div>
         <div>
-          <p className="text-xs text-gray-400 mb-0.5">{policy.type === 'Life' ? 'Maturity Date' : 'Expiry Date'}</p>
-          <p className="font-medium text-gray-800">{formatDateLocal(policy.end_date)}</p>
+          <p className="text-xs mb-0.5" style={{ color: 'var(--ink-faint)' }}>{policy.type === 'Life' ? 'Maturity Date' : 'Expiry Date'}</p>
+          <p className="font-medium" style={{ color: 'var(--ink)' }}>{formatDateLocal(policy.end_date)}</p>
         </div>
       </div>
 
       <div className="mb-2">
-        <p className="text-xs text-gray-400 mb-0.5">Nominee</p>
+        <p className="text-xs mb-0.5" style={{ color: 'var(--ink-faint)' }}>Nominee</p>
         {nomineeIssue ? (
           <p className="text-sm font-semibold text-red-600 flex items-center gap-1">
             <AlertTriangle className="h-3.5 w-3.5" /> Not Registered
           </p>
         ) : (
-          <p className="text-sm text-gray-700">{policy.nominee}</p>
+          <p className="text-sm" style={{ color: 'var(--ink-soft)' }}>{policy.nominee}</p>
         )}
       </div>
 
       {policy.type === 'Vehicle' && policy.vehicle_reg && (
         <div className="mb-2">
-          <p className="text-xs text-gray-400 mb-0.5">Vehicle Reg</p>
-          <p className="text-sm font-mono text-gray-700">{policy.vehicle_reg}</p>
+          <p className="text-xs mb-0.5" style={{ color: 'var(--ink-faint)' }}>Vehicle Reg</p>
+          <p className="text-sm font-mono" style={{ color: 'var(--ink-soft)' }}>{policy.vehicle_reg}</p>
         </div>
       )}
 
@@ -206,16 +206,17 @@ function PolicyForm({ policy, onSubmit, onCancel, defaultOwner }: any) {
       />
 
       {/* Light Glass Modal */}
-      <div className="relative z-10 w-full max-w-2xl bg-white/95 backdrop-blur-2xl border border-white/20 rounded-[24px] shadow-[0_32px_80px_rgba(0,0,0,0.12)] overflow-hidden flex flex-col max-h-[90vh]">
+      <div className="relative z-10 w-full max-w-2xl rounded-[24px] shadow-[0_32px_80px_rgba(0,0,0,0.12)] overflow-hidden flex flex-col max-h-[90vh]" style={{ background: 'var(--pane-strong)', backdropFilter: 'blur(32px)', border: '1px solid var(--hairline)' }}>
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100 bg-gray-50/50">
+        <div className="flex items-center justify-between px-6 py-5 border-b" style={{ borderColor: 'var(--hairline)', background: 'var(--accent-bg)' }}>
           <div>
-            <div className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.12em] mb-1">Insurance</div>
-            <h2 className="text-xl font-bold text-gray-900 tracking-tight">{policy ? 'Edit Policy' : 'Add Insurance Policy'}</h2>
+            <div className="text-[10px] font-bold uppercase tracking-[0.12em] mb-1" style={{ color: 'var(--ink-faint)' }}>Insurance</div>
+            <h2 className="text-xl font-bold tracking-tight" style={{ color: 'var(--ink)' }}>{policy ? 'Edit Policy' : 'Add Insurance Policy'}</h2>
           </div>
           <button
             onClick={onCancel}
-            className="w-9 h-9 flex items-center justify-center rounded-full bg-gray-100 text-gray-500 hover:bg-gray-200 hover:text-gray-900 transition-all cursor-pointer"
+            className="w-9 h-9 flex items-center justify-center rounded-full transition-all cursor-pointer"
+            style={{ background: 'var(--hairline)', color: 'var(--ink-muted)' }}
           >
             <X size={18} />
           </button>
@@ -367,9 +368,9 @@ function PoliciesView({ policies, onEdit, onDelete, onMarkPaid }: any) {
         return (
           <div key={type}>
             <div className="flex items-center gap-2 mb-3">
-              <TypeIcon className="h-4 w-4 text-gray-500" />
-              <h2 className="text-sm font-semibold text-gray-600 uppercase tracking-wider">{type} Insurance</h2>
-              <span className="text-xs text-gray-400">({list.length})</span>
+              <TypeIcon className="h-4 w-4" style={{ color: 'var(--ink-muted)' }} />
+              <h2 className="text-sm font-semibold uppercase tracking-wider" style={{ color: 'var(--ink-soft)' }}>{type} Insurance</h2>
+              <span className="text-xs" style={{ color: 'var(--ink-faint)' }}>({list.length})</span>
             </div>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               {list.map((policy: any) => (
@@ -537,15 +538,15 @@ const Insurance = () => {
         </div>
       )}
 
-      <div className="bg-white rounded-2xl border border-gray-100 p-6">
+      <div className="rounded-2xl border p-6" style={{ background: 'var(--pane)', borderColor: 'var(--hairline)' }}>
         <div className="flex items-center justify-between mb-5">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-primary-50 flex items-center justify-center">
-              <Shield className="h-5 w-5 text-primary-600" />
+            <div className="w-10 h-10 rounded-2xl flex items-center justify-center" style={{ background: 'var(--accent-bg)', color: 'var(--accent)' }}>
+              <Shield className="h-5 w-5" />
             </div>
             <div>
-              <h1 className="text-xl font-bold text-gray-800">Insurance Policies</h1>
-              <p className="text-xs text-gray-400">{myPolicies.length} mine · {familyPolicies.length} family</p>
+              <h1 className="text-xl font-bold" style={{ color: 'var(--ink)' }}>Insurance Policies</h1>
+              <p className="text-xs" style={{ color: 'var(--ink-faint)' }}>{myPolicies.length} mine · {familyPolicies.length} family</p>
             </div>
           </div>
           <button
@@ -557,33 +558,41 @@ const Insurance = () => {
           </button>
         </div>
 
-        <div className="flex gap-1 mb-5 bg-gray-100 rounded-xl p-1">
+        <div className="flex gap-1 mb-5 rounded-xl p-1" style={{ background: 'var(--bg-tint)' }}>
           <button
             onClick={() => setActiveTab('self')}
-            className={`flex-1 py-2 text-sm font-medium rounded-lg transition-all ${activeTab === 'self' ? 'bg-white text-primary-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+            className={`flex-1 py-2 text-sm font-medium rounded-lg transition-all ${activeTab === 'self' ? 'shadow-sm' : ''}`}
+            style={{ 
+              background: activeTab === 'self' ? 'var(--surface-solid)' : 'transparent',
+              color: activeTab === 'self' ? 'var(--accent)' : 'var(--ink-muted)'
+            }}
           >
             My Policies ({myPolicies.length})
           </button>
           <button
             onClick={() => setActiveTab('family')}
-            className={`flex-1 py-2 text-sm font-medium rounded-lg transition-all ${activeTab === 'family' ? 'bg-white text-primary-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+            className={`flex-1 py-2 text-sm font-medium rounded-lg transition-all ${activeTab === 'family' ? 'shadow-sm' : ''}`}
+            style={{ 
+              background: activeTab === 'family' ? 'var(--surface-solid)' : 'transparent',
+              color: activeTab === 'family' ? 'var(--accent)' : 'var(--ink-muted)'
+            }}
           >
             Family ({familyPolicies.length})
           </button>
         </div>
 
         <div className="grid grid-cols-3 gap-4">
-          <div className="bg-gray-50 rounded-xl p-4">
-            <p className="text-xs text-gray-400 mb-1">Annual Premium</p>
-            <p className="text-xl font-bold text-gray-800">{formatCurrencyLocal(totalAnnualPremium)}</p>
+          <div className="rounded-xl p-4" style={{ background: 'var(--bg-tint)' }}>
+            <p className="text-xs mb-1" style={{ color: 'var(--ink-faint)' }}>Annual Premium</p>
+            <p className="text-xl font-bold" style={{ color: 'var(--ink)' }}>{formatCurrencyLocal(totalAnnualPremium)}</p>
           </div>
-          <div className="bg-gray-50 rounded-xl p-4">
-            <p className="text-xs text-gray-400 mb-1">Total Sum Insured</p>
-            <p className="text-xl font-bold text-gray-800">{formatCurrencyLocal(totalSumInsured)}</p>
+          <div className="rounded-xl p-4" style={{ background: 'var(--bg-tint)' }}>
+            <p className="text-xs mb-1" style={{ color: 'var(--ink-faint)' }}>Total Sum Insured</p>
+            <p className="text-xl font-bold" style={{ color: 'var(--ink)' }}>{formatCurrencyLocal(totalSumInsured)}</p>
           </div>
-          <div className="bg-gray-50 rounded-xl p-4">
-            <p className="text-xs text-gray-400 mb-1">Active Policies</p>
-            <p className="text-xl font-bold text-gray-800">{tabPolicies.length}</p>
+          <div className="rounded-xl p-4" style={{ background: 'var(--bg-tint)' }}>
+            <p className="text-xs mb-1" style={{ color: 'var(--ink-faint)' }}>Active Policies</p>
+            <p className="text-xl font-bold" style={{ color: 'var(--ink)' }}>{tabPolicies.length}</p>
           </div>
         </div>
       </div>

@@ -470,8 +470,8 @@ function AppShell() {
               </div>
             </div>
 
-            <button className="icon-btn cursor-pointer" title={darkMode ? 'Light mode' : 'Dark mode'} onClick={() => setDarkMode((value) => !value)}>
-              {darkMode ? <Sun size={16} /> : <Moon size={16} />}
+            <button className="icon-btn cursor-pointer" title={mounted ? (darkMode ? 'Light mode' : 'Dark mode') : 'Dark mode'} onClick={() => setDarkMode((value) => !value)}>
+              {mounted && darkMode ? <Sun size={16} /> : <Moon size={16} />}
             </button>
 
             {/* User avatar + dropdown */}
@@ -544,13 +544,13 @@ function AppShell() {
               <div className="space-y-8 animate-pulse">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                   {[1, 2, 3, 4].map(i => (
-                    <div key={i} className="h-32 bg-white dark:bg-surface-900 border border-gray-100 dark:border-surface-800 rounded-2xl shadow-sm" />
+                    <div key={i} className="h-32 rounded-2xl shadow-sm" style={{ background: 'var(--pane)', border: '1px solid var(--hairline)' }} />
                   ))}
                 </div>
-                <div className="h-64 bg-white dark:bg-surface-900 border border-gray-100 dark:border-surface-800 rounded-2xl shadow-sm" />
+                <div className="h-64 rounded-2xl shadow-sm" style={{ background: 'var(--pane)', border: '1px solid var(--hairline)' }} />
                 <div className="space-y-4">
                   {[1, 2, 3].map(i => (
-                    <div key={i} className="h-20 bg-white dark:bg-surface-900 border border-gray-100 dark:border-surface-800 rounded-2xl shadow-sm" />
+                    <div key={i} className="h-20 rounded-2xl shadow-sm" style={{ background: 'var(--pane)', border: '1px solid var(--hairline)' }} />
                   ))}
                 </div>
               </div>
