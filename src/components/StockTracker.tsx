@@ -670,7 +670,7 @@ interface StockTrackerProps {
   onPortfolioUpdate?: () => void;
 }
 
-const StockTracker = ({ currentMonth: _currentMonth, currentYear: _currentYear, onPortfolioUpdate }: StockTrackerProps) => {
+const StockTracker = ({ currentMonth = new Date().getMonth() + 1, currentYear = new Date().getFullYear(), onPortfolioUpdate }: StockTrackerProps) => {
   const [holdings, setHoldings] = useState<StockHolding[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

@@ -3,31 +3,28 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { syncStocksToMonthlySummary } from "@/lib/sync-portfolio";
 import { after } from "next/server";
 
-const PYTHON_API = "http://127.0.0.1:8765";
-
-import { unstable_cache, revalidateTag } from "next/cache";
-
-async function fetchStockPrice(ticker: string) {
-  const res = await fetch(`${PYTHON_API}/stocks/quote`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ ticker }),
-    signal: AbortSignal.timeout(8000),
-  });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  const data = await res.json();
-  const price = data?.price ?? data?.current_price ?? null;
-  return (price != null && !isNaN(price)) ? price : null;
+// Yahoo Finance unofficial API — no key needed, works on Vercel
+// Mirrors the yfinance fallback in Electron app's api/main.py
+async function fetchStockPrice(ticker: string): Promise<number | null> {
+  for (const suffix of [".NS", ".BO"]) {
+    try {
+      const url = `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}${suffix}?interval=1d&range=1d`;
+      const res = await fetch(url, {
+        headers: { "User-Agent": "Mozilla/5.0" },
+        signal: AbortSignal.timeout(8000),
+      });
+      if (!res.ok) continue;
+      const data = await res.json();
+      const price: number | undefined = data?.chart?.result?.[0]?.meta?.regularMarketPrice;
+      if (price && price > 0) return price;
+    } catch {
+      continue;
+    }
+  }
+  return null;
 }
 
-const getCachedQuote = unstable_cache(
-  async (ticker: string) => fetchStockPrice(ticker),
-  ['stock-quotes'],
-  { revalidate: 3600 }
-);
-
 // POST /api/stocks/refresh-prices
-// Fetches all holdings, calls Python API for each, updates prices
 export async function POST() {
   const { user, supabase, error } = await requireAuth();
   if (error) return error;
@@ -42,16 +39,14 @@ export async function POST() {
 
   const today = new Date().toISOString().split("T")[0];
 
-  // Fetch all prices in parallel - BYPASS CACHE during manual refresh
   const priceResults = await Promise.all(
     holdings.map(async (h) => {
       try {
         const price = await fetchStockPrice(h.ticker);
         if (price != null) {
           return { id: h.id, ticker: h.ticker, price, success: true };
-        } else {
-          return { id: h.id, ticker: h.ticker, price: null, success: false, error: "No price in response" };
         }
+        return { id: h.id, ticker: h.ticker, price: null, success: false, error: "No price returned" };
       } catch (e: unknown) {
         const msg = e instanceof Error ? e.message : String(e);
         return { id: h.id, ticker: h.ticker, price: null, success: false, error: msg };
@@ -59,7 +54,6 @@ export async function POST() {
     })
   );
 
-  // Collect successful updates and fire ALL DB writes in parallel
   const successfulUpdates = priceResults.filter((r) => r.success && r.price != null);
   const results = priceResults.map(({ ticker, price, success, error: err }) => ({
     ticker, price, success, ...(err ? { error: err } : {}),
@@ -77,15 +71,10 @@ export async function POST() {
     );
   }
 
-  // Sync stock portfolio value to monthly_summary in background
   after(async () => {
     const client = await createSupabaseServerClient();
     await syncStocksToMonthlySummary(client, user.id);
   });
-
-
-  // Purge the stock-quotes cache so other components (like dashboard) see fresh data
-  revalidateTag('stock-quotes');
 
   return Response.json({ results, updatedCount: successfulUpdates.length });
 }

@@ -1,15 +1,7 @@
 import { requireAuth, requireAuthFast } from "@/lib/auth-guard";
 import { SubscriptionSchema } from "@/lib/schemas/subscription";
-import { after } from "next/server";
-import { NextRequest } from "next/server";
-
-function advanceMonthlyRenewal(renewalDate: string): string {
-  const d = new Date(renewalDate);
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  while (d < today) d.setMonth(d.getMonth() + 1);
-  return d.toISOString().split("T")[0];
-}
+import { autoAdvanceSubscriptions } from "@/lib/subscriptions";
+import { after, NextRequest } from "next/server";
 
 // GET /api/subscriptions
 export async function GET() {
@@ -24,38 +16,7 @@ export async function GET() {
 
   if (dbError) return Response.json({ error: dbError.message }, { status: 500 });
 
-  // Auto-advance past monthly renewal dates in the background (don't block response)
-  const toUpdate: { id: number; advanced: string }[] = [];
-  const updated = (rows ?? []).map((sub) => {
-    if (
-      sub.billing_type === "monthly" &&
-      sub.renewal_date &&
-      sub.status === "active"
-    ) {
-      const advanced = advanceMonthlyRenewal(sub.renewal_date);
-      if (advanced !== sub.renewal_date) {
-        toUpdate.push({ id: sub.id, advanced });
-        return { ...sub, renewal_date: advanced };
-      }
-    }
-    return sub;
-  });
-
-  // Fire DB updates in background after response is sent
-  if (toUpdate.length > 0) {
-    after(async () => {
-      await Promise.all(
-        toUpdate.map(({ id, advanced }) =>
-          supabase
-            .from("subscriptions")
-            .update({ renewal_date: advanced })
-            .eq("id", id)
-            .eq("user_id", user.id)
-        )
-      );
-    });
-
-  }
+  const updated = await autoAdvanceSubscriptions(supabase, user.id, rows ?? []);
 
   return Response.json(updated, {
     headers: { "Cache-Control": "private, max-age=30, stale-while-revalidate=120" },

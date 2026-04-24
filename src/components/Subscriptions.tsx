@@ -36,6 +36,7 @@ function Subscriptions({ subscriptions, onAdd, onEdit, onDelete, onPay, currentM
   const [expandedPaymentHistory, setExpandedPaymentHistory] = useState<number | null>(null);
   const [paymentHistory] = useState<Record<number, any[]>>({});
   const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({});
+  const [payingId, setPayingId] = useState<number | null>(null);
 
   const getProjectedRenewalDate = (sub: Subscription) => {
     if (!sub.renewal_date) return null;
@@ -48,6 +49,15 @@ function Subscriptions({ subscriptions, onAdd, onEdit, onDelete, onPay, currentM
   };
 
   const isPaidForSelectedPeriod = (sub: Subscription) => {
+    // If it was paid in the selected month/year, it's paid.
+    if (sub.last_paid_date) {
+      const lastPaid = new Date(sub.last_paid_date);
+      // months are 0-indexed in JS Date, but currentMonth is 1-indexed
+      if (lastPaid.getMonth() + 1 === currentMonth && lastPaid.getFullYear() === currentYear) {
+        return true;
+      }
+    }
+
     if (!sub.renewal_date) return false;
     const renewalDate = new Date(sub.renewal_date);
     const selectedMonthEnd = new Date(currentYear, currentMonth, 0);
@@ -111,15 +121,26 @@ function Subscriptions({ subscriptions, onAdd, onEdit, onDelete, onPay, currentM
   }).length;
 
   const handleMarkPaid = async (sub: Subscription) => {
+    if (payingId) return;
+    setPayingId(sub.id);
     try {
-      await fetch(`/api/subscriptions/${sub.id}/pay`, {
+      const res = await fetch(`/api/subscriptions/${sub.id}/pay`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ amount: sub.amount }),
       });
+      
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Failed to record payment');
+      }
+
       onPay(sub);
     } catch (error) {
       console.error('Failed to record payment:', error);
+      alert(error instanceof Error ? error.message : 'Failed to record payment');
+    } finally {
+      setPayingId(null);
     }
   };
 
@@ -169,8 +190,21 @@ function Subscriptions({ subscriptions, onAdd, onEdit, onDelete, onPay, currentM
           <td className="px-4 py-3">
             <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
               {!isPaid && (
-                <button onClick={() => handleMarkPaid(subscription)} className="p-1.5 text-green-600 hover:bg-green-50 rounded-lg cursor-pointer" title="Mark Paid">
-                  <CheckCircle className="h-4 w-4" />
+                <button 
+                  onClick={() => handleMarkPaid(subscription)} 
+                  disabled={payingId === subscription.id}
+                  className={`p-1.5 rounded-lg transition-all cursor-pointer ${
+                    payingId === subscription.id 
+                      ? 'text-gray-400 bg-gray-50' 
+                      : 'text-green-600 hover:bg-green-50'
+                  }`} 
+                  title="Mark Paid"
+                >
+                  {payingId === subscription.id ? (
+                    <div className="h-4 w-4 border-2 border-green-600 border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <CheckCircle className="h-4 w-4" />
+                  )}
                 </button>
               )}
               <button
@@ -301,7 +335,17 @@ function Subscriptions({ subscriptions, onAdd, onEdit, onDelete, onPay, currentM
                   <div key={sub.id} className="flex items-center gap-2 bg-white rounded-lg px-3 py-1.5 border border-red-200">
                     <span className="text-sm font-medium">{sub.name}</span>
                     <span className="text-sm text-red-600 font-bold">₹{sub.amount.toLocaleString()}</span>
-                    <button onClick={() => handleMarkPaid(sub)} className="text-xs bg-red-600 text-white px-2 py-0.5 rounded hover:bg-red-700 cursor-pointer">Pay</button>
+                    <button 
+                      onClick={() => handleMarkPaid(sub)} 
+                      disabled={payingId === sub.id}
+                      className={`text-xs px-3 py-1 rounded-full font-bold transition-all cursor-pointer ${
+                        payingId === sub.id 
+                          ? 'bg-gray-400 text-white cursor-wait' 
+                          : 'bg-red-600 text-white hover:bg-red-700 active:scale-95 shadow-sm'
+                      }`}
+                    >
+                      {payingId === sub.id ? 'Processing...' : 'Pay Now'}
+                    </button>
                   </div>
                 ))}
               </div>

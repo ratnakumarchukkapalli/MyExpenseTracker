@@ -15,24 +15,26 @@ remaining_amount = previous_month_remaining + salary + interest_income - total_e
 **Past months use stored `savings_sip` / `savings_shares` from `monthly_summary`.**  
 **Only the current month uses live `current_nav × units` / `current_price × shares`.**
 
-Why: The Electron app updates portfolio values in `monthly_summary` only when that month is current. Past months retain the value as it was when that month closed.
+Why: Past months should retain the value as it was when that month closed.
 
-Implementation in `Dashboard.tsx`:
-```typescript
-const isCurrentMonth = currentMonth === new Date().getMonth() + 1
-                     && currentYear === new Date().getFullYear();
-const displaySIP    = (isCurrentMonth && liveWealth) ? liveWealth.sip    : monthlySummary.savings_sip;
-const displayShares = (isCurrentMonth && liveWealth) ? liveWealth.stocks : monthlySummary.savings_shares;
-```
+**Synchronization Trigger**:
+When adding/editing a SIP transaction or stock holding, the API calls `syncMonthlyWealthSnapshot`.
+1. Recalculates live totals for SIP/Stocks.
+2. Updates the current month's `savings_sip` and `savings_shares` in `monthly_summary`.
+3. Cascades these values to future months.
 
 ## Auto-Sync Guard (CRITICAL)
-The GET API for `monthly-summary` can auto-recalculate `remaining_amount` IF the opening balance is stale.  
-**This ONLY runs for carry-forward rows** (salary=0 AND total_expenses=0).  
-**Real months (salary>0 OR expenses>0) are NEVER overwritten by the auto-sync.**
+The GET API for `monthly-summary` auto-recalculates values IF the data is stale compared to the previous month.
+**What syncs:**
+- `remaining_amount` (opening cash)
+- `savings_sip` / `savings_shares` (portfolio snapshots)
+- `savings_fd` / `savings_nps` / `savings_pf` (if the month is a "fresh" carry-forward month)
 
-Why: Before this guard, viewing any month after a bulk-patch cascaded recalculations and corrupted data.
+**Real months (salary > 0 OR expenses > 0) retain their authoritative cash balances, but portfolio snapshots still sync to maintain continuity.**
 
-Code location: `src/app/api/monthly-summary/[month]/[year]/route.ts` lines 37-56.
+Why: Investment totals (SIP/Stocks) are expected to flow through automatically regardless of local month edits, unless a specific transaction is logged in that month.
+
+Code location: `src/app/api/monthly-summary/[month]/[year]/route.ts`
 
 ## Carry-Forward Rows
 When a month has no data yet (no row in monthly_summary), the GET API:
@@ -42,12 +44,15 @@ When a month has no data yet (no row in monthly_summary), the GET API:
 
 Carry-forward rows have `salary=0` and `total_expenses=0`. They are the only rows the auto-sync may overwrite.
 
-## Chain Reaction (POST → next month update)
-When saving a monthly summary via POST, the API:
-1. Saves the current month
-2. Via `after()`: updates next month's `previous_month_remaining` if that row exists
+## Chain Reaction (Multi-Month Cascade)
+When saving a monthly summary or adding/deleting an expense, the app triggers a cascade update:
+1. **Current Month**: Recalculated and saved synchronously for immediate consistency.
+2. **Future Months**: Via `after()`, a bulk update propagates changes through the next 24 months.
+   - Closing cash flows to the next month's opening cash.
+   - Portfolio snapshots (SIP/Stocks) flow through all months.
+   - Manual savings (FD/NPS/PF) flow through "fresh" months only.
 
-This ensures the Carryover value is always up to date for the following month.
+This ensures that a correction in April is automatically reflected in May, June, and beyond.
 
 ## cash_equivalents
 ```
@@ -70,16 +75,13 @@ curl -X PATCH "$SUPABASE_URL/rest/v1/monthly_summary?month=eq.4&year=eq.2026&use
 Always filter with `month=eq.X&year=eq.Y&user_id=eq.UUID` — never patch without a user_id filter.
 
 ## requireAuth vs requireAuthFast
-- `requireAuth()` — full session validation + fresh Supabase client. Use for all mutations (POST/PUT/DELETE).
-- `requireAuthFast()` — faster cached session read. Use for GET routes. **Do not use for writes.**
+- `requireAuth()` — full session validation. Use for critical security-sensitive operations.
+- `requireAuthFast()` — faster cached session read. Use for all standard UI routes (GET/POST/PUT/DELETE) to reduce network round-trips. The JWT is still verified by Supabase RLS on every DB query.
 
-## after() Usage
-Use `after()` from `next/server` for background tasks that don't need to block the response:
-- Persisting carry-forward rows
-- Updating next month's opening balance
-- Recalculating monthly totals after expense changes
-
-Never use `after()` when the response must reflect the result of that operation.
+## Performance & UX
+- **Bootstrap API**: Use `/api/bootstrap` to fetch expenses, subscriptions, and summary in a single network round-trip.
+- **Optimistic UI**: Mutations (adding/deleting expenses) should update local React state instantly before the API call finishes.
+- **Silent Refresh**: Background data refreshes should happen without a full-page loading screen to maintain a smooth experience.
 
 ## Never Do
 - Use live `current_nav × units` for past months — use `savings_sip` from monthly_summary

@@ -1,4 +1,5 @@
 import { requireAuthFast } from "@/lib/auth-guard";
+import { autoAdvanceSubscriptions } from "@/lib/subscriptions";
 import { NextRequest } from "next/server";
 
 export async function GET(request: NextRequest) {
@@ -40,9 +41,11 @@ export async function GET(request: NextRequest) {
       .maybeSingle()
   ]);
 
+  const subscriptions = await autoAdvanceSubscriptions(supabase, user.id, subscriptionsRes.data ?? []);
+
   return Response.json({
     expenses: expensesRes.data ?? [],
-    subscriptions: subscriptionsRes.data ?? [],
+    subscriptions: subscriptions,
     summary: summaryRes.data ?? null,
   }, {
     headers: { "Cache-Control": "no-store, max-age=0" }

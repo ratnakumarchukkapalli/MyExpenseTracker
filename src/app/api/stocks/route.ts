@@ -1,5 +1,5 @@
 import { requireAuth, requireAuthFast } from "@/lib/auth-guard";
-import { NextRequest } from "next/server";
+import { NextRequest, after } from "next/server";
 
 // GET /api/stocks — all holdings ordered by created_at ASC
 export async function GET() {
