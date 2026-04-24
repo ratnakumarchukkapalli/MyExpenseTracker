@@ -24,34 +24,9 @@ export async function requireAuth(): Promise<AuthResult> {
   return { user, supabase, error: null };
 }
 
-/**
- * requireAuthFast — uses getSession() (local JWT decode, NO network call).
- * Safe for READ-ONLY (GET) routes. Saves ~192ms per request.
- * The JWT is still verified by Supabase RLS on every DB query.
- */
+// requireAuthFast — previously used getSession() but that's insecure on the server
+// (cookie value is not verified against Supabase Auth servers).
+// Now delegates to requireAuth which uses getUser() for proper server-side validation.
 export async function requireAuthFast(): Promise<AuthResult> {
-  const supabase = await createSupabaseServerClient();
-  const {
-    data: { session },
-    error,
-  } = await supabase.auth.getSession();
-
-  if (error || !session?.user) {
-    // Fallback to getUser() if session is not available in this context
-    const {
-      data: { user },
-      error: userError,
-    } = await supabase.auth.getUser();
-
-    if (userError || !user) {
-      return {
-        user: null,
-        supabase: null,
-        error: NextResponse.json({ error: "Unauthorized" }, { status: 401 }),
-      };
-    }
-    return { user, supabase, error: null };
-  }
-
-  return { user: session.user, supabase, error: null };
+  return requireAuth();
 }
