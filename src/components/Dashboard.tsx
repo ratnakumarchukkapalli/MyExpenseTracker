@@ -456,7 +456,7 @@ function Dashboard({ expenses, subscriptions, monthlySummary, currentMonth, curr
         <div className="pane stat-bar">
           <div className="stat-bar-row">
             <div className="eyebrow" style={{ color: 'var(--ink-soft)' }}>Cash balance</div>
-            <div className="serif dash-stat-value" style={{ fontSize: 26, marginTop: 4, color: 'var(--ink) !important' }}>
+            <div className="serif dash-stat-value" style={{ fontSize: 26, marginTop: 4, color: 'var(--ink)' }}>
               {formatCurrency(currentCash)}
             </div>
 
@@ -512,7 +512,7 @@ function Dashboard({ expenses, subscriptions, monthlySummary, currentMonth, curr
       <div style={{ marginBottom: 32 }}>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 16 }}>
           <div className="eyebrow">Envelopes</div>
-          <div className="serif" style={{ fontSize: 22, color: 'var(--ink) !important' }}>Categories this month</div>
+          <div className="serif" style={{ fontSize: 22, color: 'var(--ink)' }}>Categories this month</div>
           <button
             onClick={() => setShowBudgetSettings(true)}
             style={{
@@ -680,7 +680,7 @@ function SavingsRatePanel({
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 14 }}>
         <div>
           <div className="eyebrow" style={{ color: 'var(--ink-soft)' }}>Savings Rate</div>
-          <div className="serif" style={{ fontSize: 18, marginTop: 2, color: 'var(--ink) !important' }}>{currentYear} savings ÷ salary</div>
+          <div className="serif" style={{ fontSize: 18, marginTop: 2, color: 'var(--ink)' }}>{currentYear} savings ÷ salary</div>
         </div>
         <div style={{ textAlign: 'right' }}>
           <div style={{ fontSize: 28, fontWeight: 700, color: rateColor, fontVariantNumeric: 'tabular-nums' }}>{ytdRate.toFixed(1)}%</div>
