@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState, useRef } from 'react';
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, LabelList, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { X, Save } from 'lucide-react';
 import BudgetSettingsModal from './BudgetSettingsModal';
@@ -111,8 +111,13 @@ function Dashboard({ expenses, subscriptions, monthlySummary, currentMonth, curr
   const [liveWealth, setLiveWealth] = useState<{ sip: number; stocks: number; total: number } | null>(null);
   const [previousMonthExpenses, setPreviousMonthExpenses] = useState<Expense[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const lastScrapeTimeRef = useRef<number>(0);
 
   useEffect(() => {
+    if (!monthlySummary || monthlySummary.month !== currentMonth || monthlySummary.year !== currentYear) {
+      return;
+    }
+
     const loadPrevMonthTotals = async () => {
       let prevMonth = currentMonth - 1;
       let prevYear = currentYear;
@@ -183,17 +188,21 @@ function Dashboard({ expenses, subscriptions, monthlySummary, currentMonth, curr
           });
         }
 
-        // Background refresh for stocks
-        const refreshRes = await fetch('/api/stocks/refresh-prices', { method: 'POST' });
-        if (refreshRes.ok) {
-          const updatedRes = await fetch('/api/wealth/total');
-          if (updatedRes.ok) {
-            const updatedData = await updatedRes.json();
-            setLiveWealth({
-              sip: updatedData.breakdown?.sip || 0,
-              stocks: updatedData.breakdown?.stocks || 0,
-              total: updatedData.live_portfolio_total || 0
-            });
+        // Background refresh for stocks if not done in the last hour (3600000 ms)
+        const nowMs = Date.now();
+        if (nowMs - lastScrapeTimeRef.current > 3600000) {
+          const refreshRes = await fetch('/api/stocks/refresh-prices', { method: 'POST' });
+          if (refreshRes.ok) {
+            lastScrapeTimeRef.current = nowMs;
+            const updatedRes = await fetch('/api/wealth/total');
+            if (updatedRes.ok) {
+              const updatedData = await updatedRes.json();
+              setLiveWealth({
+                sip: updatedData.breakdown?.sip || 0,
+                stocks: updatedData.breakdown?.stocks || 0,
+                total: updatedData.live_portfolio_total || 0
+              });
+            }
           }
         }
       } catch (error) {
