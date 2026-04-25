@@ -180,9 +180,11 @@ function AppShell() {
   const [showUserMenu, setShowUserMenu] = useState(false);
   const monthScrollRef = useRef<HTMLDivElement>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
+  const prevMonthRef = useRef(currentMonth);
+  const prevYearRef = useRef(currentYear);
 
-  const loadCoreData = async () => {
-    if (!monthlySummary) setLoading(true);
+  const loadCoreData = async (showLoading = false) => {
+    if (showLoading || !monthlySummary) setLoading(true);
     setErrorMessage(null);
     try {
       const res = await fetch(`/api/bootstrap?month=${currentMonth}&year=${currentYear}`);
@@ -224,9 +226,17 @@ function AppShell() {
 
   useEffect(() => {
     if (!mounted) return;
+    
+    const monthChanged = prevMonthRef.current !== currentMonth;
+    const yearChanged = prevYearRef.current !== currentYear;
+    
+    prevMonthRef.current = currentMonth;
+    prevYearRef.current = currentYear;
+
     window.localStorage.setItem('selectedMonth', currentMonth.toString());
     window.localStorage.setItem('selectedYear', currentYear.toString());
-    loadCoreData();
+    
+    loadCoreData(monthChanged || yearChanged);
   }, [currentMonth, currentYear, refreshKey, mounted]);
 
   const filteredExpenses = useMemo(() => expenses, [expenses]);
