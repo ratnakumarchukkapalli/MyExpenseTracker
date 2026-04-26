@@ -30,6 +30,7 @@ import SIPTracker from './SIPTracker';
 import StockTracker from './StockTracker';
 import LogoutConfirmModal from './LogoutConfirmModal';
 import MobileNav from './MobileNav';
+import SessionTimeout from './SessionTimeout';
 
 
 
@@ -210,6 +211,12 @@ function AppShell() {
   const userMenuRef = useRef<HTMLDivElement>(null);
   const prevMonthRef = useRef(currentMonth);
   const prevYearRef = useRef(currentYear);
+
+  const handleLogout = async () => {
+    await fetch('/api/auth/logout', { method: 'POST' });
+    localStorage.removeItem('session_last_active');
+    window.location.href = '/login';
+  };
 
   const loadCoreData = async (showLoading = false) => {
     if (showLoading || !monthlySummary) setLoading(true);
@@ -752,13 +759,12 @@ function AppShell() {
       )}
       {showLogoutModal && (
         <LogoutConfirmModal
-          onConfirm={async () => {
-            await fetch('/api/auth/logout', { method: 'POST' });
-            window.location.href = '/login';
-          }}
+          onConfirm={handleLogout}
           onCancel={() => setShowLogoutModal(false)}
         />
       )}
+
+      <SessionTimeout onLogout={handleLogout} />
 
       <MobileNav 
         currentView={currentView}
