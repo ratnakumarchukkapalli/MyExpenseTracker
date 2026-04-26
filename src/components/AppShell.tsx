@@ -83,6 +83,30 @@ type MonthlySummary = {
   cash_equivalents: number;
 };
 
+type YearlyRow = {
+  month: number;
+  year: number;
+  cash: number;
+  fd: number;
+  sip: number;
+  shares: number;
+  nps_pf: number;
+  salary: number;
+  savings?: number;
+};
+
+type CategoryBudgetRow = {
+  category: string;
+  budget_type: string;
+  budget_value: number;
+};
+
+type LoanMilestone = {
+  name: string;
+  amount: number;
+  end_date: string;
+};
+
 type ViewId =
   | 'dashboard'
   | 'expenses'
@@ -166,6 +190,10 @@ function AppShell() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
   const [monthlySummary, setMonthlySummary] = useState<MonthlySummary | null>(null);
+  const [prevMonthExpenses, setPrevMonthExpenses] = useState<Expense[]>([]);
+  const [yearlyRows, setYearlyRows] = useState<YearlyRow[]>([]);
+  const [categoryBudgets, setCategoryBudgets] = useState<CategoryBudgetRow[]>([]);
+  const [loanMilestones, setLoanMilestones] = useState<LoanMilestone[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshKey, setRefreshKey] = useState(0);
   const [showExpenseForm, setShowExpenseForm] = useState(false);
@@ -198,6 +226,10 @@ function AppShell() {
       setExpenses(data.expenses ?? []);
       setSubscriptions(data.subscriptions ?? []);
       setMonthlySummary(data.summary ?? null);
+      setPrevMonthExpenses(data.prevMonthExpenses ?? []);
+      setYearlyRows(data.yearlyRows ?? []);
+      setCategoryBudgets(data.categoryBudgets ?? []);
+      setLoanMilestones(data.loanMilestones ?? []);
       if (data.user && !userInfo) setUserInfo(data.user);
     } catch (error) {
       console.error(error);
@@ -573,6 +605,10 @@ function AppShell() {
                     monthlySummary={monthlySummary}
                     currentMonth={currentMonth}
                     currentYear={currentYear}
+                    prevMonthExpenses={prevMonthExpenses}
+                    yearlyRows={yearlyRows}
+                    initialCategoryBudgets={categoryBudgets}
+                    initialLoanMilestones={loanMilestones}
                     onFinancialsUpdate={async (data) => {
                       const res = await fetch(`/api/monthly-summary/${currentMonth}/${currentYear}`, {
                         method: 'POST',

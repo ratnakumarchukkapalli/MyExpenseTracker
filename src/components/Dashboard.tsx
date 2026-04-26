@@ -77,6 +77,10 @@ type Props = {
   monthlySummary: MonthlySummary | null;
   currentMonth: number;
   currentYear: number;
+  prevMonthExpenses: Expense[];
+  yearlyRows: YearlyRow[];
+  initialCategoryBudgets: Array<{ category: string; budget_type: string; budget_value: number }>;
+  initialLoanMilestones: LoanMilestone[];
   onFinancialsUpdate?: (data: FinancialFields) => Promise<void>;
 };
 
@@ -100,107 +104,81 @@ function formatCurrency(amount: number) {
   return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(amount || 0);
 }
 
-function Dashboard({ expenses, subscriptions, monthlySummary, currentMonth, currentYear, onFinancialsUpdate }: Props) {
-  const [prevMonthCategoryTotals, setPrevMonthCategoryTotals] = useState<Record<string, number>>({});
-  const [rawYearlyRows, setRawYearlyRows] = useState<YearlyRow[]>([]);
-  const [loanMilestones, setLoanMilestones] = useState<LoanMilestone[]>([]);
-  const [categoryBudgets, setCategoryBudgets] = useState<BudgetMap>({});
+function Dashboard({ expenses, subscriptions, monthlySummary, currentMonth, currentYear, prevMonthExpenses, yearlyRows, initialCategoryBudgets, initialLoanMilestones, onFinancialsUpdate }: Props) {
+  const [prevMonthCategoryTotals, setPrevMonthCategoryTotals] = useState<Record<string, number>>(() =>
+    (prevMonthExpenses ?? []).reduce((acc: Record<string, number>, e) => {
+      acc[e.category] = (acc[e.category] || 0) + Number(e.amount || 0);
+      return acc;
+    }, {})
+  );
+  const [rawYearlyRows, setRawYearlyRows] = useState<YearlyRow[]>(yearlyRows ?? []);
+  const [loanMilestones, setLoanMilestones] = useState<LoanMilestone[]>(initialLoanMilestones ?? []);
+  const [categoryBudgets, setCategoryBudgets] = useState<BudgetMap>(() => {
+    const map: BudgetMap = {};
+    for (const row of initialCategoryBudgets ?? []) {
+      map[row.category] = { budget_type: row.budget_type, budget_value: Number(row.budget_value) };
+    }
+    return map;
+  });
   const [showBudgetSettings, setShowBudgetSettings] = useState(false);
   const [showEditFinancials, setShowEditFinancials] = useState(false);
   const [savingFinancials, setSavingFinancials] = useState(false);
   const [liveWealth, setLiveWealth] = useState<{ sip: number; stocks: number; total: number } | null>(null);
-  const [previousMonthExpenses, setPreviousMonthExpenses] = useState<Expense[]>([]);
+  const [previousMonthExpenses, setPreviousMonthExpenses] = useState<Expense[]>(prevMonthExpenses ?? []);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-  const lastScrapeTimeRef = useRef<number>(0);
+  const lastScrapeTimeRef = useRef<number>(
+    typeof window !== 'undefined' ? Number(localStorage.getItem('lastStockScrapeTime') || 0) : 0
+  );
+
+  // Sync prev-month data when bootstrap delivers fresh props (month navigation)
+  useEffect(() => {
+    const totals = (prevMonthExpenses ?? []).reduce((acc: Record<string, number>, e) => {
+      acc[e.category] = (acc[e.category] || 0) + Number(e.amount || 0);
+      return acc;
+    }, {});
+    setPrevMonthCategoryTotals(totals);
+    setPreviousMonthExpenses(prevMonthExpenses ?? []);
+  }, [prevMonthExpenses]);
 
   useEffect(() => {
-    if (!monthlySummary || monthlySummary.month !== currentMonth || monthlySummary.year !== currentYear) {
-      return;
-    }
+    setRawYearlyRows(yearlyRows ?? []);
+  }, [yearlyRows]);
 
-    const loadPrevMonthTotals = async () => {
-      let prevMonth = currentMonth - 1;
-      let prevYear = currentYear;
-      if (prevMonth === 0) {
-        prevMonth = 12;
-        prevYear -= 1;
-      }
+  useEffect(() => {
+    setLoanMilestones(initialLoanMilestones ?? []);
+  }, [initialLoanMilestones]);
 
-      try {
-        const res = await fetch(`/api/expenses?month=${prevMonth}&year=${prevYear}`);
-        const prevExpenses = res.ok ? await res.json() : [];
-        const totals = (prevExpenses ?? []).reduce((acc: Record<string, number>, expense: Expense) => {
-          acc[expense.category] = (acc[expense.category] || 0) + Number(expense.amount || 0);
-          return acc;
-        }, {});
-        setPrevMonthCategoryTotals(totals);
-        setPreviousMonthExpenses(prevExpenses);
-      } catch (error) {
-        console.error(error);
-        setPrevMonthCategoryTotals({});
-        setPreviousMonthExpenses([]);
-      }
-    };
-
-    const loadYearlyNetWorth = async () => {
-      try {
-        const res = await fetch(`/api/monthly-summary/yearly?year=${currentYear}`);
-        const rows: YearlyRow[] = res.ok ? await res.json() : [];
-        setRawYearlyRows(rows);
-      } catch (error) {
-        console.error(error);
-        setRawYearlyRows([]);
-      }
-    };
-
-    const loadBudgets = async () => {
-      try {
-        const res = await fetch('/api/category-budgets');
-        const rows = res.ok ? await res.json() : [];
-        const map = (rows ?? []).reduce((acc: BudgetMap, row: { category: string; budget_type: string; budget_value: number }) => {
-          acc[row.category] = { budget_type: row.budget_type, budget_value: Number(row.budget_value) };
-          return acc;
-        }, {});
-        setCategoryBudgets(map);
-      } catch (error) {
-        console.error(error);
-        setCategoryBudgets({});
-      }
-    };
-
-    const loadLoanMilestones = async () => {
-      try {
-        const res = await fetch('/api/loans/milestones');
-        setLoanMilestones(res.ok ? await res.json() : []);
-      } catch { setLoanMilestones([]); }
-    };
+  // Load live portfolio value for current month only
+  useEffect(() => {
+    const isCurrentMonth = currentMonth === new Date().getMonth() + 1 && currentYear === new Date().getFullYear();
+    if (!isCurrentMonth) return;
 
     const loadLiveWealth = async () => {
       try {
-        // Initial load
         const res = await fetch('/api/wealth/total');
         if (res.ok) {
           const data = await res.json();
           setLiveWealth({
             sip: data.breakdown?.sip || 0,
             stocks: data.breakdown?.stocks || 0,
-            total: data.live_portfolio_total || 0
+            total: data.live_portfolio_total || 0,
           });
         }
 
-        // Background refresh for stocks if not done in the last hour (3600000 ms)
+        // Background stock refresh — throttled to once per hour, persisted across page loads
         const nowMs = Date.now();
         if (nowMs - lastScrapeTimeRef.current > 3600000) {
           const refreshRes = await fetch('/api/stocks/refresh-prices', { method: 'POST' });
           if (refreshRes.ok) {
             lastScrapeTimeRef.current = nowMs;
+            localStorage.setItem('lastStockScrapeTime', String(nowMs));
             const updatedRes = await fetch('/api/wealth/total');
             if (updatedRes.ok) {
               const updatedData = await updatedRes.json();
               setLiveWealth({
                 sip: updatedData.breakdown?.sip || 0,
                 stocks: updatedData.breakdown?.stocks || 0,
-                total: updatedData.live_portfolio_total || 0
+                total: updatedData.live_portfolio_total || 0,
               });
             }
           }
@@ -210,16 +188,8 @@ function Dashboard({ expenses, subscriptions, monthlySummary, currentMonth, curr
       }
     };
 
-    const isCurrentMonth = currentMonth === new Date().getMonth() + 1 && currentYear === new Date().getFullYear();
-
-    void loadPrevMonthTotals();
-    void loadYearlyNetWorth();
-    void loadBudgets();
-    void loadLoanMilestones();
-    if (isCurrentMonth) {
-      void loadLiveWealth();
-    }
-  }, [currentMonth, currentYear, monthlySummary]);
+    void loadLiveWealth();
+  }, [currentMonth, currentYear]);
 
   const yearlySavings = useMemo(() => {
     const now = new Date();
