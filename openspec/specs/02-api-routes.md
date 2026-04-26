@@ -2,6 +2,31 @@
 
 All routes live under `src/app/api/`. All require auth (Supabase cookie session).
 
+## Bootstrap (primary data loader)
+
+### GET `/api/bootstrap?month=M&year=Y`
+File: `src/app/api/bootstrap/route.ts`
+
+**The main data-loading endpoint.** Called once per month navigation. Fires 8 parallel Supabase queries in a single server-side round-trip, returning everything the Dashboard needs.
+
+**Response:**
+```json
+{
+  "expenses": [...],           // current month expenses
+  "subscriptions": [...],      // all active subscriptions (renewal dates auto-advanced)
+  "summary": {...},            // monthly_summary row for the requested month
+  "user": { "email", "name" }, // from auth.user_metadata
+  "prevMonthExpenses": [...],  // prior month expenses (for comparison)
+  "yearlyRows": [...],         // monthly_summary rows for the full year
+  "categoryBudgets": [...],    // category budget settings
+  "loanMilestones": [...]      // active loans with upcoming end dates
+}
+```
+
+**Performance:** Subscription renewal date advancement is computed in-process (~0ms pure JS) and DB writes are deferred via `after()` — does not block the response.
+
+**Headers:** Returns `Server-Timing` for profiling auth + DB split in Chrome DevTools.
+
 ## Monthly Summary
 
 ### GET/POST `/api/monthly-summary/[month]/[year]`
@@ -108,9 +133,10 @@ Monthly spending reports / AI-generated insights.
 | Route | Purpose |
 |-------|---------|
 | `/api/auth/...` | Supabase auth callbacks |
-| `/api/admin/...` | Admin utilities |
+| `/api/admin/...` | Admin utilities (locked to ADMIN_USER_ID) |
 | `/api/category-budgets` | Budget settings per category |
 | `/api/loans` | Loan CRUD |
+| `/api/loans/milestones` | Active loans with upcoming end dates |
 | `/api/subscriptions` | Subscription CRUD |
 | `/api/insurance` | Insurance policy CRUD |
 | `/api/health` | Health check |
@@ -118,9 +144,9 @@ Monthly spending reports / AI-generated insights.
 ## Common Patterns
 
 ```typescript
-// Always guard first
+// Always guard first — both call getUser() (validates JWT against Supabase Auth server)
 const { user, supabase, error } = await requireAuthFast(); // reads
-const { user, supabase, error } = await requireAuth();     // writes
+const { user, supabase, error } = await requireAuth();     // writes (same impl, different name for clarity)
 if (error) return error;
 
 // Filter by user always

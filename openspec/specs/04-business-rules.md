@@ -75,11 +75,12 @@ curl -X PATCH "$SUPABASE_URL/rest/v1/monthly_summary?month=eq.4&year=eq.2026&use
 Always filter with `month=eq.X&year=eq.Y&user_id=eq.UUID` — never patch without a user_id filter.
 
 ## requireAuth vs requireAuthFast
-- `requireAuth()` — full session validation. Use for critical security-sensitive operations.
-- `requireAuthFast()` — faster cached session read. Use for all standard UI routes (GET/POST/PUT/DELETE) to reduce network round-trips. The JWT is still verified by Supabase RLS on every DB query.
+Both `requireAuth()` and `requireAuthFast()` call `supabase.auth.getUser()` — full JWT validation against the Supabase Auth server. They are identical in implementation; the name distinction signals intent (reads vs. writes) but NOT a security difference. Never switch to `getSession()` on the server — it reads cookies without server-side verification and Supabase SDK will warn.
 
 ## Performance & UX
-- **Bootstrap API**: Use `/api/bootstrap` to fetch expenses, subscriptions, and summary in a single network round-trip.
+- **Bootstrap API**: `GET /api/bootstrap?month=M&year=Y` fires 8 parallel Supabase queries server-side, returning everything the Dashboard needs in 2 network calls total (bootstrap + optional wealth/total for current month). Do not add per-component fetches that duplicate bootstrap data.
+- **after() for non-critical writes**: Subscription renewal date persistence, monthly cascade updates — all deferred via `after()` so they don't block the response.
+- **Vercel region**: Functions pinned to `hnd1` (Tokyo) — co-located with Supabase `ap-northeast-1`. Do not change this; the user is in Hyderabad and DB round-trips from Tokyo are <5ms vs 200ms+ if mis-configured.
 - **Optimistic UI**: Mutations (adding/deleting expenses) should update local React state instantly before the API call finishes.
 - **Silent Refresh**: Background data refreshes should happen without a full-page loading screen to maintain a smooth experience.
 

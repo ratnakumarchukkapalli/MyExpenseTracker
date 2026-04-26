@@ -7,7 +7,7 @@ MET Webapp is a cloud-hosted personal finance tracker built as a Next.js App Rou
 
 | Layer | Technology |
 |-------|-----------|
-| Framework | Next.js 15 (App Router) |
+| Framework | Next.js 16 (App Router) |
 | Database | Supabase (PostgreSQL) |
 | Auth | Supabase Auth (cookie-based sessions) |
 | Hosting | Vercel |
@@ -29,6 +29,7 @@ Browser (React Server + Client Components)
   │    └─ ...other components
   │
   ├─ src/app/api/              → Next.js Route Handlers (server-side)
+  │    ├─ bootstrap/            ← primary data loader (8 parallel queries, 1 RTT)
   │    ├─ expenses/
   │    ├─ monthly-summary/[month]/[year]/
   │    ├─ wealth/total/
@@ -45,8 +46,8 @@ Browser (React Server + Client Components)
 
 ## Auth Flow
 - Supabase cookie-based sessions (SSR-compatible)
-- `requireAuth()` — full auth check + Supabase client (use for writes/mutations)
-- `requireAuthFast()` — faster read-only auth (use for GET handlers)
+- Both `requireAuth()` and `requireAuthFast()` call `supabase.auth.getUser()` (validates JWT against Supabase Auth server). Never use `getSession()` server-side — it reads unverified cookies.
+- Middleware also validates every request via `getUser()` and redirects unauthenticated users before route handlers run.
 - Both return `{ user, supabase, error }` — return `error` immediately if truthy
 - Located at `src/lib/auth-guard.ts`
 

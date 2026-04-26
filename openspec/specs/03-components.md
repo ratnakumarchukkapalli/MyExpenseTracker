@@ -21,10 +21,11 @@ Reports              → MonthlyReport.tsx
 ### Dashboard.tsx (~1200 lines)
 **Purpose:** Monthly financial overview — the homepage  
 **State:** `currentMonth`, `currentYear`, `monthlySummary`, `expenses`, `liveWealth`  
-**Data sources:**
-- `GET /api/monthly-summary/[month]/[year]` → `monthlySummary`
-- `GET /api/expenses?month=M&year=Y` → `expenses`
-- `GET /api/wealth/total` → `liveWealth` (live portfolio, ONLY for current month)
+**Data sources (all via props from AppShell — no direct fetches on mount):**
+- `monthlySummary`, `expenses`, `prevMonthExpenses`, `yearlyRows`, `categoryBudgets`, `loanMilestones` → passed as props from AppShell (loaded via `GET /api/bootstrap`)
+- `GET /api/wealth/total` → `liveWealth` (live portfolio, ONLY for current month — gated by `isCurrentMonth` check)
+
+**loadLiveWealth useEffect:** Deps are `[monthlySummary?.month, monthlySummary?.year]` (primitives, not object ref). Guards: `if (!monthlySummary) return` + `if (!isCurrentMonth) return`. Optimistic lock on scrape throttle: set timestamp BEFORE awaiting `/api/stocks/refresh-prices`.
 
 **Net worth calculation (critical):**
 ```typescript
@@ -81,7 +82,9 @@ const netWorth = monthlySummary.remaining_amount
 **Mutations:** POST/PUT/DELETE `/api/expenses`
 
 ### AppShell.tsx
-Navigation sidebar + mobile layout shell. Key state: `currentMonth`, `currentYear`, `currentView`, `userInfo` (from bootstrap).
+Navigation sidebar + mobile layout shell. Key state: `currentMonth`, `currentYear`, `currentView`, `userInfo`, plus bootstrap-loaded state: `expenses`, `monthlySummary`, `prevMonthExpenses`, `yearlyRows`, `categoryBudgets`, `loanMilestones`.
+
+**Bootstrap flow:** `loadCoreData(month, year)` calls `GET /api/bootstrap?month=M&year=Y`, stores all 8 payloads in state, passes them as props to Dashboard. Called on mount and on month/year navigation. This is the only data-loading call for the Dashboard page.
 
 **Mobile month navigation**: `mobile-month-bar` div (sticky below topbar) — scrollable month chips + `< Year >` arrows. Auto-scrolls active chip into view via `monthScrollRef`. Hidden on desktop via `@media (min-width: 769px)`.
 
