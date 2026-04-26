@@ -133,8 +133,8 @@ function BudgetSettingsModal({ salary, onClose, onSaved }: Props) {
             const isPercent = row.budget_type === 'percentage';
 
             return (
-              <div key={c.key} className="flex items-center gap-4 p-4 bg-gray-50/50 border border-gray-100 rounded-2xl transition-all hover:bg-gray-50">
-                <div className="flex items-center gap-3 min-w-[100px]">
+              <div key={c.key} className="flex items-center gap-2 sm:gap-4 p-3 sm:p-4 bg-gray-50/50 border border-gray-100 rounded-2xl transition-all hover:bg-gray-50">
+                <div className="flex items-center gap-2 sm:gap-3 min-w-[75px] sm:min-w-[100px]">
                   <div className="w-2.5 h-2.5 rounded-full" style={{ background: c.color }} />
                   <span className="text-sm font-bold text-gray-700">{c.label}</span>
                 </div>
@@ -144,7 +144,7 @@ function BudgetSettingsModal({ salary, onClose, onSaved }: Props) {
                     <button
                       key={type}
                       onClick={() => setType(c.key, type)}
-                      className={`px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider rounded-lg transition-all cursor-pointer ${
+                      className={`px-2 sm:px-3 py-1 sm:py-1.5 text-[10px] font-bold uppercase tracking-wider rounded-lg transition-all cursor-pointer ${
                         row.budget_type === type 
                           ? 'bg-white text-gray-900 shadow-sm' 
                           : 'text-gray-400 hover:text-gray-600'
@@ -162,14 +162,14 @@ function BudgetSettingsModal({ salary, onClose, onSaved }: Props) {
                     step={isPercent ? '1' : '1000'}
                     value={row.budget_value}
                     onChange={e => setValue(c.key, e.target.value)}
-                    className="w-full px-4 py-2 bg-white border border-gray-200 rounded-xl text-sm font-bold text-gray-900 focus:outline-none focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 transition-all tabular-nums pr-8"
+                    className="w-full px-2 sm:px-4 py-2 bg-white border border-gray-200 rounded-xl text-sm font-bold text-gray-900 focus:outline-none focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 transition-all tabular-nums pr-6 sm:pr-8"
                   />
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-gray-400 pointer-events-none">
+                  <span className="absolute right-2 sm:right-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-gray-400 pointer-events-none">
                     {isPercent ? '%' : '₹'}
                   </span>
                 </div>
 
-                <div className="min-w-[60px] text-right">
+                <div className="min-w-[45px] sm:min-w-[60px] text-right">
                   <span className="text-[11px] font-bold text-gray-400 tabular-nums">
                     {isPercent && salary > 0 ? formatHelperAmount(helperAmt) : (isPercent ? '—' : '')}
                   </span>
