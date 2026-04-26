@@ -6,18 +6,14 @@ type AuthResult =
   | { user: User; supabase: SupabaseClient; error: null }
   | { user: null; supabase: null; error: NextResponse };
 
-// Middleware already calls getUser() (network round-trip to Supabase Auth) for every
-// request and redirects unauthenticated users before the route handler runs.
-// Route handlers can safely use getSession() which reads the already-validated JWT
-// from the cookie locally — no extra network call, ~1ms vs ~200-400ms.
 export async function requireAuth(): Promise<AuthResult> {
   const supabase = await createSupabaseServerClient();
   const {
-    data: { session },
+    data: { user },
     error,
-  } = await supabase.auth.getSession();
+  } = await supabase.auth.getUser();
 
-  if (error || !session?.user) {
+  if (error || !user) {
     return {
       user: null,
       supabase: null,
@@ -25,7 +21,7 @@ export async function requireAuth(): Promise<AuthResult> {
     };
   }
 
-  return { user: session.user, supabase, error: null };
+  return { user, supabase, error: null };
 }
 
 export async function requireAuthFast(): Promise<AuthResult> {
