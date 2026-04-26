@@ -148,9 +148,14 @@ function Dashboard({ expenses, subscriptions, monthlySummary, currentMonth, curr
     setLoanMilestones(initialLoanMilestones ?? []);
   }, [initialLoanMilestones]);
 
-  // Load live portfolio value for current month only
+  // Load live portfolio — only after bootstrap delivers summary for the current month.
+  // Deps are primitive month/year (not the summary object) to avoid firing on every
+  // bootstrap refresh of the same month.
   useEffect(() => {
-    const isCurrentMonth = currentMonth === new Date().getMonth() + 1 && currentYear === new Date().getFullYear();
+    if (!monthlySummary) return;
+    const isCurrentMonth =
+      monthlySummary.month === new Date().getMonth() + 1 &&
+      monthlySummary.year === new Date().getFullYear();
     if (!isCurrentMonth) return;
 
     const loadLiveWealth = async () => {
@@ -165,13 +170,14 @@ function Dashboard({ expenses, subscriptions, monthlySummary, currentMonth, curr
           });
         }
 
-        // Background stock refresh — throttled to once per hour, persisted across page loads
+        // Optimistic lock: set the timestamp BEFORE the await so concurrent
+        // invocations (e.g. navigating months while the fetch is in-flight) skip the scrape.
         const nowMs = Date.now();
         if (nowMs - lastScrapeTimeRef.current > 3600000) {
+          lastScrapeTimeRef.current = nowMs;
+          localStorage.setItem('lastStockScrapeTime', String(nowMs));
           const refreshRes = await fetch('/api/stocks/refresh-prices', { method: 'POST' });
           if (refreshRes.ok) {
-            lastScrapeTimeRef.current = nowMs;
-            localStorage.setItem('lastStockScrapeTime', String(nowMs));
             const updatedRes = await fetch('/api/wealth/total');
             if (updatedRes.ok) {
               const updatedData = await updatedRes.json();
@@ -189,7 +195,8 @@ function Dashboard({ expenses, subscriptions, monthlySummary, currentMonth, curr
     };
 
     void loadLiveWealth();
-  }, [currentMonth, currentYear]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [monthlySummary?.month, monthlySummary?.year]);
 
   const yearlySavings = useMemo(() => {
     const now = new Date();
