@@ -1,5 +1,6 @@
 import { requireAuthFast } from "@/lib/auth-guard";
-import { autoAdvanceSubscriptions } from "@/lib/subscriptions";
+import { advanceSubscriptionsLocally, persistSubscriptionAdvances } from "@/lib/subscriptions";
+import { after } from "next/server";
 import { NextRequest } from "next/server";
 
 export async function GET(request: NextRequest) {
@@ -86,7 +87,11 @@ export async function GET(request: NextRequest) {
   ]);
 
   const tDb = Date.now();
-  const subscriptions = await autoAdvanceSubscriptions(supabase, user.id, subscriptionsRes.data ?? []);
+  // Compute advanced dates locally (pure JS, ~0ms), persist DB writes after the response is sent
+  const { subscriptions, toUpdate } = advanceSubscriptionsLocally(subscriptionsRes.data ?? []);
+  if (toUpdate.length > 0) {
+    after(() => persistSubscriptionAdvances(supabase, user.id, toUpdate));
+  }
 
   const savingsByMonth: Record<number, number> = {};
   for (const e of yearlyExpensesRes.data ?? []) {
