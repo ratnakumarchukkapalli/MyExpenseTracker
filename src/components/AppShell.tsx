@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import type { BootstrapData } from '@/lib/bootstrap-data';
 import {
   Calendar,
   ChevronLeft,
@@ -165,7 +166,13 @@ function getStoredNumber(key: string, fallback: number) {
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
-function AppShell() {
+type AppShellProps = {
+  initialData?: BootstrapData;
+  serverMonth?: number;
+  serverYear?: number;
+};
+
+function AppShell({ initialData, serverMonth, serverYear }: AppShellProps) {
   const now = new Date();
   const [darkMode, setDarkMode] = useState(() => {
     if (typeof window === 'undefined') return false;
@@ -188,14 +195,14 @@ function AppShell() {
     
     setMounted(true);
   }, []);
-  const [expenses, setExpenses] = useState<Expense[]>([]);
-  const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
-  const [monthlySummary, setMonthlySummary] = useState<MonthlySummary | null>(null);
-  const [prevMonthExpenses, setPrevMonthExpenses] = useState<Expense[]>([]);
-  const [yearlyRows, setYearlyRows] = useState<YearlyRow[]>([]);
-  const [categoryBudgets, setCategoryBudgets] = useState<CategoryBudgetRow[]>([]);
-  const [loanMilestones, setLoanMilestones] = useState<LoanMilestone[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [expenses, setExpenses] = useState<Expense[]>((initialData?.expenses as Expense[]) ?? []);
+  const [subscriptions, setSubscriptions] = useState<Subscription[]>((initialData?.subscriptions as Subscription[]) ?? []);
+  const [monthlySummary, setMonthlySummary] = useState<MonthlySummary | null>((initialData?.summary as MonthlySummary) ?? null);
+  const [prevMonthExpenses, setPrevMonthExpenses] = useState<Expense[]>((initialData?.prevMonthExpenses as Expense[]) ?? []);
+  const [yearlyRows, setYearlyRows] = useState<YearlyRow[]>((initialData?.yearlyRows as YearlyRow[]) ?? []);
+  const [categoryBudgets, setCategoryBudgets] = useState<CategoryBudgetRow[]>((initialData?.categoryBudgets as CategoryBudgetRow[]) ?? []);
+  const [loanMilestones, setLoanMilestones] = useState<LoanMilestone[]>((initialData?.loanMilestones as LoanMilestone[]) ?? []);
+  const [loading, setLoading] = useState(!initialData);
   const [refreshKey, setRefreshKey] = useState(0);
   const [showExpenseForm, setShowExpenseForm] = useState(false);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
@@ -205,12 +212,14 @@ function AppShell() {
   const [editingLoan, setEditingLoan] = useState<Loan | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
-  const [userInfo, setUserInfo] = useState<{ email: string | null; name: string | null } | null>(null);
+  const [userInfo, setUserInfo] = useState<{ email: string | null; name: string | null } | null>(initialData?.user ?? null);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const monthScrollRef = useRef<HTMLDivElement>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
   const prevMonthRef = useRef(currentMonth);
   const prevYearRef = useRef(currentYear);
+  // Skip the first client-side fetch when server already provided data for the current month/year
+  const skipInitialFetchRef = useRef(!!initialData);
 
   const handleLogout = async () => {
     await fetch('/api/auth/logout', { method: 'POST' });
@@ -265,16 +274,24 @@ function AppShell() {
 
   useEffect(() => {
     if (!mounted) return;
-    
+
     const monthChanged = prevMonthRef.current !== currentMonth;
     const yearChanged = prevYearRef.current !== currentYear;
-    
+
     prevMonthRef.current = currentMonth;
     prevYearRef.current = currentYear;
 
     window.localStorage.setItem('selectedMonth', currentMonth.toString());
     window.localStorage.setItem('selectedYear', currentYear.toString());
-    
+
+    // Skip the first fetch when server already provided data for this month/year
+    if (skipInitialFetchRef.current) {
+      skipInitialFetchRef.current = false;
+      if (currentMonth === serverMonth && currentYear === serverYear && refreshKey === 0) {
+        return;
+      }
+    }
+
     loadCoreData(monthChanged || yearChanged);
   }, [currentMonth, currentYear, refreshKey, mounted]);
 
