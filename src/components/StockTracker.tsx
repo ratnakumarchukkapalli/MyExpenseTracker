@@ -669,9 +669,10 @@ interface StockTrackerProps {
   currentMonth?: number;
   currentYear?: number;
   onPortfolioUpdate?: () => void;
+  onPricesRefreshed?: () => void;
 }
 
-const StockTracker = ({ currentMonth = new Date().getMonth() + 1, currentYear = new Date().getFullYear(), onPortfolioUpdate }: StockTrackerProps) => {
+const StockTracker = ({ currentMonth = new Date().getMonth() + 1, currentYear = new Date().getFullYear(), onPortfolioUpdate, onPricesRefreshed }: StockTrackerProps) => {
   const { chartColors } = useDarkMode();
   const [holdings, setHoldings] = useState<StockHolding[]>([]);
   const [loading, setLoading] = useState(true);
@@ -741,7 +742,9 @@ const StockTracker = ({ currentMonth = new Date().getMonth() + 1, currentYear = 
         total:        result.results.length,
         errors:       result.results.filter((r: { success: boolean }) => !r.success),
       });
+      localStorage.setItem('lastStockScrapeTime', String(Date.now()));
       loadHoldings();
+      onPricesRefreshed?.();
     } catch (err) {
       setRefreshStatus({ error: String(err) });
     } finally {

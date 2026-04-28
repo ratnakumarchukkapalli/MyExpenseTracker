@@ -92,6 +92,7 @@ type Props = {
   yearlyRows: YearlyRow[];
   initialCategoryBudgets: Array<{ category: string; budget_type: string; budget_value: number }>;
   initialLoanMilestones: LoanMilestone[];
+  stockRefreshTick?: number;
   onFinancialsUpdate?: (data: FinancialFields) => Promise<void>;
 };
 
@@ -115,7 +116,7 @@ function formatCurrency(amount: number) {
   return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(amount || 0);
 }
 
-function Dashboard({ expenses, subscriptions, monthlySummary, currentMonth, currentYear, prevMonthExpenses, yearlyRows, initialCategoryBudgets, initialLoanMilestones, onFinancialsUpdate }: Props) {
+function Dashboard({ expenses, subscriptions, monthlySummary, currentMonth, currentYear, prevMonthExpenses, yearlyRows, initialCategoryBudgets, initialLoanMilestones, stockRefreshTick, onFinancialsUpdate }: Props) {
   const [prevMonthCategoryTotals, setPrevMonthCategoryTotals] = useState<Record<string, number>>(() =>
     (prevMonthExpenses ?? []).reduce((acc: Record<string, number>, e) => {
       acc[e.category] = (acc[e.category] || 0) + Number(e.amount || 0);
@@ -217,6 +218,17 @@ function Dashboard({ expenses, subscriptions, monthlySummary, currentMonth, curr
     return () => clearInterval(interval);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [monthlySummary?.month, monthlySummary?.year]);
+
+  // Re-fetch wealth when StockTracker manually refreshes prices
+  useEffect(() => {
+    if (!stockRefreshTick) return;
+    fetch('/api/wealth/total', { cache: 'no-store' })
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (data) setLiveWealth({ sip: data.breakdown?.sip || 0, stocks: data.breakdown?.stocks || 0, total: data.live_portfolio_total || 0 });
+      })
+      .catch(() => {});
+  }, [stockRefreshTick]);
 
   const yearlySavings = useMemo(() => {
     const now = new Date();

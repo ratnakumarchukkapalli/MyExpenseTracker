@@ -29,6 +29,6 @@ export async function GET() {
       stocks: stockTotal
     }
   }, {
-    headers: { "Cache-Control": "private, max-age=0, stale-while-revalidate=300" },
+    headers: { "Cache-Control": "private, no-store" },
   });
 }

@@ -208,6 +208,7 @@ function AppShell({ initialData, serverMonth, serverYear }: AppShellProps) {
   const [loanMilestones, setLoanMilestones] = useState<LoanMilestone[]>((initialData?.loanMilestones as LoanMilestone[]) ?? []);
   const [loading, setLoading] = useState(!initialData);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [stockRefreshTick, setStockRefreshTick] = useState(0);
   const [showExpenseForm, setShowExpenseForm] = useState(false);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   const [showSubscriptionForm, setShowSubscriptionForm] = useState(false);
@@ -637,6 +638,7 @@ function AppShell({ initialData, serverMonth, serverYear }: AppShellProps) {
                     yearlyRows={yearlyRows}
                     initialCategoryBudgets={categoryBudgets}
                     initialLoanMilestones={loanMilestones}
+                    stockRefreshTick={stockRefreshTick}
                     onFinancialsUpdate={async (data) => {
                       const res = await fetch(`/api/monthly-summary/${currentMonth}/${currentYear}`, {
                         method: 'POST',
@@ -720,7 +722,7 @@ function AppShell({ initialData, serverMonth, serverYear }: AppShellProps) {
                 {currentView === 'reports' && <MonthlyReport currentMonth={currentMonth} currentYear={currentYear} />}
                 {currentView === 'projection' && <YearEndProjection currentMonth={currentMonth} currentYear={currentYear} />}
                 {currentView === 'sip' && <SIPTracker currentMonth={currentMonth} currentYear={currentYear} onPortfolioUpdate={triggerRefresh} />}
-                {currentView === 'stocks' && <StockTracker currentMonth={currentMonth} currentYear={currentYear} onPortfolioUpdate={triggerRefresh} />}
+                {currentView === 'stocks' && <StockTracker currentMonth={currentMonth} currentYear={currentYear} onPortfolioUpdate={triggerRefresh} onPricesRefreshed={() => setStockRefreshTick(t => t + 1)} />}
                 {currentView === 'insurance' && <Insurance />}
               </>
             )}
