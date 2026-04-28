@@ -1,6 +1,17 @@
 'use client';
 
 import React, { useEffect, useMemo, useState, useRef } from 'react';
+
+// NSE market hours: 9:15 AM – 3:30 PM IST, Mon–Fri
+function isMarketHours(): boolean {
+  const now = new Date();
+  const day = now.getUTCDay(); // 0=Sun, 6=Sat
+  if (day === 0 || day === 6) return false;
+  // IST = UTC+330 minutes
+  const istMinutes = Math.floor(now.getTime() / 60000) + 330;
+  const timeOfDay = istMinutes % 1440; // minutes since midnight IST
+  return timeOfDay >= 555 && timeOfDay <= 930; // 9:15 AM = 555, 3:30 PM = 930
+}
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, LabelList, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { X, Save } from 'lucide-react';
 import BudgetSettingsModal from './BudgetSettingsModal';
@@ -173,7 +184,9 @@ function Dashboard({ expenses, subscriptions, monthlySummary, currentMonth, curr
         // Optimistic lock: set the timestamp BEFORE the await so concurrent
         // invocations (e.g. navigating months while the fetch is in-flight) skip the scrape.
         const nowMs = Date.now();
-        if (nowMs - lastScrapeTimeRef.current > 3600000) {
+        // 15 min throttle during market hours, 1 hour otherwise
+        const throttleMs = isMarketHours() ? 900000 : 3600000;
+        if (nowMs - lastScrapeTimeRef.current > throttleMs) {
           lastScrapeTimeRef.current = nowMs;
           localStorage.setItem('lastStockScrapeTime', String(nowMs));
           const refreshRes = await fetch('/api/stocks/refresh-prices', { method: 'POST' });
@@ -195,6 +208,13 @@ function Dashboard({ expenses, subscriptions, monthlySummary, currentMonth, curr
     };
 
     void loadLiveWealth();
+
+    // Poll every 15 minutes while page is open during market hours
+    const interval = setInterval(() => {
+      if (isMarketHours()) void loadLiveWealth();
+    }, 900000);
+
+    return () => clearInterval(interval);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [monthlySummary?.month, monthlySummary?.year]);
 
