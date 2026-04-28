@@ -17,21 +17,25 @@ import {
   Sun,
   TrendingUp,
 } from 'lucide-react';
-import ExpenseForm from './ExpenseForm';
-import ExpenseList from './ExpenseList';
-import Subscriptions from './Subscriptions';
-import SubscriptionForm from './SubscriptionForm';
-import Loans from './Loans';
-import LoanForm from './LoanForm';
-import Insurance from './Insurance';
+import dynamic from 'next/dynamic';
+// Dashboard is the default view — eager loaded so it renders with SSR data
 import Dashboard from './Dashboard';
-import MonthlyReport from './MonthlyReport';
-import YearEndProjection from './YearEndProjection';
-import SIPTracker from './SIPTracker';
-import StockTracker from './StockTracker';
-import LogoutConfirmModal from './LogoutConfirmModal';
+// Always-visible chrome — keep in the initial bundle
 import MobileNav from './MobileNav';
 import SessionTimeout from './SessionTimeout';
+// All other views/modals are code-split: loaded only when the user navigates to them
+const ExpenseForm = dynamic(() => import('./ExpenseForm'));
+const ExpenseList = dynamic(() => import('./ExpenseList'));
+const Subscriptions = dynamic(() => import('./Subscriptions'));
+const SubscriptionForm = dynamic(() => import('./SubscriptionForm'));
+const Loans = dynamic(() => import('./Loans'));
+const LoanForm = dynamic(() => import('./LoanForm'));
+const Insurance = dynamic(() => import('./Insurance'));
+const MonthlyReport = dynamic(() => import('./MonthlyReport'));
+const YearEndProjection = dynamic(() => import('./YearEndProjection'));
+const SIPTracker = dynamic(() => import('./SIPTracker'));
+const StockTracker = dynamic(() => import('./StockTracker'));
+const LogoutConfirmModal = dynamic(() => import('./LogoutConfirmModal'));
 
 
 
