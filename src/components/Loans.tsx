@@ -215,7 +215,7 @@ function Loans({ onShowForm, onEdit, refreshKey, currentMonth, currentYear }: Pr
                   <th className="px-4 py-3 text-right text-xs font-semibold uppercase" style={{ color: 'var(--ink-faint)' }}>Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y" style={{ borderColor: 'var(--hairline)' }}>
+              <tbody>
                 {visibleLoans.map((loan) => {
                   const monthsRemaining = getMonthsRemaining(loan.end_date);
                   return (
