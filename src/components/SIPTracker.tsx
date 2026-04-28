@@ -3,30 +3,15 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useDarkMode } from '@/hooks/useDarkMode';
 import {
-  ComposedChart, Area, Line, XAxis, YAxis, Tooltip,
+  XAxis, YAxis, Tooltip,
   ReferenceLine, ResponsiveContainer, BarChart, Bar,
 } from 'recharts';
 import {
   TrendingUp, RefreshCw, Plus, Trash2, X,
   Upload, ChevronDown, ChevronUp, Target, AlertCircle,
-  CheckCircle, BarChart2,
+  CheckCircle,
 } from 'lucide-react';
 import { formatCurrency } from '@/lib/formatters';
-import { ML_API_URL } from '@/lib/ml/config';
-
-// ── ML via Python FastAPI ──────────────────────────────────────────────────
-const mlAnalyze = async (endpoint: string, payload: unknown) => {
-  try {
-    const res = await fetch(`${ML_API_URL}/${endpoint}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
-    return await res.json();
-  } catch {
-    return { error: 'Python API unavailable' };
-  }
-};
 
 // ── Types ─────────────────────────────────────────────────────────────────
 
@@ -53,11 +38,6 @@ interface SipTransaction {
   transaction_type: string;
 }
 
-interface NavHistoryPoint {
-  nav_date: string;
-  nav_value: number;
-}
-
 interface HoldingsImportFund {
   fundName: string;
   amc: string;
@@ -77,20 +57,7 @@ interface SchemeResult {
   schemeName: string;
 }
 
-interface MlChartPoint {
-  nav_date: string;
-  nav_value: number;
-  sma30?: number;
-  sma90?: number;
-}
-
 // ── HELPERS ───────────────────────────────────────────────────────────────
-
-const RISK_CLASSES: Record<string, string> = {
-  Low:    'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
-  Medium: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400',
-  High:   'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
-};
 
 const convertNavDate = (d: string) => {
   const parts = d.split('-');
@@ -98,17 +65,6 @@ const convertNavDate = (d: string) => {
     return `${parts[2]}-${parts[1]}-${parts[0]}`;
   }
   return d;
-};
-
-const AMFI_URL = 'https://portal.amfiindia.com/spages/NAVAll.txt';
-const AMFI_MONTHS: Record<string, string> = {
-  Jan: '01', Feb: '02', Mar: '03', Apr: '04', May: '05', Jun: '06',
-  Jul: '07', Aug: '08', Sep: '09', Oct: '10', Nov: '11', Dec: '12',
-};
-
-const convertAmfiDate = (d: string) => {
-  const [day, mon, year] = d.trim().split('-');
-  return `${year}-${AMFI_MONTHS[mon]}-${day.padStart(2, '0')}`;
 };
 
 const fetchAmfiNavMap = async (schemeCodes: string[]) => {
@@ -140,20 +96,9 @@ interface FundCardProps {
 const FundCard = ({ fund, onDelete, onRefreshNav }: FundCardProps) => {
   const { chartColors } = useDarkMode();
   const [expanded, setExpanded] = useState(false);
-  const [mlOpen, setMlOpen] = useState(false);
   const [transactions, setTransactions] = useState<SipTransaction[]>([]);
-  const [navHistory, setNavHistory] = useState<NavHistoryPoint[]>([]);
   const [loadingTxn, setLoadingTxn] = useState(false);
-  const [loadingNav, setLoadingNav] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-
-  const [chartData, setChartData] = useState<Record<string, unknown>[]>([]);
-  const [regression, setRegression] = useState<{
-    slope: number; intercept: number; dataPoints: number;
-    predictedNav: number; trend: string; daysToBreakeven?: number | null; slopePerYear: number;
-  } | null>(null);
-  const [volatility, setVolatility] = useState<{ vol: number; risk: string } | null>(null);
-  const [xirr, setXirr] = useState<number | null>(null);
 
   const currentNav = fund.current_nav ?? 0;
   const currentValue = fund.units * currentNav;
@@ -172,23 +117,9 @@ const FundCard = ({ fund, onDelete, onRefreshNav }: FundCardProps) => {
     setLoadingTxn(false);
   };
 
-  const loadNavHistory = async () => {
-    if (!fund.scheme_code || navHistory.length > 0) return;
-    setLoadingNav(true);
-    const res = await fetch(`/api/sip/nav-history?schemeCode=${fund.scheme_code}`);
-    const data = await res.json();
-    setNavHistory(Array.isArray(data) ? data : []);
-    setLoadingNav(false);
-  };
-
   const handleExpand = () => {
     setExpanded(e => !e);
     if (!expanded) loadTransactions();
-  };
-
-  const handleMlOpen = () => {
-    setMlOpen(m => !m);
-    if (!mlOpen) loadNavHistory();
   };
 
   const handleRefresh = async () => {
@@ -222,7 +153,6 @@ const FundCard = ({ fund, onDelete, onRefreshNav }: FundCardProps) => {
             navData: [{ date: entry.date, nav: String(entry.nav) }],
           }),
         });
-        setNavHistory([]);
         onRefreshNav();
       } else {
         throw new Error('No NAV data found for this scheme code');
@@ -234,44 +164,6 @@ const FundCard = ({ fund, onDelete, onRefreshNav }: FundCardProps) => {
     }
     setRefreshing(false);
   };
-
-  useEffect(() => {
-    if (!navHistory.length) return;
-    const nav_data = navHistory.map(h => ({ nav_date: h.nav_date, nav_value: h.nav_value }));
-    Promise.all([
-      mlAnalyze('sma', { nav_data }),
-      mlAnalyze('regression', { nav_data, breakeven_nav: breakevenNav }),
-      mlAnalyze('volatility', { nav_data }),
-    ]).then(([smaRes, regRes, volRes]) => {
-      const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-      setChartData((smaRes.data || []).map((d: MlChartPoint) => {
-        const [yr, mo] = (d.nav_date || '').split('-');
-        const label = yr && mo ? `${MONTHS[parseInt(mo) - 1]} '${yr.slice(2)}` : d.nav_date;
-        return { date: label, fullDate: d.nav_date, nav: d.nav_value, sma30: d.sma30 ?? null, sma90: d.sma90 ?? null };
-      }));
-      if (!regRes.error) setRegression({
-        slope:           regRes.slope,
-        intercept:       regRes.intercept,
-        dataPoints:      regRes.data_points,
-        predictedNav:    regRes.predicted_nav_180d,
-        trend:           regRes.trend === 'Recovering' ? 'Recovering ↑' : regRes.trend === 'Declining' ? 'Declining ↓' : 'Sideways →',
-        daysToBreakeven: regRes.days_to_breakeven,
-        slopePerYear:    regRes.slope_per_year,
-      });
-      if (!volRes.error) setVolatility({ vol: volRes.volatility_pct, risk: volRes.risk });
-    }).catch(console.error);
-  }, [navHistory, breakevenNav]);
-
-  useEffect(() => {
-    if (!transactions.length) return;
-    const cash_flows = [
-      ...transactions.map(t => ({ date: t.transaction_date, amount: -t.amount })),
-      { date: new Date().toISOString().split('T')[0], amount: currentValue },
-    ];
-    mlAnalyze('xirr', { cash_flows })
-      .then(res => setXirr(res.xirr_pct ?? null))
-      .catch(console.error);
-  }, [transactions, currentValue]);
 
   return (
     <div className="bg-white dark:bg-surface-900 rounded-2xl border border-gray-100 dark:border-surface-800 shadow-sm overflow-hidden">
@@ -290,11 +182,6 @@ const FundCard = ({ fund, onDelete, onRefreshNav }: FundCardProps) => {
               {fund.fund_type === 'historical' && (
                 <span className="inline-flex px-2 py-0.5 text-xs font-medium rounded-full bg-gray-100 text-gray-600 dark:bg-surface-700 dark:text-gray-400">
                   Historical
-                </span>
-              )}
-              {volatility && (
-                <span className={`inline-flex px-2 py-0.5 text-xs font-medium rounded-full ${RISK_CLASSES[volatility.risk]}`}>
-                  {volatility.risk} Risk
                 </span>
               )}
             </div>
@@ -345,12 +232,6 @@ const FundCard = ({ fund, onDelete, onRefreshNav }: FundCardProps) => {
                 : '—'}
             </p>
           </div>
-          <div>
-            <p className="text-xs text-gray-500 dark:text-gray-400">XIRR</p>
-            <p className={`text-sm font-semibold num ${xirr != null ? gainClass(xirr) : 'text-gray-400'}`}>
-              {xirr != null ? `${xirr >= 0 ? '+' : ''}${xirr}%` : '—'}
-            </p>
-          </div>
         </div>
 
         {currentNav > 0 && breakevenNav > 0 && (
@@ -367,9 +248,6 @@ const FundCard = ({ fund, onDelete, onRefreshNav }: FundCardProps) => {
               ? `In profit · Breakeven was ₹${breakevenNav.toFixed(2)}, Current NAV ₹${currentNav.toFixed(2)}`
               : `NAV needs to rise ${navGapPct.toFixed(1)}% to break even (from ₹${currentNav.toFixed(2)} → ₹${breakevenNav.toFixed(2)})`
             }
-            {regression?.daysToBreakeven != null && gainAmt < 0 && (
-              <span className="ml-auto font-semibold">~{regression.daysToBreakeven}d at current trend</span>
-            )}
           </div>
         )}
 
@@ -386,13 +264,6 @@ const FundCard = ({ fund, onDelete, onRefreshNav }: FundCardProps) => {
           </div>
           <div className="flex items-center gap-2">
             <button
-              onClick={handleMlOpen}
-              className="text-xs flex items-center gap-1 text-purple-600 dark:text-purple-400 hover:underline"
-            >
-              <BarChart2 className="h-3 w-3" />
-              ML Analysis {mlOpen ? '▲' : '▼'}
-            </button>
-            <button
               onClick={handleExpand}
               className="text-xs flex items-center gap-1 text-gray-500 dark:text-gray-400 hover:text-primary-600"
             >
@@ -401,110 +272,6 @@ const FundCard = ({ fund, onDelete, onRefreshNav }: FundCardProps) => {
           </div>
         </div>
       </div>
-
-      {mlOpen && (
-        <div className="border-t border-gray-100 dark:border-surface-800 p-5 bg-purple-50/40 dark:bg-purple-950/20">
-          <h4 className="text-xs font-semibold text-purple-700 dark:text-purple-400 uppercase tracking-wide mb-3">
-            ML Analysis
-          </h4>
-          {loadingNav && <p className="text-xs text-gray-400">Loading NAV history…</p>}
-          {!fund.scheme_code && (
-            <p className="text-xs text-amber-600">No scheme code — Refresh NAV to enable ML analysis.</p>
-          )}
-          {navHistory.length > 0 && (
-            <div className="space-y-4">
-              <div className="grid grid-cols-3 gap-3">
-                <div className="bg-white dark:bg-surface-800 rounded-xl p-3">
-                  <p className="text-xs text-gray-500">Trend (Regression)</p>
-                  <p className={`text-sm font-bold mt-1 ${regression?.slope && regression.slope > 0 ? 'text-green-600' : 'text-red-600'}`}>
-                    {regression?.trend || '—'}
-                  </p>
-                  <p className="text-xs text-gray-400 mt-0.5">
-                    slope: {regression ? (regression.slope * 252).toFixed(3) + '/yr' : '—'}
-                  </p>
-                </div>
-                <div className="bg-white dark:bg-surface-800 rounded-xl p-3">
-                  <p className="text-xs text-gray-500">6-Month NAV Forecast</p>
-                  <p className="text-sm font-bold text-gray-800 dark:text-gray-200 mt-1">
-                    ₹{regression?.predictedNav?.toFixed(2) || '—'}
-                  </p>
-                  <p className={`text-xs mt-0.5 ${regression && regression.predictedNav > (fund.current_nav ?? 0) ? 'text-green-500' : 'text-red-500'}`}>
-                    {regression && fund.current_nav
-                      ? `${((regression.predictedNav - fund.current_nav) / fund.current_nav * 100).toFixed(1)}% from now`
-                      : ''}
-                  </p>
-                </div>
-                <div className="bg-white dark:bg-surface-800 rounded-xl p-3">
-                  <p className="text-xs text-gray-500">Volatility (Risk)</p>
-                  {volatility ? (
-                    <>
-                      <p className={`text-sm font-bold mt-1 ${volatility.risk === 'Low' ? 'text-green-600' : 'text-red-600'}`}>
-                        {volatility.vol}% · {volatility.risk}
-                      </p>
-                      <p className="text-xs text-gray-400 mt-0.5">annualized std dev</p>
-                    </>
-                  ) : <p className="text-sm text-gray-400 mt-1">Need 30+ days</p>}
-                </div>
-              </div>
-
-              {(() => {
-                const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-                const futurePoints: Record<string, unknown>[] = [];
-                if (regression?.slope && regression?.intercept != null) {
-                  const n = regression.dataPoints || chartData.length;
-                  for (let offset = 30; offset <= 180; offset += 30) {
-                    const nav = parseFloat((regression.slope * (n + offset) + regression.intercept).toFixed(2));
-                    const d = new Date();
-                    d.setDate(d.getDate() + Math.round(offset * 1.4));
-                    const label = `${MONTHS[d.getMonth()]} '${String(d.getFullYear()).slice(2)}`;
-                    futurePoints.push({ date: label, predicted: nav });
-                  }
-                }
-                const fullData = [...chartData, ...futurePoints];
-                const todayLabel = chartData[chartData.length - 1]?.date as string | undefined;
-
-                return (
-                  <div>
-                    <p className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-2">
-                      NAV History · 30d SMA (blue) · 90d SMA (orange) · Prediction (green dashed) · Breakeven (red)
-                    </p>
-                    <ResponsiveContainer width="100%" height={220}>
-                      <ComposedChart data={fullData} margin={{ top: 4, right: 12, bottom: 0, left: 0 }}>
-                        <XAxis dataKey="date" tick={{ fontSize: 9, fill: chartColors.axisText }} interval={Math.floor(fullData.length / 7)} />
-                        <YAxis domain={['auto', 'auto']} tick={{ fontSize: 9, fill: chartColors.axisText }} width={50} tickFormatter={(v: number) => `₹${v}`} />
-                        <Tooltip
-                          formatter={(v: unknown) => v != null ? `₹${parseFloat(String(v)).toFixed(2)}` : null}
-                          contentStyle={{ fontSize: 11, background: chartColors.tooltipBg, border: `1px solid ${chartColors.tooltipBorder}`, color: chartColors.axisText }}
-                        />
-                        <Area type="monotone" dataKey="nav" fill={chartColors.accentFill} stroke={chartColors.accent} strokeWidth={1} dot={false} name="NAV" />
-                        <Line type="monotone" dataKey="sma30" stroke={chartColors.blue} strokeWidth={1.5} dot={false} name="30d SMA" connectNulls />
-                        <Line type="monotone" dataKey="sma90" stroke={chartColors.amber} strokeWidth={1.5} dot={false} name="90d SMA" connectNulls />
-                        <Line type="monotone" dataKey="predicted" stroke={chartColors.emerald} strokeWidth={2} strokeDasharray="6 3" dot={{ r: 3, fill: chartColors.emerald }} name="Predicted" connectNulls />
-                        {breakevenNav > 0 && (
-                          <ReferenceLine y={breakevenNav} stroke={chartColors.neg} strokeDasharray="4 3"
-                            label={{ value: `Breakeven ₹${breakevenNav.toFixed(2)}`, fontSize: 9, fill: chartColors.neg, position: 'insideTopRight' }} />
-                        )}
-                        {todayLabel && (
-                          <ReferenceLine x={todayLabel} stroke={chartColors.gray} strokeDasharray="3 3"
-                            label={{ value: 'Today', fontSize: 9, fill: chartColors.gray, position: 'insideTopLeft' }} />
-                        )}
-                      </ComposedChart>
-                    </ResponsiveContainer>
-                    <p className="text-xs text-gray-400 mt-1 italic">
-                      30d SMA = avg of last 30 NAVs. Green dashed = linear regression forecast (slope {regression ? `₹${regression.slopePerYear}/yr` : '—'}).
-                    </p>
-                  </div>
-                );
-              })()}
-            </div>
-          )}
-          {fund.scheme_code && navHistory.length === 0 && !loadingNav && (
-            <p className="text-xs text-gray-500">
-              No NAV history yet. Click Refresh NAV to fetch 365 days of data.
-            </p>
-          )}
-        </div>
-      )}
 
       {expanded && (
         <div className="border-t border-gray-100 dark:border-surface-800 overflow-x-auto">
