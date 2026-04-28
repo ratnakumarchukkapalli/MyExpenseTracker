@@ -209,6 +209,7 @@ function AppShell({ initialData, serverMonth, serverYear }: AppShellProps) {
   const [loading, setLoading] = useState(!initialData);
   const [refreshKey, setRefreshKey] = useState(0);
   const [stockRefreshTick, setStockRefreshTick] = useState(0);
+  const [mountedTabs, setMountedTabs] = useState<Set<string>>(() => new Set(['dashboard']));
   const [showExpenseForm, setShowExpenseForm] = useState(false);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   const [showSubscriptionForm, setShowSubscriptionForm] = useState(false);
@@ -275,6 +276,12 @@ function AppShell({ initialData, serverMonth, serverYear }: AppShellProps) {
   useEffect(() => {
     if (!mounted) return;
     window.localStorage.setItem('activeView', currentView);
+    setMountedTabs(prev => {
+      if (prev.has(currentView)) return prev;
+      const next = new Set(prev);
+      next.add(currentView);
+      return next;
+    });
   }, [currentView, mounted]);
 
   useEffect(() => {
@@ -345,39 +352,49 @@ function AppShell({ initialData, serverMonth, serverYear }: AppShellProps) {
   const userDisplayName = userInfo?.name || userInfo?.email?.split('@')[0] || 'Account';
 
   const handleExpenseSubmit = async (payload: Omit<Expense, 'id'>) => {
-    // Optimistic Update
     const tempId = Date.now();
     const optimisticExpense: Expense = { ...payload, id: tempId };
-    
-    // Update expenses list immediately
-    setExpenses((prev) => [optimisticExpense, ...prev]);
-    
-    // Update monthly summary immediately
+    const prevExpenses = expenses;
+    const prevSummary = monthlySummary;
+
+    // Optimistic updates
+    setExpenses(prev => [optimisticExpense, ...prev]);
     if (monthlySummary) {
       const amount = Number(payload.amount);
-      const newTotal = (Number(monthlySummary.total_expenses || 0)) + amount;
-      const newRemaining = Number(monthlySummary.remaining_amount || 0) - amount;
       setMonthlySummary({
         ...monthlySummary,
-        total_expenses: newTotal,
-        remaining_amount: newRemaining,
-        cash_equivalents: (Number(monthlySummary.cash_equivalents || 0)) - amount
+        total_expenses: Number(monthlySummary.total_expenses || 0) + amount,
+        remaining_amount: Number(monthlySummary.remaining_amount || 0) - amount,
+        cash_equivalents: Number(monthlySummary.cash_equivalents || 0) - amount,
       });
     }
+
+    // Close immediately — optimistic update already reflects the change
+    setShowExpenseForm(false);
+    setEditingExpense(null);
 
     const res = await fetch('/api/expenses', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     });
+
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
+      setExpenses(prevExpenses);
+      setMonthlySummary(prevSummary);
       alert(`Failed to save expense: ${err?.error ?? res.statusText}`);
-      // Rollback on error? For now just trigger refresh
+      return;
     }
-    setShowExpenseForm(false);
-    setEditingExpense(null);
-    triggerRefresh();
+
+    // Confirm: replace temp id with real expense + sync summary from server
+    const result = await res.json();
+    if (result.expense) {
+      setExpenses(prev => prev.map(e => e.id === tempId ? result.expense as Expense : e));
+    }
+    if (result.summary) {
+      setMonthlySummary(prev => prev ? { ...prev, ...result.summary as MonthlySummary } : result.summary as MonthlySummary);
+    }
   };
 
   const handleExpenseUpdate = async (expense: Expense) => {
@@ -655,75 +672,81 @@ function AppShell({ initialData, serverMonth, serverYear }: AppShellProps) {
                   />
                 )}
 
-                {currentView === 'expenses' && (
-                  <ExpenseList
-                    expenses={filteredExpenses}
-                    onEdit={async (expense, mode) => {
-                      if (mode === 'save-inline') {
-                        await handleExpenseUpdate(expense);
-                        return;
-                      }
-                      setEditingExpense(expense);
-                      setShowExpenseForm(true);
-                    }}
-                    onDelete={(id) => {
-                      handleExpenseDelete(id);
-                    }}
-                    onAdd={async (expense) => {
-                      await handleExpenseSubmit({
-                        date: expense.date ?? new Date().toISOString().split('T')[0],
-                        description: expense.description ?? '',
-                        amount: Number(expense.amount ?? 0),
-                        category: expense.category ?? 'Personal',
-                        note: expense.note ?? '',
-                      });
-                    }}
-                  />
+                {mountedTabs.has('expenses') && (
+                  <div style={{ display: currentView === 'expenses' ? undefined : 'none' }}>
+                    <ExpenseList
+                      expenses={filteredExpenses}
+                      onEdit={async (expense, mode) => {
+                        if (mode === 'save-inline') {
+                          await handleExpenseUpdate(expense);
+                          return;
+                        }
+                        setEditingExpense(expense);
+                        setShowExpenseForm(true);
+                      }}
+                      onDelete={(id) => {
+                        handleExpenseDelete(id);
+                      }}
+                      onAdd={async (expense) => {
+                        await handleExpenseSubmit({
+                          date: expense.date ?? new Date().toISOString().split('T')[0],
+                          description: expense.description ?? '',
+                          amount: Number(expense.amount ?? 0),
+                          category: expense.category ?? 'Personal',
+                          note: expense.note ?? '',
+                        });
+                      }}
+                    />
+                  </div>
                 )}
 
-                {currentView === 'subscriptions' && (
-                  <Subscriptions
-                    subscriptions={subscriptions}
-                    currentMonth={currentMonth}
-                    currentYear={currentYear}
-                    onAdd={() => {
-                      setEditingSubscription(null);
-                      setShowSubscriptionForm(true);
-                    }}
-                    onEdit={(subscription) => {
-                      setEditingSubscription(subscription);
-                      setShowSubscriptionForm(true);
-                    }}
-                    onDelete={(id) => {
-                      void handleSubscriptionDelete(id);
-                    }}
-                    onPay={() => {
-                      triggerRefresh();
-                    }}
-                  />
+                {mountedTabs.has('subscriptions') && (
+                  <div style={{ display: currentView === 'subscriptions' ? undefined : 'none' }}>
+                    <Subscriptions
+                      subscriptions={subscriptions}
+                      currentMonth={currentMonth}
+                      currentYear={currentYear}
+                      onAdd={() => {
+                        setEditingSubscription(null);
+                        setShowSubscriptionForm(true);
+                      }}
+                      onEdit={(subscription) => {
+                        setEditingSubscription(subscription);
+                        setShowSubscriptionForm(true);
+                      }}
+                      onDelete={(id) => {
+                        void handleSubscriptionDelete(id);
+                      }}
+                      onPay={() => {
+                        triggerRefresh();
+                      }}
+                    />
+                  </div>
                 )}
 
-                {currentView === 'loans' && (
-                  <Loans
-                    refreshKey={refreshKey}
-                    onShowForm={() => {
-                      setEditingLoan(null);
-                      setShowLoanForm(true);
-                    }}
-                    onEdit={(loan) => {
-                      setEditingLoan(loan);
-                      setShowLoanForm(true);
-                    }}
-                    currentMonth={currentMonth}
-                    currentYear={currentYear}
-                  />
+                {mountedTabs.has('loans') && (
+                  <div style={{ display: currentView === 'loans' ? undefined : 'none' }}>
+                    <Loans
+                      refreshKey={refreshKey}
+                      onShowForm={() => {
+                        setEditingLoan(null);
+                        setShowLoanForm(true);
+                      }}
+                      onEdit={(loan) => {
+                        setEditingLoan(loan);
+                        setShowLoanForm(true);
+                      }}
+                      currentMonth={currentMonth}
+                      currentYear={currentYear}
+                    />
+                  </div>
                 )}
 
-                {currentView === 'reports' && <MonthlyReport currentMonth={currentMonth} currentYear={currentYear} />}
-                {currentView === 'projection' && <YearEndProjection currentMonth={currentMonth} currentYear={currentYear} />}
-                {currentView === 'sip' && <SIPTracker currentMonth={currentMonth} currentYear={currentYear} onPortfolioUpdate={triggerRefresh} />}
-                {currentView === 'stocks' && <StockTracker currentMonth={currentMonth} currentYear={currentYear} onPortfolioUpdate={triggerRefresh} onPricesRefreshed={() => setStockRefreshTick(t => t + 1)} />}
-                {currentView === 'insurance' && <Insurance />}
+                {mountedTabs.has('reports') && <div style={{ display: currentView === 'reports' ? undefined : 'none' }}><MonthlyReport currentMonth={currentMonth} currentYear={currentYear} /></div>}
+                {mountedTabs.has('projection') && <div style={{ display: currentView === 'projection' ? undefined : 'none' }}><YearEndProjection currentMonth={currentMonth} currentYear={currentYear} /></div>}
+                {mountedTabs.has('sip') && <div style={{ display: currentView === 'sip' ? undefined : 'none' }}><SIPTracker currentMonth={currentMonth} currentYear={currentYear} onPortfolioUpdate={triggerRefresh} /></div>}
+                {mountedTabs.has('stocks') && <div style={{ display: currentView === 'stocks' ? undefined : 'none' }}><StockTracker currentMonth={currentMonth} currentYear={currentYear} onPortfolioUpdate={triggerRefresh} onPricesRefreshed={() => setStockRefreshTick(t => t + 1)} /></div>}
+                {mountedTabs.has('insurance') && <div style={{ display: currentView === 'insurance' ? undefined : 'none' }}><Insurance /></div>}
               </>
             )}
           </main>
