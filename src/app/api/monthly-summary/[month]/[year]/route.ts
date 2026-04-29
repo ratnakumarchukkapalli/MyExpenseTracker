@@ -36,8 +36,8 @@ export async function GET(_req: NextRequest, { params }: RouteParams) {
   if (row) {
     const isCarryForward = Number(row.salary) === 0 && Number(row.total_expenses) === 0;
     const isStaleOpening = isCarryForward && (Number(row.previous_month_remaining) !== expectedOpening);
-    const isStaleSIP = Number(row.savings_sip) !== Number(prev?.savings_sip ?? 0);
-    const isStaleStocks = Number(row.savings_shares) !== Number(prev?.savings_shares ?? 0);
+    const isStaleSIP = isCarryForward && (Number(row.savings_sip) !== Number(prev?.savings_sip ?? 0));
+    const isStaleStocks = isCarryForward && (Number(row.savings_shares) !== Number(prev?.savings_shares ?? 0));
     
     // For manual fields, we only sync if it's a pure carry-forward month
     const isStaleFD = isCarryForward && (Number(row.savings_fd) !== Number(prev?.savings_fd ?? 0));

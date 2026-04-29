@@ -17,13 +17,14 @@ interface Props {
   expense?: ExpenseData | null;
   onSubmit: (data: any) => void;
   onCancel: () => void;
+  defaultDate?: string;
 }
 
 
 
-function ExpenseForm({ expense, onSubmit, onCancel }: Props) {
+function ExpenseForm({ expense, onSubmit, onCancel, defaultDate }: Props) {
   const [formData, setFormData] = useState({
-    date: new Date().toISOString().split('T')[0],
+    date: defaultDate ?? new Date().toISOString().split('T')[0],
     description: '',
     amount: '',
     category: 'Personal',

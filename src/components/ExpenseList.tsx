@@ -24,9 +24,11 @@ interface Props {
   onDelete: (id: number) => void;
   onAdd?: (expense: Partial<Expense>) => void;
   categoryIcons?: Record<string, React.ComponentType<any>>;
+  currentMonth: number;
+  currentYear: number;
 }
 
-function ExpenseList({ expenses, onEdit, onDelete, onAdd, categoryIcons = {} }: Props) {
+function ExpenseList({ expenses, onEdit, onDelete, onAdd, categoryIcons = {}, currentMonth, currentYear }: Props) {
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [sortBy, setSortBy] = useState('date-desc');
@@ -159,7 +161,11 @@ function ExpenseList({ expenses, onEdit, onDelete, onAdd, categoryIcons = {} }: 
 
   const duplicateExpense = (expense: Expense) => {
     if (onAdd) {
-      onAdd({ ...expense, id: undefined, date: new Date().toISOString().split('T')[0] });
+      const today = new Date();
+      const daysInMonth = new Date(currentYear, currentMonth, 0).getDate();
+      const day = Math.min(today.getDate(), daysInMonth);
+      const copyDate = `${currentYear}-${String(currentMonth).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+      onAdd({ ...expense, id: undefined, date: copyDate });
     }
   };
 

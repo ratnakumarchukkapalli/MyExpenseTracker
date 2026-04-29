@@ -75,28 +75,23 @@ export async function POST(request: NextRequest) {
   const existingSummary = summaryRes.data;
   const oldTotal = Number(existingSummary?.total_expenses ?? 0);
   const newTotal = oldTotal + Number(parsed.data.amount);
-  const newBalance = await updateMonthlyExpenseTotal(supabase, user.id, m, y, newTotal, existingSummary);
+  const updatedSummary = await updateMonthlyExpenseTotal(supabase, user.id, m, y, newTotal, existingSummary);
 
   after(async () => {
     await cascadeUpdateFutureMonths(supabase, user.id, m, y, {
-      remaining_amount: newBalance,
-      savings_fd: Number(existingSummary?.savings_fd ?? 0),
-      savings_sip: Number(existingSummary?.savings_sip ?? 0),
-      savings_shares: Number(existingSummary?.savings_shares ?? 0),
-      savings_nps: Number(existingSummary?.savings_nps ?? 0),
-      savings_pf: Number(existingSummary?.savings_pf ?? 0),
+      remaining_amount: Number(updatedSummary?.remaining_amount ?? 0),
+      savings_fd: Number(updatedSummary?.savings_fd ?? 0),
+      savings_sip: Number(updatedSummary?.savings_sip ?? 0),
+      savings_shares: Number(updatedSummary?.savings_shares ?? 0),
+      savings_nps: Number(updatedSummary?.savings_nps ?? 0),
+      savings_pf: Number(updatedSummary?.savings_pf ?? 0),
     });
   });
 
   // 3. Return both the new expense and the updated summary (Round-trip 2)
-  return Response.json({ 
-    id: data.id, 
+  return Response.json({
+    id: data.id,
     expense: data,
-    summary: {
-      ...existingSummary,
-      total_expenses: newTotal,
-      remaining_amount: newBalance,
-      cash_equivalents: newBalance + Number(existingSummary?.savings_fd ?? 0) + Number(existingSummary?.savings_sip ?? 0) + Number(existingSummary?.savings_shares ?? 0)
-    }
+    summary: updatedSummary,
   }, { status: 201 });
 }
