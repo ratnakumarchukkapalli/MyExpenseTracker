@@ -687,17 +687,6 @@ function AppShell({ initialData, serverMonth, serverYear }: AppShellProps) {
                       onDelete={(id) => {
                         handleExpenseDelete(id);
                       }}
-                      onAdd={async (expense) => {
-                        await handleExpenseSubmit({
-                          date: expense.date ?? (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; })(),
-                          description: expense.description ?? '',
-                          amount: Number(expense.amount ?? 0),
-                          category: expense.category ?? 'Personal',
-                          note: expense.note ?? '',
-                        });
-                      }}
-                      currentMonth={currentMonth}
-                      currentYear={currentYear}
                     />
                   </div>
                 )}
@@ -758,7 +747,7 @@ function AppShell({ initialData, serverMonth, serverYear }: AppShellProps) {
       {showExpenseForm && (
         <ExpenseForm
           expense={editingExpense}
-          defaultDate={!editingExpense ? (() => { const d = new Date(); const day = Math.min(d.getDate(), new Date(currentYear, currentMonth, 0).getDate()); return `${currentYear}-${String(currentMonth).padStart(2,'0')}-${String(day).padStart(2,'0')}`; })() : undefined}
+          defaultDate={!editingExpense ? `${currentYear}-${String(currentMonth).padStart(2,'0')}-01` : undefined}
           onSubmit={async (payload) => {
             if (editingExpense?.id) {
               await handleExpenseUpdate({ ...editingExpense, ...payload, amount: Number(payload.amount) });

@@ -3,7 +3,7 @@
 import React, { useState, useMemo } from 'react';
 import {
   Edit2, Trash2, Calendar, Search, Filter, ChevronDown, ChevronRight,
-  ArrowUpDown, TrendingUp, TrendingDown, Copy, X, Check,
+  ArrowUpDown, TrendingUp, TrendingDown, X, Check,
 } from 'lucide-react';
 import { EXPENSE_CATEGORIES } from '../constants/categories';
 import { AreaChart, Area, ResponsiveContainer } from 'recharts';
@@ -22,13 +22,10 @@ interface Props {
   expenses: Expense[];
   onEdit: (expense: Expense, mode?: 'open-form' | 'save-inline') => void;
   onDelete: (id: number) => void;
-  onAdd?: (expense: Partial<Expense>) => void;
   categoryIcons?: Record<string, React.ComponentType<any>>;
-  currentMonth: number;
-  currentYear: number;
 }
 
-function ExpenseList({ expenses, onEdit, onDelete, onAdd, categoryIcons = {}, currentMonth, currentYear }: Props) {
+function ExpenseList({ expenses, onEdit, onDelete, categoryIcons = {} }: Props) {
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [sortBy, setSortBy] = useState('date-desc');
@@ -159,15 +156,6 @@ function ExpenseList({ expenses, onEdit, onDelete, onAdd, categoryIcons = {}, cu
 
   const cancelEdit = () => { setEditingCell(null); setEditValue(''); };
 
-  const duplicateExpense = (expense: Expense) => {
-    if (onAdd) {
-      const today = new Date();
-      const daysInMonth = new Date(currentYear, currentMonth, 0).getDate();
-      const day = Math.min(today.getDate(), daysInMonth);
-      const copyDate = `${currentYear}-${String(currentMonth).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-      onAdd({ ...expense, id: undefined, date: copyDate });
-    }
-  };
 
   if (expenses.length === 0) {
     return (
@@ -412,15 +400,7 @@ function ExpenseList({ expenses, onEdit, onDelete, onAdd, categoryIcons = {}, cu
                       </div>
 
                       <div className="flex items-center gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
-                        <button
-                          onClick={() => duplicateExpense(expense)}
-                          className="p-1.5 rounded-lg transition-colors cursor-pointer"
-                          style={{ color: 'var(--ink-faint)' }}
-                          title="Duplicate"
-                        >
-                          <Copy className="h-4 w-4" />
-                        </button>
-                        <button
+<button
                           onClick={() => onEdit(expense, 'open-form')}
                           className="p-1.5 rounded-lg transition-colors cursor-pointer"
                           style={{ color: 'var(--ink-faint)' }}
