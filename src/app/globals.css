@@ -962,7 +962,7 @@ html, body { background: var(--bg); }
 }
 
 .skeleton {
-  background: linear-gradient(90deg, var(--color-surface-700, #241E38) 25%, var(--color-surface-800, #1A1624) 50%, var(--color-surface-700, #241E38) 75%);
+  background: linear-gradient(90deg, var(--bg-tint, #EFEBE1) 25%, var(--surface-solid, #FFFFFF) 50%, var(--bg-tint, #EFEBE1) 75%);
   background-size: 200% 100%;
   animation: skeleton-shimmer 1.4s ease-in-out infinite;
 }

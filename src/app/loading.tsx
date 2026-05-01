@@ -1,6 +1,6 @@
 export default function Loading() {
   return (
-    <div className="app-shell" style={{ display: "flex", height: "100vh", background: "var(--color-surface-900, #0E0B14)" }}>
+    <div className="app-shell" style={{ display: "flex", height: "100vh", background: "var(--bg, #F6F4EE)" }}>
       {/* Sidebar skeleton */}
       <aside className="sidebar" style={{ flexShrink: 0 }}>
         <div className="sidebar-brand">
