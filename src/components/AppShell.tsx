@@ -413,7 +413,8 @@ function AppShell({ initialData, serverMonth, serverYear }: AppShellProps) {
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
-      alert(`Failed to update expense: ${err?.error ?? res.statusText}`);
+      const msg = typeof err?.error === 'string' ? err.error : JSON.stringify(err?.error ?? res.statusText);
+      alert(`Failed to update expense: ${msg}`);
       return;
     }
     setShowExpenseForm(false);

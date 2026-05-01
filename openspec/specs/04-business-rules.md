@@ -25,14 +25,15 @@ When adding/editing a SIP transaction or stock holding, the API calls `syncMonth
 
 ## Auto-Sync Guard (CRITICAL)
 The GET API for `monthly-summary` auto-recalculates values IF the data is stale compared to the previous month.
-**What syncs:**
-- `remaining_amount` (opening cash)
+
+**Only carry-forward months (`salary=0 AND total_expenses=0`) are auto-synced.** Real months with salary or expense data are NEVER auto-overwritten.
+
+**What syncs for carry-forward months only:**
+- `previous_month_remaining` / `remaining_amount` (opening cash, if stale)
 - `savings_sip` / `savings_shares` (portfolio snapshots)
-- `savings_fd` / `savings_nps` / `savings_pf` (if the month is a "fresh" carry-forward month)
+- `savings_fd` / `savings_nps` / `savings_pf`
 
-**Real months (salary > 0 OR expenses > 0) retain their authoritative cash balances, but portfolio snapshots still sync to maintain continuity.**
-
-Why: Investment totals (SIP/Stocks) are expected to flow through automatically regardless of local month edits, unless a specific transaction is logged in that month.
+**Past months with real data (salary > 0 or expenses > 0) retain all stored values unchanged.** `isStaleSIP` and `isStaleStocks` checks MUST be gated by `isCarryForward` — otherwise navigating to a past month overwrites its SIP/stocks snapshot with the prior month's value and cascades incorrectly into future months.
 
 Code location: `src/app/api/monthly-summary/[month]/[year]/route.ts`
 
@@ -84,9 +85,38 @@ Both `requireAuth()` and `requireAuthFast()` call `supabase.auth.getUser()` — 
 - **Optimistic UI**: Mutations (adding/deleting expenses) should update local React state instantly before the API call finishes.
 - **Silent Refresh**: Background data refreshes should happen without a full-page loading screen to maintain a smooth experience.
 
+## User Budget Period (25th-salary workflow)
+Salary is credited on the **25th of each month**. The user tracks spending for the 25th–24th period under the NEXT calendar month:
+- April 25–30 spending → entered in **May's** tab (with May dates)
+- May 25–31 spending → entered in **June's** tab (with June dates)
+
+**Implications:**
+- When today is April 29, the user is viewing and adding expenses in May.
+- `isCurrentMonth` (Dashboard) returns false for May in this case — live SIP/Stocks prices appear only for April. This is correct/expected; it self-resolves on May 1.
+- The expense copy and Quick Add form must use the **viewed month**, not today's calendar month.
+
+## Expense Copy & Quick Add Date Rules
+- **Copy (`duplicateExpense` in ExpenseList.tsx):** Uses today's day number within the **viewed month** (`currentMonth`/`currentYear` props). Never uses UTC or calendar-today's month.
+- **Quick Add / ExpenseForm:** `defaultDate` prop passed from AppShell = today's day within the viewed month. When editing an existing expense, `defaultDate` is `undefined` and the expense's own date is used.
+- **`ExpenseList` required props:** `currentMonth: number` and `currentYear: number` — must be passed from AppShell.
+- **`ExpenseForm` optional prop:** `defaultDate?: string` — ISO date string pre-filled for new expenses only.
+
+## updateMonthlyExpenseTotal Return Value (CRITICAL)
+`updateMonthlyExpenseTotal()` in `src/lib/monthly-totals.ts` returns the **full updated DB row** (object), not a plain number. Callers must extract `.remaining_amount` explicitly:
+```typescript
+const updatedSummary = await updateMonthlyExpenseTotal(...);
+// CORRECT:
+cascadeUpdateFutureMonths(..., { remaining_amount: updatedSummary?.remaining_amount, ... });
+// WRONG (causes NaN dashboard):
+cascadeUpdateFutureMonths(..., { remaining_amount: updatedSummary, ... }); // object, not number!
+```
+
 ## Never Do
 - Use live `current_nav × units` for past months — use `savings_sip` from monthly_summary
 - Auto-sync `remaining_amount` for months with salary or expense data
+- Auto-sync `savings_sip`/`savings_shares` for non-carry-forward months (causes snapshot corruption)
+- Treat `updateMonthlyExpenseTotal()` return value as a plain number — it returns the full row
+- Use UTC `toISOString()` for expense dates in UI — always use local date or viewed-month date
 - DELETE from `monthly_summary` — update in place
 - String-concatenate SQL/Supabase queries — always use parameterized/chained filters
 - Store amounts in lakhs — always full rupees

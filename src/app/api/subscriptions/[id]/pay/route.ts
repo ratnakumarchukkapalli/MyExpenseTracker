@@ -61,7 +61,7 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
         amount: sub.amount,
         date: paidDate,
         description: `Subscription: ${sub.name}`,
-        category: sub.category || "Bills",
+        category: "MonthlyBills",
         note: `Paid via subscription tracker`
       })
   ]);

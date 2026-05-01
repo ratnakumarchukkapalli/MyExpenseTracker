@@ -77,9 +77,14 @@ const netWorth = monthlySummary.remaining_amount
 **Key behaviour:** On mount, fetches live prices if any holding's `last_updated` is not today. Updates current_price and syncs to `monthly_summary.savings_shares` for CURRENT month only.
 
 ### ExpenseList.tsx (~600 lines)
-**Purpose:** Paginated expense table with add/edit/delete  
+**Purpose:** Paginated expense table with add/edit/delete/copy  
 **Data:** `GET /api/expenses?month=M&year=Y`  
-**Mutations:** POST/PUT/DELETE `/api/expenses`
+**Mutations:** POST/PUT/DELETE `/api/expenses`  
+**Required props:** `currentMonth: number`, `currentYear: number` — used by `duplicateExpense` to land the copy in the viewed month (today's day within that month), not UTC today.
+
+### ExpenseForm.tsx
+**Purpose:** Add/edit expense modal  
+**Optional prop:** `defaultDate?: string` — ISO date pre-filled for new expenses. AppShell passes today's day within the viewed month so Quick Add defaults to the correct month tab. When editing, `defaultDate` is `undefined` and the expense's own date is used.
 
 ### AppShell.tsx
 Navigation sidebar + mobile layout shell. Key state: `currentMonth`, `currentYear`, `currentView`, `userInfo`, plus bootstrap-loaded state: `expenses`, `monthlySummary`, `prevMonthExpenses`, `yearlyRows`, `categoryBudgets`, `loanMilestones`.
