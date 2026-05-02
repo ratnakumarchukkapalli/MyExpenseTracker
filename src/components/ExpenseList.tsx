@@ -229,7 +229,7 @@ function ExpenseList({ expenses, onEdit, onDelete, categoryIcons = {} }: Props) 
 
       {/* Analytics Bar */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '8px 16px', background: 'var(--pane)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', border: '1px solid var(--hairline)', borderRadius: 14 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div className="analytics-top-cats" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <div style={{ width: 80, height: 32 }}>
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={analytics.last7Days}>
@@ -248,7 +248,7 @@ function ExpenseList({ expenses, onEdit, onDelete, categoryIcons = {} }: Props) 
           </span>
         </div>
 
-        <div style={{ width: 1, height: 18, background: 'var(--hairline)', flexShrink: 0 }} />
+        <div className="analytics-top-cats" style={{ width: 1, height: 18, background: 'var(--hairline)', flexShrink: 0 }} />
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap' }}>
           <span style={{ fontSize: 12, color: 'var(--ink-muted)' }}>Today</span>
