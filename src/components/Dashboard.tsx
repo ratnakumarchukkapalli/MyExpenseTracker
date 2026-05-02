@@ -457,6 +457,7 @@ function Dashboard({ expenses, subscriptions, monthlySummary, currentMonth, curr
                 { label: 'Spent', value: totalExpensesOnly, color: '#ef4444' },
                 { label: 'Saved', value: totalSavings, color: '#22c55e' },
                 { label: 'Salary', value: salary, color: 'var(--accent)' },
+                { label: 'Total used', value: totalExpensesOnly + totalSavings, color: '#6b7280' },
               ].map((item) => (
                 <div key={item.label} className="rings-legend-row" style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
                   <span className="ring-dot" style={{ width: 8, height: 8, borderRadius: '50%', background: item.color }} />
@@ -466,7 +467,6 @@ function Dashboard({ expenses, subscriptions, monthlySummary, currentMonth, curr
                   </div>
                 </div>
               ))}
-
             </div>
           </div>
         </div>

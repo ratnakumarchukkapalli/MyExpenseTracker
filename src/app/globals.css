@@ -760,6 +760,10 @@ html, body { background: var(--bg); }
     background: var(--surface-base);
   }
 
+  .analytics-top-cats {
+    display: none !important;
+  }
+
   .app {
     display: block !important;
     height: auto !important;

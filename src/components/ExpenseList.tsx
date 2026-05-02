@@ -261,9 +261,9 @@ function ExpenseList({ expenses, onEdit, onDelete, categoryIcons = {} }: Props) 
           )}
         </div>
 
-        <div style={{ flex: 1 }} />
+        <div className="analytics-top-cats" style={{ flex: 1 }} />
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div className="analytics-top-cats" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <span style={{ fontSize: 10, color: 'var(--ink-faint)', fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase' }}>Top</span>
           {analytics.topCategories.map((cat, i) => {
             const dots = ['var(--accent)', '#a855f7', '#ec4899'];
@@ -431,29 +431,35 @@ function ExpenseList({ expenses, onEdit, onDelete, categoryIcons = {} }: Props) 
       </div>
 
       {/* Running Total Footer */}
-      <div className="sticky bottom-4 rounded-2xl shadow-lg p-4 flex items-center justify-between" style={{ background: 'var(--pane-strong)', backdropFilter: 'blur(12px)', border: '1px solid var(--hairline)' }}>
-        <div className="flex items-center gap-4">
-          <div>
-            <p className="text-xs" style={{ color: 'var(--ink-muted)' }}>Total Transactions</p>
-            <p className="text-lg font-bold" style={{ color: 'var(--ink)' }}>{filteredExpenses.length}</p>
+      {(() => {
+        const filteredSavings = filteredExpenses.filter(e => e.category === 'Savings').reduce((s, e) => s + e.amount, 0);
+        const filteredSpent = filteredExpenses.filter(e => e.category !== 'Savings').reduce((s, e) => s + e.amount, 0);
+        const filteredTotal = filteredSpent + filteredSavings;
+        return (
+          <div className="sticky bottom-4 rounded-2xl shadow-lg p-4" style={{ background: 'var(--pane-strong)', backdropFilter: 'blur(12px)', border: '1px solid var(--hairline)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+              <div>
+                <p className="text-xs" style={{ color: 'var(--ink-muted)' }}>Transactions</p>
+                <p className="text-lg font-bold" style={{ color: 'var(--ink)' }}>{filteredExpenses.length}</p>
+              </div>
+              <div className="h-8 w-px" style={{ background: 'var(--hairline)' }} />
+              <div>
+                <p className="text-xs" style={{ color: 'var(--ink-muted)' }}>Expenses</p>
+                <p className="text-lg font-bold" style={{ color: '#ef4444' }}>₹{filteredSpent.toLocaleString('en-IN')}</p>
+              </div>
+              <div className="h-8 w-px analytics-top-cats" style={{ background: 'var(--hairline)' }} />
+              <div className="analytics-top-cats">
+                <p className="text-xs" style={{ color: 'var(--ink-muted)' }}>Savings</p>
+                <p className="text-lg font-bold" style={{ color: '#22c55e' }}>₹{filteredSavings.toLocaleString('en-IN')}</p>
+              </div>
+            </div>
+            <div className="text-right">
+              <p className="text-xs" style={{ color: 'var(--ink-muted)' }}>Total</p>
+              <p className="text-2xl font-bold" style={{ color: 'var(--accent)' }}>₹{filteredTotal.toLocaleString('en-IN')}</p>
+            </div>
           </div>
-          <div className="h-8 w-px" style={{ background: 'var(--hairline)' }} />
-          <div>
-            <p className="text-xs" style={{ color: 'var(--ink-muted)' }}>Average</p>
-            <p className="text-lg font-bold" style={{ color: 'var(--ink)' }}>
-              ₹{filteredExpenses.length > 0
-                ? Math.round(filteredExpenses.reduce((s, e) => s + e.amount, 0) / filteredExpenses.length).toLocaleString('en-IN')
-                : 0}
-            </p>
-          </div>
-        </div>
-        <div className="text-right">
-          <p className="text-xs" style={{ color: 'var(--ink-muted)' }}>Total Amount</p>
-          <p className="text-2xl font-bold" style={{ color: 'var(--accent)' }}>
-            ₹{filteredExpenses.reduce((s, e) => s + e.amount, 0).toLocaleString('en-IN')}
-          </p>
-        </div>
-      </div>
+        );
+      })()}
     </div>
   );
 }
