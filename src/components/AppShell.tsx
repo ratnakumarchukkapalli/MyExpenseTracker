@@ -748,7 +748,7 @@ function AppShell({ initialData, serverMonth, serverYear }: AppShellProps) {
       {showExpenseForm && (
         <ExpenseForm
           expense={editingExpense}
-          defaultDate={!editingExpense ? `${currentYear}-${String(currentMonth).padStart(2,'0')}-01` : undefined}
+          defaultDate={!editingExpense ? new Date().toISOString().split('T')[0] : undefined}
           onSubmit={async (payload) => {
             if (editingExpense?.id) {
               await handleExpenseUpdate({ ...editingExpense, ...payload, amount: Number(payload.amount) });
