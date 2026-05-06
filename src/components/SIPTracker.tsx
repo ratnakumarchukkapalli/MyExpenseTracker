@@ -561,15 +561,18 @@ const LogSIPModal = ({ funds, onLog, onCancel }: LogSIPModalProps) => {
           {/* Fund Selection */}
           <div>
             <label className="block text-[11px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-2">Fund Selection</label>
-            <select
-              value={selectedFundId}
-              onChange={e => setSelectedFundId(e.target.value)}
-              className="w-full px-4 py-3 bg-gray-50 dark:bg-surface-800 border border-gray-200 dark:border-surface-700 rounded-2xl text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-4 focus:ring-primary-500/5 focus:border-primary-500 transition-all text-sm cursor-pointer"
-            >
-              {activeFunds.map(f => (
-                <option key={f.id} value={f.id}>{f.fund_name}</option>
-              ))}
-            </select>
+            <div className="relative">
+              <select
+                value={selectedFundId}
+                onChange={e => setSelectedFundId(e.target.value)}
+                className="w-full px-4 py-3 pr-10 bg-gray-50 dark:bg-surface-800 border border-gray-200 dark:border-surface-700 rounded-2xl text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-4 focus:ring-primary-500/5 focus:border-primary-500 transition-all text-sm cursor-pointer appearance-none"
+              >
+                {activeFunds.map(f => (
+                  <option key={f.id} value={f.id}>{f.fund_name}</option>
+                ))}
+              </select>
+              <ChevronDown size={16} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+            </div>
             {selectedFund && (
               <div className="mt-2 text-[10px] text-gray-500 dark:text-gray-400 font-medium px-1 flex justify-between">
                 <span>SIP: <span className="text-primary-600 dark:text-primary-400 font-bold">₹{(selectedFund.sip_amount || 0).toLocaleString()}</span></span>
