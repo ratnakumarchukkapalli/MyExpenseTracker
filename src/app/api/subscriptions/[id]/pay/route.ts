@@ -1,5 +1,6 @@
 import { requireAuth } from "@/lib/auth-guard";
-import { NextRequest } from "next/server";
+import { updateMonthlyExpenseTotal, cascadeUpdateFutureMonths } from "@/lib/monthly-totals";
+import { after, NextRequest } from "next/server";
 
 // POST /api/subscriptions/[id]/pay
 export async function POST(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -69,8 +70,34 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
   if (payResult.error) return Response.json({ error: payResult.error.message }, { status: 500 });
   if (updateResult.error) return Response.json({ error: updateResult.error.message }, { status: 500 });
 
-  return Response.json({ 
-    id: payResult.data.id, 
+  // Update monthly summary so the cash balance reflects this expense
+  const paidMonth = new Date(paidDate).getMonth() + 1;
+  const paidYear = new Date(paidDate).getFullYear();
+
+  const { data: existingSummary } = await supabase
+    .from("monthly_summary")
+    .select("*")
+    .eq("user_id", user.id)
+    .eq("month", paidMonth)
+    .eq("year", paidYear)
+    .maybeSingle();
+
+  const newTotal = Number(existingSummary?.total_expenses ?? 0) + Number(sub.amount);
+  const updatedSummary = await updateMonthlyExpenseTotal(supabase, user.id, paidMonth, paidYear, newTotal, existingSummary);
+
+  after(async () => {
+    await cascadeUpdateFutureMonths(supabase, user.id, paidMonth, paidYear, {
+      remaining_amount: Number(updatedSummary?.remaining_amount ?? 0),
+      savings_fd:       Number(updatedSummary?.savings_fd ?? 0),
+      savings_sip:      Number(updatedSummary?.savings_sip ?? 0),
+      savings_shares:   Number(updatedSummary?.savings_shares ?? 0),
+      savings_nps:      Number(updatedSummary?.savings_nps ?? 0),
+      savings_pf:       Number(updatedSummary?.savings_pf ?? 0),
+    });
+  });
+
+  return Response.json({
+    id: payResult.data.id,
     paid_date: paidDate,
     next_renewal: nextRenewal
   }, { status: 201 });

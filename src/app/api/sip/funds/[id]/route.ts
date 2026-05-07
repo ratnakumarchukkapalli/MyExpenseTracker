@@ -1,5 +1,5 @@
 import { requireAuth } from "@/lib/auth-guard";
-import { NextRequest } from "next/server";
+import { NextRequest, after } from "next/server";
 
 // DELETE /api/sip/funds/[id] — deletes fund (cascade removes transactions via FK)
 export async function DELETE(
@@ -27,5 +27,14 @@ export async function DELETE(
     .eq("id", fundId);
 
   if (dbError) return Response.json({ error: dbError.message }, { status: 500 });
+
+  const now = new Date();
+  const m = now.getMonth() + 1;
+  const y = now.getFullYear();
+  after(async () => {
+    const { syncMonthlyWealthSnapshot } = await import("@/lib/monthly-totals");
+    await syncMonthlyWealthSnapshot(supabase, user.id, m, y);
+  });
+
   return Response.json({ success: true });
 }

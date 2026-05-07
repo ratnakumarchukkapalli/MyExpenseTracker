@@ -1,5 +1,5 @@
 import { requireAuth, requireAuthFast } from "@/lib/auth-guard";
-import { NextRequest } from "next/server";
+import { NextRequest, after } from "next/server";
 import { z } from "zod";
 
 const SipFundSchema = z.object({
@@ -46,5 +46,14 @@ export async function POST(request: NextRequest) {
     .single();
 
   if (dbError) return Response.json({ error: dbError.message }, { status: 500 });
+
+  const now = new Date();
+  const m = now.getMonth() + 1;
+  const y = now.getFullYear();
+  after(async () => {
+    const { syncMonthlyWealthSnapshot } = await import("@/lib/monthly-totals");
+    await syncMonthlyWealthSnapshot(supabase, user.id, m, y);
+  });
+
   return Response.json({ id: data.id }, { status: 201 });
 }

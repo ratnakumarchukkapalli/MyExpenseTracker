@@ -1,5 +1,5 @@
 import { requireAuth } from "@/lib/auth-guard";
-import { NextRequest } from "next/server";
+import { NextRequest, after } from "next/server";
 
 interface Transaction {
   fundName: string;
@@ -100,6 +100,14 @@ export async function POST(request: NextRequest) {
         .then(() => true);
     })
   );
+
+  const now = new Date();
+  const m = now.getMonth() + 1;
+  const y = now.getFullYear();
+  after(async () => {
+    const { syncMonthlyWealthSnapshot } = await import("@/lib/monthly-totals");
+    await syncMonthlyWealthSnapshot(supabase, user.id, m, y);
+  });
 
   return Response.json({ saved: txnResults.filter(Boolean).length });
 }
