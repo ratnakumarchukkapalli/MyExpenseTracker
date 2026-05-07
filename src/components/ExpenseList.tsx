@@ -3,9 +3,11 @@
 import React, { useState, useMemo } from 'react';
 import {
   Edit2, Trash2, Calendar, Search, Filter, ChevronDown, ChevronRight,
-  ArrowUpDown, TrendingUp, TrendingDown, X, Check,
+  ArrowUpDown, TrendingUp, TrendingDown, X, Check, PiggyBank,
+  CreditCard, Home, Banknote,
 } from 'lucide-react';
 import { EXPENSE_CATEGORIES } from '../constants/categories';
+import { getMerchantInfo } from '../constants/merchants';
 import { AreaChart, Area, ResponsiveContainer } from 'recharts';
 
 interface Expense {
@@ -308,18 +310,50 @@ function ExpenseList({ expenses, onEdit, onDelete, categoryIcons = {} }: Props) 
                   const isEditingDesc = editingCell?.id === expense.id && editingCell?.field === 'description';
                   const isEditingAmount = editingCell?.id === expense.id && editingCell?.field === 'amount';
 
+                  const merchantInfo = getMerchantInfo(expense.description);
+
                   return (
-                    <div 
-                      key={expense.id} 
+                    <div
+                      key={expense.id}
                       className="flex items-center px-5 py-3 transition-colors group"
-                      style={{ 
+                      style={{
                         borderTop: idx === 0 ? 'none' : '1px solid var(--hairline)',
                         background: 'transparent'
                       }}
                     >
-                      <div className={`h-9 w-9 rounded-lg flex items-center justify-center mr-4 ${getCategoryColor(expense.category).split(' ')[0]}`}>
-                        {Icon ? <Icon className="h-4 w-4 opacity-70" /> : <div className="h-2 w-2 rounded-full bg-current" />}
-                      </div>
+                      {expense.category === 'Savings' ? (
+                        <div className="h-8 w-8 rounded-lg flex items-center justify-center mr-4 flex-shrink-0" style={{ background: '#16a34a' }}>
+                          <PiggyBank style={{ width: 15, height: 15, color: '#fff' }} />
+                        </div>
+                      ) : merchantInfo?.type === 'svg' ? (
+                        <div className="h-8 w-8 rounded-lg flex items-center justify-center mr-4 overflow-hidden flex-shrink-0" style={{ background: merchantInfo.bg }}>
+                          <img src={merchantInfo.icon} alt={merchantInfo.brand} style={{ width: 17, height: 17, objectFit: 'contain' }} />
+                        </div>
+                      ) : merchantInfo?.type === 'letter' ? (
+                        <div className="h-8 w-8 rounded-lg flex items-center justify-center mr-4 flex-shrink-0" style={{ background: merchantInfo.bg }}>
+                          <span style={{ color: merchantInfo.fg, fontSize: merchantInfo.initials.length > 2 ? 8 : merchantInfo.initials.length === 1 ? 14 : 10, fontWeight: 700, letterSpacing: '-0.3px', lineHeight: 1 }}>{merchantInfo.initials}</span>
+                        </div>
+                      ) : expense.category === 'LOANS/CC' ? (() => {
+                          const d = expense.description.toLowerCase();
+                          const isCreditCard = d.includes('credit card') || d.includes('creditcard');
+                          const isHomeLoan = d.includes('home loan') || d.includes('homeloan') || d.includes('solar');
+                          return (
+                            <div className="h-8 w-8 rounded-lg flex items-center justify-center mr-4 flex-shrink-0" style={{ background: isCreditCard ? '#4f46e5' : isHomeLoan ? '#d97706' : '#dc2626' }}>
+                              {isCreditCard
+                                ? <CreditCard style={{ width: 15, height: 15, color: '#fff' }} />
+                                : isHomeLoan
+                                  ? <Home style={{ width: 15, height: 15, color: '#fff' }} />
+                                  : <Banknote style={{ width: 15, height: 15, color: '#fff' }} />
+                              }
+                            </div>
+                          );
+                        })() : (
+                        <div className={`h-8 w-8 rounded-lg flex items-center justify-center mr-4 flex-shrink-0 ${getCategoryColor(expense.category).split(' ')[0]}`}>
+                          <span style={{ fontSize: 13, fontWeight: 700, lineHeight: 1 }}>
+                            {expense.description.trim().charAt(0).toUpperCase()}
+                          </span>
+                        </div>
+                      )}
 
                       <div className="flex-1 min-w-0">
                         {isEditingDesc ? (
