@@ -108,19 +108,7 @@ export async function DELETE(
   const m = expenseDate.getMonth() + 1;
   const y = expenseDate.getFullYear();
 
-  // Fetch summary to get old total (Round-trip 2)
-  const { data: summary } = await supabase
-    .from("monthly_summary")
-    .select("total_expenses")
-    .eq("user_id", user.id)
-    .eq("month", m)
-    .eq("year", y)
-    .maybeSingle();
-
-  // Update summary with new total (Round-trip 3)
-  const oldTotal = Number(summary?.total_expenses ?? 0);
-  const newTotal = oldTotal - Number(deleted.amount);
-  const updatedSummary = await updateMonthlyExpenseTotal(supabase, user.id, m, y, newTotal);
+  const updatedSummary = await updateMonthlyExpenseTotal(supabase, user.id, m, y);
 
   after(async () => {
     await cascadeUpdateFutureMonths(supabase, user.id, m, y, {

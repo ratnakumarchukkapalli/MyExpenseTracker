@@ -25,6 +25,7 @@ type Expense = {
   amount: number;
   category: string;
   note?: string;
+  payment_source?: string;
 };
 
 type Subscription = {
@@ -51,6 +52,8 @@ type MonthlySummary = {
   savings_nps: number;
   savings_pf: number;
   cash_equivalents: number;
+  sodexo_balance?: number;
+  sodexo_spent?: number;
 };
 
 type YearlyRow = {
@@ -80,6 +83,7 @@ type FinancialFields = {
   savings_shares: number;
   savings_nps: number;
   savings_pf: number;
+  sodexo_balance: number;
 };
 
 type Props = {
@@ -317,7 +321,15 @@ function Dashboard({ expenses, subscriptions, monthlySummary, currentMonth, curr
   const nwMomPct = nwPrev > 0 ? ((nwCurrent - nwPrev) / nwPrev) * 100 : null;
 
   const salary = Number(monthlySummary?.salary || 0);
-  const spentPct = salary > 0 ? Math.round((totalExpensesOnly / salary) * 100) : 0;
+  const sodexoBalance = Number(monthlySummary?.sodexo_balance || 0);
+  // Prefer stored sodexo_spent (set by server-side recalc or migration) over live expense filter
+  const sodexoSpentLive = expenses
+    .filter((e) => e.payment_source === 'sodexo')
+    .reduce((sum, e) => sum + Number(e.amount), 0);
+  const sodexoSpent = Number(monthlySummary?.sodexo_spent || 0) || sodexoSpentLive;
+  const bankExpensesOnly = totalExpensesOnly - sodexoSpentLive;
+  const totalIncome = salary + sodexoBalance;
+  const spentPct = totalIncome > 0 ? Math.round((totalExpensesOnly / totalIncome) * 100) : 0;
 
   // CRITICAL: Final Net Worth calculation
   // Cash + FD + (SIP + Stocks) + (NPS + PF)
@@ -420,8 +432,9 @@ function Dashboard({ expenses, subscriptions, monthlySummary, currentMonth, curr
             <div style={{ position: 'relative', flexShrink: 0 }}>
               <svg width="200" height="200">
                 {[
-                  { value: totalExpensesOnly, target: salary, color: '#ef4444', r: 80, sw: 18 },
-                  { value: totalSavings, target: salary, color: '#22c55e', r: 54, sw: 18 },
+                  { value: bankExpensesOnly, target: salary,       color: '#ef4444', r: 80, sw: 11 },
+                  { value: totalSavings,     target: salary,       color: '#22c55e', r: 62, sw: 11 },
+                  { value: sodexoSpent,      target: sodexoBalance, color: '#f97316', r: 44, sw: 11 },
                 ].map((ring, index) => {
                   const circumference = 2 * Math.PI * ring.r;
                   const pct = ring.target > 0 ? Math.min(ring.value / ring.target, 1) : 0;
@@ -447,17 +460,19 @@ function Dashboard({ expenses, subscriptions, monthlySummary, currentMonth, curr
               </svg>
               <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
                 <div className="serif dash-hero-pct" style={{ fontSize: 34, lineHeight: 1, color: 'var(--ink)' }}>{spentPct}%</div>
-                <div style={{ fontSize: 11, color: 'var(--ink-soft)', marginTop: 3 }}>of salary spent</div>
+                <div style={{ fontSize: 11, color: 'var(--ink-soft)', marginTop: 3 }}>of income</div>
               </div>
 
             </div>
 
             <div className="rings-legend">
               {[
-                { label: 'Spent', value: totalExpensesOnly, color: '#ef4444' },
+                { label: 'Spent (Bank)', value: bankExpensesOnly, color: '#ef4444' },
+                { label: 'Sodexo used', value: sodexoSpent, color: '#f97316' },
                 { label: 'Saved', value: totalSavings, color: '#22c55e' },
                 { label: 'Salary', value: salary, color: 'var(--accent)' },
-                { label: 'Total used', value: totalExpensesOnly + totalSavings, color: '#6b7280' },
+                ...(sodexoBalance > 0 ? [{ label: 'Sodexo balance', value: sodexoBalance, color: '#f97316' }] : []),
+                { label: 'Total used', value: bankExpensesOnly + sodexoSpent + totalSavings, color: '#6b7280' },
               ].map((item) => (
                 <div key={item.label} className="rings-legend-row" style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
                   <span className="ring-dot" style={{ width: 8, height: 8, borderRadius: '50%', background: item.color }} />
@@ -501,6 +516,18 @@ function Dashboard({ expenses, subscriptions, monthlySummary, currentMonth, curr
             </div>
             <div style={{ fontSize: 11, color: 'var(--ink-light)', marginTop: 2 }}>from last month</div>
           </div>
+          {sodexoBalance > 0 && (
+            <>
+              <div className="hr" />
+              <div className="stat-bar-row">
+                <div className="eyebrow" style={{ color: '#f97316' }}>Sodexo</div>
+                <div className="dash-stat-small" style={{ fontSize: 16, marginTop: 4, color: '#f97316', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
+                  {formatCurrency(sodexoBalance - sodexoSpent)}
+                </div>
+                <div style={{ fontSize: 11, color: 'var(--ink-light)', marginTop: 2 }}>{formatCurrency(sodexoSpent)} of {formatCurrency(sodexoBalance)} used</div>
+              </div>
+            </>
+          )}
           <div className="hr" />
           <div className="stat-bar-row">
             <div className="eyebrow">Future savings</div>
@@ -921,10 +948,12 @@ function FinancialEditModal({
     savings_shares: Number(monthlySummary?.savings_shares ?? 0),
     savings_nps: Number(monthlySummary?.savings_nps ?? 0),
     savings_pf: Number(monthlySummary?.savings_pf ?? 0),
+    sodexo_balance: Number(monthlySummary?.sodexo_balance ?? 0),
   });
 
   const fields: Array<{ key: keyof FinancialFields; label: string }> = [
     { key: 'salary', label: 'Monthly Salary' },
+    { key: 'sodexo_balance', label: 'Sodexo Balance' },
     { key: 'previous_month_remaining', label: 'Opening Cash' },
     { key: 'interest_income', label: 'Interest Income' },
     { key: 'savings_fd', label: 'Fixed Deposits' },

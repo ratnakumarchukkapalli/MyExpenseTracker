@@ -11,6 +11,7 @@ export const MonthlySummaryUpdateSchema = z.object({
   savings_shares: z.number().min(0).default(0),
   savings_nps: z.number().min(0).default(0),
   savings_pf: z.number().min(0).default(0),
+  sodexo_balance: z.number().min(0).default(0),
 });
 
 export type MonthlySummaryUpdate = z.infer<typeof MonthlySummaryUpdateSchema>;

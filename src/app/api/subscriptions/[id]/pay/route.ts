@@ -74,16 +74,7 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
   const paidMonth = new Date(paidDate).getMonth() + 1;
   const paidYear = new Date(paidDate).getFullYear();
 
-  const { data: existingSummary } = await supabase
-    .from("monthly_summary")
-    .select("*")
-    .eq("user_id", user.id)
-    .eq("month", paidMonth)
-    .eq("year", paidYear)
-    .maybeSingle();
-
-  const newTotal = Number(existingSummary?.total_expenses ?? 0) + Number(sub.amount);
-  const updatedSummary = await updateMonthlyExpenseTotal(supabase, user.id, paidMonth, paidYear, newTotal, existingSummary);
+  const updatedSummary = await updateMonthlyExpenseTotal(supabase, user.id, paidMonth, paidYear);
 
   after(async () => {
     await cascadeUpdateFutureMonths(supabase, user.id, paidMonth, paidYear, {

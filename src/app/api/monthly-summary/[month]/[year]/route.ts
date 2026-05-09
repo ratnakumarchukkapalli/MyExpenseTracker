@@ -24,7 +24,7 @@ export async function GET(_req: NextRequest, { params }: RouteParams) {
 
   const [rowResult, prevResult] = await Promise.all([
     supabase.from("monthly_summary").select("*").eq("user_id", user.id).eq("month", m).eq("year", y).maybeSingle(),
-    supabase.from("monthly_summary").select("remaining_amount, savings_fd, savings_sip, savings_shares, savings_nps, savings_pf").eq("user_id", user.id).eq("month", prevMonth).eq("year", prevYear).maybeSingle()
+    supabase.from("monthly_summary").select("remaining_amount, savings_fd, savings_sip, savings_shares, savings_nps, savings_pf, sodexo_balance, sodexo_spent").eq("user_id", user.id).eq("month", prevMonth).eq("year", prevYear).maybeSingle()
   ]);
 
   const row = rowResult.data;
@@ -43,8 +43,9 @@ export async function GET(_req: NextRequest, { params }: RouteParams) {
     const isStaleFD = isCarryForward && (Number(row.savings_fd) !== Number(prev?.savings_fd ?? 0));
     const isStaleNPS = isCarryForward && (Number(row.savings_nps) !== Number(prev?.savings_nps ?? 0));
     const isStalePF = isCarryForward && (Number(row.savings_pf) !== Number(prev?.savings_pf ?? 0));
+    const isStaleSodexo = isCarryForward && (Number(row.sodexo_balance) !== Number(prev?.sodexo_balance ?? 0));
 
-    if (isStaleOpening || isStaleSIP || isStaleStocks || isStaleFD || isStaleNPS || isStalePF) {
+    if (isStaleOpening || isStaleSIP || isStaleStocks || isStaleFD || isStaleNPS || isStalePF || isStaleSodexo) {
       // Auto-sync stale values
       const newRemaining = isStaleOpening 
         ? (expectedOpening + Number(row.salary) + Number(row.interest_income) - Number(row.total_expenses))
@@ -63,6 +64,7 @@ export async function GET(_req: NextRequest, { params }: RouteParams) {
         updateData.savings_fd = Number(prev?.savings_fd ?? 0);
         updateData.savings_nps = Number(prev?.savings_nps ?? 0);
         updateData.savings_pf = Number(prev?.savings_pf ?? 0);
+        updateData.sodexo_balance = Math.max(0, Number(prev?.sodexo_balance ?? 0) - Number(prev?.sodexo_spent ?? 0));
       }
       
       updateData.cash_equivalents = (updateData.remaining_amount ?? row.remaining_amount) + 
@@ -92,6 +94,8 @@ export async function GET(_req: NextRequest, { params }: RouteParams) {
     salary: 0,
     previous_month_remaining: Number(prev?.remaining_amount ?? 0),
     total_expenses: 0,
+    sodexo_spent: 0,
+    sodexo_balance: Math.max(0, Number(prev?.sodexo_balance ?? 0) - Number(prev?.sodexo_spent ?? 0)),
     remaining_amount: Number(prev?.remaining_amount ?? 0),
     interest_income: 0,
     savings_fd: Number(prev?.savings_fd ?? 0),
@@ -138,26 +142,29 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
   const d = parsed.data;
 
-  // Recalculate expenses total from the actual expenses table
+  const startDate = `${d.year}-${String(d.month).padStart(2, "0")}-01`;
+  const endDate =
+    d.month === 12
+      ? `${d.year + 1}-01-01`
+      : `${d.year}-${String(d.month + 1).padStart(2, "0")}-01`;
+
   const { data: expenseRows } = await supabase
     .from("expenses")
-    .select("amount")
+    .select("amount, payment_source")
     .eq("user_id", user.id)
-    .gte("date", `${d.year}-${String(d.month).padStart(2, "0")}-01`)
-    .lt(
-      "date",
-      d.month === 12
-        ? `${d.year + 1}-01-01`
-        : `${d.year}-${String(d.month + 1).padStart(2, "0")}-01`
-    );
+    .gte("date", startDate)
+    .lt("date", endDate);
 
-  const total_expenses = (expenseRows ?? []).reduce(
-    (sum, r) => sum + Number(r.amount),
-    0
-  );
+  const rows = expenseRows ?? [];
+  const total_expenses = rows.reduce((sum, r) => sum + Number(r.amount), 0);
+  const sodexo_spent = rows
+    .filter((r) => r.payment_source === "sodexo")
+    .reduce((sum, r) => sum + Number(r.amount), 0);
+  const bank_expenses = total_expenses - sodexo_spent;
 
+  // Only bank-paid expenses reduce cash balance; sodexo was never in the bank
   const remaining_amount =
-    d.previous_month_remaining + d.salary + d.interest_income - total_expenses;
+    d.previous_month_remaining + d.salary + d.interest_income - bank_expenses;
   const cash_equivalents =
     remaining_amount + d.savings_fd + d.savings_sip + d.savings_shares;
 
@@ -169,6 +176,8 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     previous_month_remaining: d.previous_month_remaining,
     interest_income: d.interest_income,
     total_expenses,
+    sodexo_spent,
+    sodexo_balance: d.sodexo_balance,
     remaining_amount,
     savings_fd: d.savings_fd,
     savings_sip: d.savings_sip,
@@ -194,6 +203,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       savings_shares: d.savings_shares,
       savings_nps: d.savings_nps,
       savings_pf: d.savings_pf,
+      sodexo_balance: Math.max(0, d.sodexo_balance - sodexo_spent),
     });
   });
 

@@ -1,62 +1,45 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 /**
- * Recalculates total_expenses and remaining_amount for a month after any expense change.
- * Mirrors the updateMonthlyExpenseTotal() function in main.js.
+ * Recalculates total_expenses, sodexo_spent, and remaining_amount for a month.
+ * remaining_amount only deducts bank-paid expenses (sodexo expenses never touched the bank).
  */
 export async function updateMonthlyExpenseTotal(
   supabase: SupabaseClient,
   userId: string,
   month: number,
-  year: number,
-  manualTotalExpenses?: number,
-  existingSummary?: any
+  year: number
 ) {
-  let total_expenses = 0;
-  let existing = existingSummary ?? null;
+  const startDate = `${year}-${String(month).padStart(2, "0")}-01`;
+  const endDate =
+    month === 12
+      ? `${year + 1}-01-01`
+      : `${year}-${String(month + 1).padStart(2, "0")}-01`;
 
-  if (manualTotalExpenses !== undefined) {
-    total_expenses = manualTotalExpenses;
-    if (!existing) {
-      const { data } = await supabase
-        .from("monthly_summary")
-        .select("*")
-        .eq("user_id", userId)
-        .eq("month", month)
-        .eq("year", year)
-        .maybeSingle();
-      existing = data;
-    }
-  } else {
-    // Fetch current expense sum and existing monthly_summary in parallel to save a round-trip
-    const [expenseSumResult, existingResult] = await Promise.all([
-      supabase
-        .from("expenses")
-        .select("amount")
-        .eq("user_id", userId)
-        .gte("date", `${year}-${String(month).padStart(2, "0")}-01`)
-        .lt(
-          "date",
-          month === 12
-            ? `${year + 1}-01-01`
-            : `${year}-${String(month + 1).padStart(2, "0")}-01`
-        ),
-      supabase
-        .from("monthly_summary")
-        .select("*")
-        .eq("user_id", userId)
-        .eq("month", month)
-        .eq("year", year)
-        .maybeSingle(),
-    ]);
+  const [expenseSumResult, existingResult] = await Promise.all([
+    supabase
+      .from("expenses")
+      .select("amount, payment_source")
+      .eq("user_id", userId)
+      .gte("date", startDate)
+      .lt("date", endDate),
+    supabase
+      .from("monthly_summary")
+      .select("*")
+      .eq("user_id", userId)
+      .eq("month", month)
+      .eq("year", year)
+      .maybeSingle(),
+  ]);
 
-    total_expenses = (expenseSumResult.data ?? []).reduce(
-      (sum, row) => sum + Number(row.amount),
-      0
-    );
-    existing = existingResult.data;
-  }
- 
+  const rows = expenseSumResult.data ?? [];
+  const total_expenses = rows.reduce((sum, row) => sum + Number(row.amount), 0);
+  const sodexo_spent = rows
+    .filter((row) => row.payment_source === "sodexo")
+    .reduce((sum, row) => sum + Number(row.amount), 0);
+  const bank_expenses = total_expenses - sodexo_spent;
+
+  const existing = existingResult.data;
   const salary = Number(existing?.salary ?? 0);
   const previous_month_remaining = Number(existing?.previous_month_remaining ?? 0);
   const interest_income = Number(existing?.interest_income ?? 0);
@@ -64,8 +47,9 @@ export async function updateMonthlyExpenseTotal(
   const savings_sip = Number(existing?.savings_sip ?? 0);
   const savings_shares = Number(existing?.savings_shares ?? 0);
 
+  // Only bank-paid expenses reduce cash balance; sodexo was never in the bank
   const remaining_amount =
-    previous_month_remaining + salary + interest_income - total_expenses;
+    previous_month_remaining + salary + interest_income - bank_expenses;
   const cash_equivalents =
     remaining_amount + savings_fd + savings_sip + savings_shares;
 
@@ -75,6 +59,7 @@ export async function updateMonthlyExpenseTotal(
       .from("monthly_summary")
       .update({
         total_expenses,
+        sodexo_spent,
         remaining_amount,
         cash_equivalents,
         updated_at: new Date().toISOString(),
@@ -86,14 +71,19 @@ export async function updateMonthlyExpenseTotal(
       .single();
     updatedRow = data;
   } else {
-    const { data } = await supabase.from("monthly_summary").insert({
-      user_id: userId,
-      month,
-      year,
-      total_expenses,
-      remaining_amount,
-      cash_equivalents,
-    }).select().single();
+    const { data } = await supabase
+      .from("monthly_summary")
+      .insert({
+        user_id: userId,
+        month,
+        year,
+        total_expenses,
+        sodexo_spent,
+        remaining_amount,
+        cash_equivalents,
+      })
+      .select()
+      .single();
     updatedRow = data;
   }
 
@@ -117,6 +107,7 @@ export async function cascadeUpdateFutureMonths(
     savings_shares?: number;
     savings_nps?: number;
     savings_pf?: number;
+    sodexo_balance?: number;
   }
 ) {
   // Fetch all potential future months at once to avoid network round-trips
@@ -146,6 +137,7 @@ export async function cascadeUpdateFutureMonths(
   let currentShares = sourceValues.savings_shares;
   let currentNPS = sourceValues.savings_nps;
   let currentPF = sourceValues.savings_pf;
+  let currentSodexo = sourceValues.sodexo_balance;
 
   // Process up to 24 months (2 years) to ensure long-term corrections propagate
   const maxMonths = Math.min(futureRows.length, 24);
@@ -182,6 +174,7 @@ export async function cascadeUpdateFutureMonths(
       if (currentFD !== undefined) update.savings_fd = currentFD;
       if (currentNPS !== undefined) update.savings_nps = currentNPS;
       if (currentPF !== undefined) update.savings_pf = currentPF;
+      if (currentSodexo !== undefined) update.sodexo_balance = currentSodexo;
     }
 
     // Recalculate cash_equivalents with new (potentially propagated) values
@@ -201,6 +194,7 @@ export async function cascadeUpdateFutureMonths(
     currentShares = Number(update.savings_shares ?? row.savings_shares ?? 0);
     currentNPS = Number(update.savings_nps ?? row.savings_nps ?? 0);
     currentPF = Number(update.savings_pf ?? row.savings_pf ?? 0);
+    currentSodexo = Number(update.sodexo_balance ?? row.sodexo_balance ?? 0);
   }
 
   if (updates.length > 0) {

@@ -52,30 +52,16 @@ export async function POST(request: NextRequest) {
   const m = expenseDate.getMonth() + 1;
   const y = expenseDate.getFullYear();
 
-  // 1. Parallelize Insert and Summary Fetch (Round-trip 1)
-  const [insertRes, summaryRes] = await Promise.all([
-    supabase
-      .from("expenses")
-      .insert({ ...parsed.data, user_id: user.id })
-      .select()
-      .single(),
-    supabase
-      .from("monthly_summary")
-      .select("*")
-      .eq("user_id", user.id)
-      .eq("month", m)
-      .eq("year", y)
-      .maybeSingle(),
-  ]);
+  const insertRes = await supabase
+    .from("expenses")
+    .insert({ ...parsed.data, user_id: user.id })
+    .select()
+    .single();
 
   if (insertRes.error) return Response.json({ error: insertRes.error.message }, { status: 500 });
   const data = insertRes.data;
 
-  // 2. Recalculate total manually and update (Round-trip 2)
-  const existingSummary = summaryRes.data;
-  const oldTotal = Number(existingSummary?.total_expenses ?? 0);
-  const newTotal = oldTotal + Number(parsed.data.amount);
-  const updatedSummary = await updateMonthlyExpenseTotal(supabase, user.id, m, y, newTotal, existingSummary);
+  const updatedSummary = await updateMonthlyExpenseTotal(supabase, user.id, m, y);
 
   after(async () => {
     await cascadeUpdateFutureMonths(supabase, user.id, m, y, {

@@ -29,6 +29,7 @@ function ExpenseForm({ expense, onSubmit, onCancel, defaultDate }: Props) {
     amount: '',
     category: 'Personal',
     note: '',
+    payment_source: 'bank' as 'bank' | 'sodexo',
   });
 
   useEffect(() => {
@@ -39,6 +40,7 @@ function ExpenseForm({ expense, onSubmit, onCancel, defaultDate }: Props) {
         amount: expense.amount?.toString() || '',
         category: expense.category || 'Personal',
         note: expense.note || '',
+        payment_source: ((expense as any).payment_source || 'bank') as 'bank' | 'sodexo',
       });
     }
   }, [expense]);
@@ -168,6 +170,31 @@ function ExpenseForm({ expense, onSubmit, onCancel, defaultDate }: Props) {
             </div>
           </div>
 
+
+          {/* Payment Source */}
+          <div>
+            <label className="block text-[11px] font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--ink-faint)' }}>Paid from</label>
+            <div className="flex gap-2">
+              {(['bank', 'sodexo'] as const).map((src) => {
+                const active = formData.payment_source === src;
+                return (
+                  <button
+                    key={src}
+                    type="button"
+                    onClick={() => setFormData((p) => ({ ...p, payment_source: src }))}
+                    className="px-4 py-2 rounded-full text-[11px] font-bold border-2 transition-all cursor-pointer"
+                    style={{
+                      backgroundColor: active ? (src === 'sodexo' ? '#f97316' : 'var(--accent)') : 'var(--bg-tint)',
+                      borderColor: active ? 'transparent' : 'var(--hairline)',
+                      color: active ? 'white' : 'var(--ink-muted)',
+                    }}
+                  >
+                    {src === 'bank' ? 'Bank' : 'Sodexo'}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
 
           {/* Note */}
           <div>
