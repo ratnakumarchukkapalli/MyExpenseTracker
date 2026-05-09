@@ -233,11 +233,14 @@ function AppShell({ initialData, serverMonth, serverYear }: AppShellProps) {
     window.location.href = '/login';
   };
 
-  const loadCoreData = async (showLoading = false) => {
+  // light=true: only fetch month-specific data (expenses, summary, prevExpenses)
+  // Used on same-year month navigation to skip static queries (subscriptions, yearly chart, budgets, loans)
+  const loadCoreData = async (showLoading = false, light = false) => {
     if (showLoading || !monthlySummary) setLoading(true);
     setErrorMessage(null);
     try {
-      const res = await fetch(`/api/bootstrap?month=${currentMonth}&year=${currentYear}`);
+      const url = `/api/bootstrap?month=${currentMonth}&year=${currentYear}${light ? "&light=true" : ""}`;
+      const res = await fetch(url);
 
       if (!res.ok) {
         throw new Error('Failed to load webapp data');
@@ -246,13 +249,15 @@ function AppShell({ initialData, serverMonth, serverYear }: AppShellProps) {
       const data = await res.json();
 
       setExpenses(data.expenses ?? []);
-      setSubscriptions(data.subscriptions ?? []);
       setMonthlySummary(data.summary ?? null);
       setPrevMonthExpenses(data.prevMonthExpenses ?? []);
-      setYearlyRows(data.yearlyRows ?? []);
-      setCategoryBudgets(data.categoryBudgets ?? []);
-      setLoanMilestones(data.loanMilestones ?? []);
-      if (data.user && !userInfo) setUserInfo(data.user);
+      if (!light) {
+        setSubscriptions(data.subscriptions ?? []);
+        setYearlyRows(data.yearlyRows ?? []);
+        setCategoryBudgets(data.categoryBudgets ?? []);
+        setLoanMilestones(data.loanMilestones ?? []);
+        if (data.user && !userInfo) setUserInfo(data.user);
+      }
     } catch (error) {
       console.error(error);
       setErrorMessage(error instanceof Error ? error.message : 'Failed to load data');
@@ -304,7 +309,9 @@ function AppShell({ initialData, serverMonth, serverYear }: AppShellProps) {
       }
     }
 
-    loadCoreData(monthChanged || yearChanged);
+    // Light fetch on same-year month switch: skip subscriptions, yearly chart, budgets, loans
+    const isLightNav = monthChanged && !yearChanged;
+    loadCoreData(monthChanged || yearChanged, isLightNav);
   }, [currentMonth, currentYear, refreshKey, mounted]);
 
   const filteredExpenses = useMemo(() => expenses, [expenses]);

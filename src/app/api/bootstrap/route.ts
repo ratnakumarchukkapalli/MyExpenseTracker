@@ -16,7 +16,8 @@ export async function GET(request: NextRequest) {
     return Response.json({ error: "Missing month/year" }, { status: 400 });
   }
 
-  const data = await fetchBootstrapData(supabase, user, month, year);
+  const light = searchParams.get("light") === "true";
+  const data = await fetchBootstrapData(supabase, user, month, year, light);
   const tDb = Date.now();
 
   return Response.json(data, {
