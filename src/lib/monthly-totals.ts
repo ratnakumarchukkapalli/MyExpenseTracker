@@ -45,9 +45,10 @@ export async function updateMonthlyExpenseTotal(
   const savings_sip = Number(existing?.savings_sip ?? 0);
   const savings_shares = Number(existing?.savings_shares ?? 0);
 
-  // All expenses reduce the bank balance; sodexo tagging is budget tracking only
+  // Sodexo-tagged expenses come from the Sodexo card, not the bank
+  const bank_expenses = total_expenses - sodexo_spent;
   const remaining_amount =
-    previous_month_remaining + salary + interest_income - total_expenses;
+    previous_month_remaining + salary + interest_income - bank_expenses;
   const cash_equivalents =
     remaining_amount + savings_fd + savings_sip + savings_shares;
 
