@@ -160,11 +160,9 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   const sodexo_spent = rows
     .filter((r) => r.payment_source === "sodexo")
     .reduce((sum, r) => sum + Number(r.amount), 0);
-  const bank_expenses = total_expenses - sodexo_spent;
-
-  // Only bank-paid expenses reduce cash balance; sodexo was never in the bank
+  // All expenses reduce the bank balance; sodexo tagging is budget tracking only
   const remaining_amount =
-    d.previous_month_remaining + d.salary + d.interest_income - bank_expenses;
+    d.previous_month_remaining + d.salary + d.interest_income - total_expenses;
   const cash_equivalents =
     remaining_amount + d.savings_fd + d.savings_sip + d.savings_shares;
 

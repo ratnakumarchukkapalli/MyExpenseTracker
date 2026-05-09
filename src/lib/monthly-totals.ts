@@ -37,8 +37,6 @@ export async function updateMonthlyExpenseTotal(
   const sodexo_spent = rows
     .filter((row) => row.payment_source === "sodexo")
     .reduce((sum, row) => sum + Number(row.amount), 0);
-  const bank_expenses = total_expenses - sodexo_spent;
-
   const existing = existingResult.data;
   const salary = Number(existing?.salary ?? 0);
   const previous_month_remaining = Number(existing?.previous_month_remaining ?? 0);
@@ -47,9 +45,9 @@ export async function updateMonthlyExpenseTotal(
   const savings_sip = Number(existing?.savings_sip ?? 0);
   const savings_shares = Number(existing?.savings_shares ?? 0);
 
-  // Only bank-paid expenses reduce cash balance; sodexo was never in the bank
+  // All expenses reduce the bank balance; sodexo tagging is budget tracking only
   const remaining_amount =
-    previous_month_remaining + salary + interest_income - bank_expenses;
+    previous_month_remaining + salary + interest_income - total_expenses;
   const cash_equivalents =
     remaining_amount + savings_fd + savings_sip + savings_shares;
 

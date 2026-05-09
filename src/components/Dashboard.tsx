@@ -332,9 +332,8 @@ function Dashboard({ expenses, subscriptions, monthlySummary, currentMonth, curr
   const spentPct = totalIncome > 0 ? Math.round((totalExpensesOnly / totalIncome) * 100) : 0;
 
   // CRITICAL: Final Net Worth calculation
-  // Cash + FD + (SIP + Stocks) + (NPS + PF) + Sodexo remaining
-  const sodexoRemaining = Math.max(0, sodexoBalance - sodexoSpent);
-  const currentNetWorth = currentCash + currentFD + portfolioTotal + currentNPS_PF + sodexoRemaining;
+  // Cash + FD + (SIP + Stocks) + (NPS + PF)
+  const currentNetWorth = currentCash + currentFD + portfolioTotal + currentNPS_PF;
 
   const summaryText = salary > 0
     ? `You've spent ${formatCurrency(totalExpensesOnly)} this ${monthName} — ${
