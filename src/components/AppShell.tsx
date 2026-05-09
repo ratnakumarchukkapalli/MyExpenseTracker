@@ -755,7 +755,12 @@ function AppShell({ initialData, serverMonth, serverYear }: AppShellProps) {
       {showExpenseForm && (
         <ExpenseForm
           expense={editingExpense}
-          defaultDate={!editingExpense ? new Date().toISOString().split('T')[0] : undefined}
+          defaultDate={!editingExpense ? (() => {
+            const today = new Date();
+            const isCurrentMonth = currentMonth === today.getMonth() + 1 && currentYear === today.getFullYear();
+            if (isCurrentMonth) return today.toISOString().split('T')[0];
+            return `${currentYear}-${String(currentMonth).padStart(2, '0')}-01`;
+          })() : undefined}
           onSubmit={async (payload) => {
             if (editingExpense?.id) {
               await handleExpenseUpdate({ ...editingExpense, ...payload, amount: Number(payload.amount) });
