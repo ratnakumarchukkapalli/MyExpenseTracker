@@ -472,7 +472,7 @@ function Dashboard({ expenses, subscriptions, monthlySummary, currentMonth, curr
                 { label: 'Saved', value: totalSavings, color: '#22c55e' },
                 { label: 'Salary', value: salary, color: 'var(--accent)' },
                 ...(sodexoBalance > 0 ? [{ label: 'Sodexo balance', value: sodexoBalance, color: '#f97316' }] : []),
-                { label: 'Total used', value: bankExpensesOnly + sodexoSpent + totalSavings, color: '#6b7280' },
+                { label: 'Total used', value: totalExpenses, color: '#6b7280' },
               ].map((item) => (
                 <div key={item.label} className="rings-legend-row" style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
                   <span className="ring-dot" style={{ width: 8, height: 8, borderRadius: '50%', background: item.color }} />
