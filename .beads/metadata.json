@@ -1,0 +1,7 @@
+{
+  "database": "dolt",
+  "backend": "dolt",
+  "dolt_mode": "embedded",
+  "dolt_database": "MyExpenseTracker",
+  "project_id": "d9947810-0d62-45dc-a6b7-e5d674ad5354"
+}

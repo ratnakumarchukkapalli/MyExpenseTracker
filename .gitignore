@@ -44,3 +44,8 @@ supabase_audit_report.md
 .agents/skills/openspec-apply-change/skill.md
 .agents/skills/openspec-explore/skill.md
 .agents/skills/openspec-propose/skill.md
+
+# Beads / Dolt files (added by bd init)
+.dolt/
+*.db
+.beads-credential-key
