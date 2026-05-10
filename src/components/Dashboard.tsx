@@ -339,11 +339,13 @@ function Dashboard({ expenses, subscriptions, monthlySummary, currentMonth, curr
   const currentNetWorth = currentCash + currentFD + portfolioTotal + currentNPS_PF;
 
   const summaryText = salary > 0
-    ? `You've spent ${formatCurrency(totalExpensesOnly)} this ${monthName} — ${
-        totalExpensesOnly <= salary * 0.55
-          ? `within budget. Cash balance is ${formatCurrency(currentCash)}.`
-          : `${((totalExpensesOnly / salary - 0.55) * 100).toFixed(0)}% above the 55% envelope target.`
-      } Saved ${formatCurrency(totalSavings)} (${salary > 0 ? ((totalSavings / salary) * 100).toFixed(0) : '0'}% of salary).`
+    ? privacyMode
+      ? `Spent ${spentPct}% of income this ${monthName}. Saved ${salary > 0 ? ((totalSavings / salary) * 100).toFixed(0) : '0'}% of salary. (amounts hidden)`
+      : `You've spent ${formatCurrency(totalExpensesOnly)} this ${monthName} — ${
+          totalExpensesOnly <= salary * 0.55
+            ? `within budget. Cash balance is ${formatCurrency(currentCash)}.`
+            : `${((totalExpensesOnly / salary - 0.55) * 100).toFixed(0)}% above the 55% envelope target.`
+        } Saved ${formatCurrency(totalSavings)} (${((totalSavings / salary) * 100).toFixed(0)}% of salary).`
     : 'Update your salary in financials to unlock spending analysis and year-end projection.';
 
   const resolveBudget = (key: string) => {
@@ -611,21 +613,21 @@ function Dashboard({ expenses, subscriptions, monthlySummary, currentMonth, curr
                     )}
                   </div>
                   <div className="serif mt-2 font-bold tabular-nums text-[var(--ink)] group-hover:text-[var(--accent)] transition-colors dash-cat-amount">
-                    {spent >= 100000 ? `${(spent / 100000).toFixed(2)}L` : `₹${Math.round(spent / 1000)}K`}
+                    {privacyMode ? '••••' : spent >= 100000 ? `${(spent / 100000).toFixed(2)}L` : `₹${Math.round(spent / 1000)}K`}
                   </div>
 
                   <div className="text-[11px] text-[var(--ink-faint)] mt-1">
-                    of {category.budget >= 100000 ? `${(category.budget / 100000).toFixed(1)}L` : `₹${Math.round(category.budget / 1000)}K`}
+                    {privacyMode ? 'of ••••' : `of ${category.budget >= 100000 ? `${(category.budget / 100000).toFixed(1)}L` : `₹${Math.round(category.budget / 1000)}K`}`}
                   </div>
                   <div className="cat-progress mt-3 h-1.5 rounded-full bg-[var(--hairline)] overflow-hidden">
-                    <div 
-                      className="cat-progress-fill h-full rounded-full transition-all duration-1000 ease-out" 
-                      style={{ width: `${pct}%`, background: over ? 'var(--neg)' : category.color }} 
+                    <div
+                      className="cat-progress-fill h-full rounded-full transition-all duration-1000 ease-out"
+                      style={{ width: `${pct}%`, background: over ? 'var(--neg)' : category.color }}
                     />
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8, fontSize: 10.5, color: 'var(--ink-faint)', fontWeight: 500 }}>
                     <span className={over ? 'text-[var(--neg)] font-bold' : ''}>{pct.toFixed(0)}% used</span>
-                    <span>{over ? 'over budget' : spent === 0 ? '—' : `${formatCurrency(category.budget - spent)} left`}</span>
+                    <span>{over ? 'over budget' : spent === 0 ? '—' : privacyMode ? '••••' : `${formatCurrency(category.budget - spent)} left`}</span>
                   </div>
                 </div>
               </div>
@@ -807,7 +809,7 @@ function SavingsRatePanel({
               return (
                 <div key={month} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(16, 185, 129, 0.08)', borderRadius: 8, padding: '7px 12px' }}>
                   <span style={{ fontSize: 12, color: '#059669', fontWeight: 500 }}>⚡ From {freedLabel}</span>
-                  <span style={{ fontSize: 12, color: '#047857', fontWeight: 700 }}>+{formatCurrency(Math.round(amount))}/mo freed</span>
+                  <span style={{ fontSize: 12, color: '#047857', fontWeight: 700 }}>{privacyMode ? '+•••• /mo freed' : `+${formatCurrency(Math.round(amount))}/mo freed`}</span>
                 </div>
               );
             })}
