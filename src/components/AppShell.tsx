@@ -6,6 +6,8 @@ import {
   Calendar,
   ChevronLeft,
   ChevronRight,
+  Eye,
+  EyeOff,
   Landmark,
   LayoutDashboard,
   LogOut,
@@ -182,6 +184,11 @@ function AppShell({ initialData, serverMonth, serverYear }: AppShellProps) {
     if (typeof window === 'undefined') return false;
     return window.localStorage.getItem('darkMode') === 'true';
   });
+  const [privacyMode, setPrivacyMode] = useState(() => {
+    if (typeof window === 'undefined') return true;
+    const stored = window.localStorage.getItem('privacyMode');
+    return stored === null ? true : stored === 'true';
+  });
   const [mounted, setMounted] = useState(false);
   const [currentView, setCurrentView] = useState<ViewId>('dashboard');
   const [currentMonth, setCurrentMonth] = useState(now.getMonth() + 1);
@@ -277,6 +284,10 @@ function AppShell({ initialData, serverMonth, serverYear }: AppShellProps) {
     }
     window.localStorage.setItem('darkMode', String(darkMode));
   }, [darkMode]);
+
+  useEffect(() => {
+    window.localStorage.setItem('privacyMode', String(privacyMode));
+  }, [privacyMode]);
 
   useEffect(() => {
     if (!mounted) return;
@@ -566,6 +577,14 @@ function AppShell({ initialData, serverMonth, serverYear }: AppShellProps) {
               </div>
             </div>
 
+            <button
+              className="icon-btn cursor-pointer"
+              title={mounted ? (privacyMode ? 'Show financials' : 'Hide financials') : 'Hide financials'}
+              onClick={() => setPrivacyMode((v) => !v)}
+            >
+              {mounted && !privacyMode ? <Eye size={16} /> : <EyeOff size={16} />}
+            </button>
+
             <button className="icon-btn cursor-pointer" title={mounted ? (darkMode ? 'Light mode' : 'Dark mode') : 'Dark mode'} onClick={() => setDarkMode((value) => !value)}>
               {mounted && darkMode ? <Sun size={16} /> : <Moon size={16} />}
             </button>
@@ -664,6 +683,7 @@ function AppShell({ initialData, serverMonth, serverYear }: AppShellProps) {
                     initialCategoryBudgets={categoryBudgets}
                     initialLoanMilestones={loanMilestones}
                     stockRefreshTick={stockRefreshTick}
+                    privacyMode={privacyMode}
                     onFinancialsUpdate={async (data) => {
                       const res = await fetch(`/api/monthly-summary/${currentMonth}/${currentYear}`, {
                         method: 'POST',

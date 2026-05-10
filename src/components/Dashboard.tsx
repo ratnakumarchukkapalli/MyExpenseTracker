@@ -97,6 +97,7 @@ type Props = {
   initialCategoryBudgets: Array<{ category: string; budget_type: string; budget_value: number }>;
   initialLoanMilestones: LoanMilestone[];
   stockRefreshTick?: number;
+  privacyMode?: boolean;
   onFinancialsUpdate?: (data: FinancialFields) => Promise<void>;
 };
 
@@ -120,7 +121,9 @@ function formatCurrency(amount: number) {
   return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(amount || 0);
 }
 
-function Dashboard({ expenses, subscriptions, monthlySummary, currentMonth, currentYear, prevMonthExpenses, yearlyRows, initialCategoryBudgets, initialLoanMilestones, stockRefreshTick, onFinancialsUpdate }: Props) {
+const PRIVACY_MASK = '₹ ••••';
+
+function Dashboard({ expenses, subscriptions, monthlySummary, currentMonth, currentYear, prevMonthExpenses, yearlyRows, initialCategoryBudgets, initialLoanMilestones, stockRefreshTick, privacyMode, onFinancialsUpdate }: Props) {
   const [prevMonthCategoryTotals, setPrevMonthCategoryTotals] = useState<Record<string, number>>(() =>
     (prevMonthExpenses ?? []).reduce((acc: Record<string, number>, e) => {
       acc[e.category] = (acc[e.category] || 0) + Number(e.amount || 0);
@@ -402,16 +405,16 @@ function Dashboard({ expenses, subscriptions, monthlySummary, currentMonth, curr
         <div className="dash-hero-left">
           <div className="eyebrow">Net worth · {monthName} {currentYear}</div>
           <div className="dash-hero-number serif">
-            {Math.round(currentNetWorth).toLocaleString('en-IN')}
-            <span className="dash-hero-rupee">₹</span>
+            {privacyMode ? '••••••' : Math.round(currentNetWorth).toLocaleString('en-IN')}
+            {!privacyMode && <span className="dash-hero-rupee">₹</span>}
           </div>
           <div className="dash-hero-deltas">
-            {nwMomPct !== null && (
+            {!privacyMode && nwMomPct !== null && (
               <span className={`delta-pill ${nwMomAbs >= 0 ? 'pos' : 'neg'}`}>
                 {nwMomAbs >= 0 ? '↑' : '↓'} {Math.abs(nwMomPct).toFixed(1)}% MoM
               </span>
             )}
-            {nwMomAbs !== 0 && (
+            {!privacyMode && nwMomAbs !== 0 && (
               <span className="delta-pill">
                 {nwMomAbs >= 0 ? '+' : ''}{formatCurrency(nwMomAbs)} since last month
               </span>
@@ -478,7 +481,7 @@ function Dashboard({ expenses, subscriptions, monthlySummary, currentMonth, curr
                   <span className="ring-dot" style={{ width: 8, height: 8, borderRadius: '50%', background: item.color }} />
                   <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--ink)', flex: 1 }}>{item.label}</div>
                   <div style={{ fontSize: 12, fontVariantNumeric: 'tabular-nums', fontWeight: 600, color: 'var(--ink)' }}>
-                    {formatCurrency(item.value)}
+                    {privacyMode ? PRIVACY_MASK : formatCurrency(item.value)}
                   </div>
                 </div>
               ))}
@@ -490,7 +493,7 @@ function Dashboard({ expenses, subscriptions, monthlySummary, currentMonth, curr
           <div className="stat-bar-row">
             <div className="eyebrow" style={{ color: 'var(--ink-soft)' }}>Cash balance</div>
             <div className="serif dash-stat-value" style={{ fontSize: 26, marginTop: 4, color: 'var(--ink)' }}>
-              {formatCurrency(currentCash)}
+              {privacyMode ? PRIVACY_MASK : formatCurrency(currentCash)}
             </div>
 
           </div>
@@ -498,21 +501,21 @@ function Dashboard({ expenses, subscriptions, monthlySummary, currentMonth, curr
           <div className="stat-bar-row">
             <div className="eyebrow">Fixed Deposits</div>
             <div className="dash-stat-small" style={{ fontSize: 16, marginTop: 4, color: 'var(--ink)', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
-              {formatCurrency(currentFD)}
+              {privacyMode ? PRIVACY_MASK : formatCurrency(currentFD)}
             </div>
           </div>
           <div className="hr" />
           <div className="stat-bar-row">
             <div className="eyebrow">Investments</div>
             <div className="dash-stat-small" style={{ fontSize: 16, marginTop: 4, color: 'var(--ink)', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
-              {formatCurrency(portfolioTotal)}
+              {privacyMode ? PRIVACY_MASK : formatCurrency(portfolioTotal)}
             </div>
           </div>
           <div className="hr" />
           <div className="stat-bar-row">
             <div className="eyebrow">Carryover</div>
             <div className="dash-stat-small" style={{ fontSize: 16, marginTop: 4, color: 'var(--ink)', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
-              {formatCurrency(Number(monthlySummary?.previous_month_remaining ?? 0))}
+              {privacyMode ? PRIVACY_MASK : formatCurrency(Number(monthlySummary?.previous_month_remaining ?? 0))}
             </div>
             <div style={{ fontSize: 11, color: 'var(--ink-light)', marginTop: 2 }}>from last month</div>
           </div>
@@ -522,9 +525,11 @@ function Dashboard({ expenses, subscriptions, monthlySummary, currentMonth, curr
               <div className="stat-bar-row">
                 <div className="eyebrow" style={{ color: '#f97316' }}>Sodexo</div>
                 <div className="dash-stat-small" style={{ fontSize: 16, marginTop: 4, color: '#f97316', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
-                  {formatCurrency(sodexoBalance - sodexoSpent)}
+                  {privacyMode ? PRIVACY_MASK : formatCurrency(sodexoBalance - sodexoSpent)}
                 </div>
-                <div style={{ fontSize: 11, color: 'var(--ink-light)', marginTop: 2 }}>{formatCurrency(sodexoSpent)} of {formatCurrency(sodexoBalance)} used</div>
+                <div style={{ fontSize: 11, color: 'var(--ink-light)', marginTop: 2 }}>
+                  {privacyMode ? PRIVACY_MASK : `${formatCurrency(sodexoSpent)} of ${formatCurrency(sodexoBalance)} used`}
+                </div>
               </div>
             </>
           )}
@@ -532,14 +537,14 @@ function Dashboard({ expenses, subscriptions, monthlySummary, currentMonth, curr
           <div className="stat-bar-row">
             <div className="eyebrow">Future savings</div>
             <div className="dash-stat-small" style={{ fontSize: 16, marginTop: 4, color: 'var(--ink)', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
-              {formatCurrency(currentNPS_PF)}
+              {privacyMode ? PRIVACY_MASK : formatCurrency(currentNPS_PF)}
             </div>
           </div>
           <div className="hr" />
           <div className="stat-bar-row">
             <div className="eyebrow">Salary & Edit</div>
             <div className="dash-stat-small" style={{ fontSize: 16, marginTop: 4, color: 'var(--ink)', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
-              {formatCurrency(salary)}
+              {privacyMode ? PRIVACY_MASK : formatCurrency(salary)}
             </div>
             <button
               onClick={() => setShowEditFinancials(true)}
@@ -646,7 +651,9 @@ function Dashboard({ expenses, subscriptions, monthlySummary, currentMonth, curr
               <span style={{ width: 10, height: 10, borderRadius: '50%', backgroundColor: item.dot, flexShrink: 0 }} />
               <div>
                 <div style={{ fontSize: 10, color: 'var(--ink-faint)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{item.label}</div>
-                <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)', fontVariantNumeric: 'tabular-nums' }}>{formatCurrency(Number(item.value || 0))}</div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)', fontVariantNumeric: 'tabular-nums' }}>
+                  {privacyMode ? PRIVACY_MASK : formatCurrency(Number(item.value || 0))}
+                </div>
               </div>
             </div>
           ))}
@@ -658,6 +665,7 @@ function Dashboard({ expenses, subscriptions, monthlySummary, currentMonth, curr
         loanMilestones={loanMilestones}
         currentMonth={currentMonth}
         currentYear={currentYear}
+        privacyMode={privacyMode}
         formatCurrency={formatCurrency}
       />
 
@@ -665,6 +673,7 @@ function Dashboard({ expenses, subscriptions, monthlySummary, currentMonth, curr
         yearlySavings={yearlySavings}
         currentYear={currentYear}
         currentMonth={currentMonth}
+        privacyMode={privacyMode}
         formatCurrency={formatCurrency}
       />
 
@@ -685,12 +694,14 @@ function SavingsRatePanel({
   loanMilestones,
   currentMonth,
   currentYear,
+  privacyMode,
   formatCurrency,
 }: {
   yearlySavings: YearlyRow[];
   loanMilestones: LoanMilestone[];
   currentMonth: number;
   currentYear: number;
+  privacyMode?: boolean;
   formatCurrency: (n: number) => string;
 }) {
   const pastMonths = yearlySavings.filter((m) => m.salary > 0);
@@ -739,9 +750,9 @@ function SavingsRatePanel({
 
 
         {[
-          { label: 'This Month', main: `${curRate.toFixed(1)}%`, sub: formatCurrency(curData?.savings || 0) },
-          { label: 'Saved YTD',  main: formatCurrency(ytdSavings), sub: `${pastMonths.length} months` },
-          { label: 'Dec Outlook', main: formatCurrency(projected), sub: 'at current rate' },
+          { label: 'This Month', main: `${curRate.toFixed(1)}%`, sub: privacyMode ? PRIVACY_MASK : formatCurrency(curData?.savings || 0) },
+          { label: 'Saved YTD',  main: privacyMode ? PRIVACY_MASK : formatCurrency(ytdSavings), sub: `${pastMonths.length} months` },
+          { label: 'Dec Outlook', main: privacyMode ? PRIVACY_MASK : formatCurrency(projected), sub: 'at current rate' },
         ].map(({ label, main, sub }) => (
           <div key={label} style={{ background: 'var(--surface-solid)', border: '1px solid var(--hairline)', borderRadius: 10, padding: '8px 10px' }}>
             <div style={{ fontSize: 10, color: 'var(--ink-faint)', marginBottom: 2 }}>{label}</div>
@@ -765,7 +776,7 @@ function SavingsRatePanel({
             return (
               <div key={month} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
                 <div style={{ fontSize: 8, color: 'var(--ink-faint)', height: 12, display: 'flex', alignItems: 'flex-end' }}>
-                  {sv > 0 && !isFuture ? (sv >= 100000 ? `₹${(sv/100000).toFixed(1)}L` : `₹${Math.round(sv/1000)}K`) : ''}
+                  {sv > 0 && !isFuture && !privacyMode ? (sv >= 100000 ? `₹${(sv/100000).toFixed(1)}L` : `₹${Math.round(sv/1000)}K`) : ''}
                 </div>
                 <div style={{
                   width: '100%', borderRadius: '2px 2px 0 0',
@@ -811,11 +822,13 @@ function NetWorthGrowthChart({
   yearlySavings,
   currentYear,
   currentMonth,
+  privacyMode,
   formatCurrency,
 }: {
   yearlySavings: YearlyRow[];
   currentYear: number;
   currentMonth: number;
+  privacyMode?: boolean;
   formatCurrency: (n: number) => string;
 }) {
   const SEGMENTS = [
@@ -851,7 +864,7 @@ function NetWorthGrowthChart({
   const growthPct = firstVal > 0 ? ((growth) / firstVal) * 100 : 0;
   const isUp = growth >= 0;
 
-  const fmtL = (v: unknown) => { const n = Number(v ?? 0); return n >= 100000 ? `₹${(n / 100000).toFixed(1)}L` : `₹${Math.round(n / 1000)}K`; };
+  const fmtL = (v: unknown) => { if (privacyMode) return '••••'; const n = Number(v ?? 0); return n >= 100000 ? `₹${(n / 100000).toFixed(1)}L` : `₹${Math.round(n / 1000)}K`; };
 
   return (
     <div className="pane" style={{ padding: '18px 20px', marginBottom: 24 }}>
@@ -869,13 +882,13 @@ function NetWorthGrowthChart({
         <div>
           <div style={{ fontSize: 10, color: 'var(--ink-faint)', marginBottom: 2 }}>Current Net Worth</div>
           <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--ink)', fontVariantNumeric: 'tabular-nums' }}>
-            {formatCurrency(lastVal)}
+            {privacyMode ? PRIVACY_MASK : formatCurrency(lastVal)}
           </div>
         </div>
         <div>
           <div style={{ fontSize: 10, color: 'var(--ink-faint)', marginBottom: 2 }}>Growth since Jan</div>
           <div style={{ fontSize: 15, fontWeight: 700, color: isUp ? '#4ade80' : '#f87171', fontVariantNumeric: 'tabular-nums' }}>
-            {isUp ? '+' : ''}{formatCurrency(growth)}
+            {privacyMode ? PRIVACY_MASK : `${isUp ? '+' : ''}${formatCurrency(growth)}`}
           </div>
         </div>
         <div>
@@ -901,12 +914,12 @@ function NetWorthGrowthChart({
           <CartesianGrid strokeDasharray="3 3" stroke="var(--hairline)" vertical={false} />
           <XAxis dataKey="month" tick={{ fontSize: 10, fill: 'var(--ink-faint)' }} axisLine={false} tickLine={false} />
           <YAxis
-            tickFormatter={(v) => v >= 100000 ? `₹${(v / 100000).toFixed(1)}L` : `₹${Math.round(v / 1000)}K`}
+            tickFormatter={(v) => privacyMode ? '••••' : v >= 100000 ? `₹${(v / 100000).toFixed(1)}L` : `₹${Math.round(v / 1000)}K`}
             tick={{ fontSize: 9, fill: 'var(--ink-faint)' }}
             axisLine={false} tickLine={false} width={44}
           />
           <Tooltip
-            formatter={(value, name) => [formatCurrency(Number(value ?? 0)), String(name).toUpperCase()]}
+            formatter={(value, name) => [privacyMode ? PRIVACY_MASK : formatCurrency(Number(value ?? 0)), String(name).toUpperCase()]}
             contentStyle={{ background: 'var(--surface)', border: '1px solid var(--hairline)', borderRadius: 8, fontSize: 12 }}
             labelStyle={{ color: 'var(--ink-muted)', fontWeight: 600 }}
           />
