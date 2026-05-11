@@ -6,6 +6,10 @@
 > **Resume any session:** Type `/ml-webapp` — picks up exactly where we left off.
 >
 > **Stack:** FastAPI (Python) `ml-service/` → Supabase (PostgreSQL) → Next.js API proxy → Dashboard UI
+>
+> **Career docs:** [learning/career/retrospective.md](career/retrospective.md) · [learning/career/ml-plan-review.md](career/ml-plan-review.md)
+>
+> **Next work-side initiative:** Introduce eval-driven development to the AI Ops assistant (Promptfoo + LLM-as-judge + Prometheus `llm.eval.score`). Mirror the same patterns in MyExpenseTracker Phase 0.
 
 ---
 

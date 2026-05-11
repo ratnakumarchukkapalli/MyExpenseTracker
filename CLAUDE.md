@@ -1,5 +1,8 @@
 @AGENTS.md
 
+## Career context
+See [learning/career/retrospective.md](learning/career/retrospective.md) for my TR work background and [learning/career/ml-plan-review.md](learning/career/ml-plan-review.md) for the industry-validated review of the 9-phase plan.
+
 ## Verification — Task Not Done Until
 - `npm run build` passes (Next.js build, no errors)
 - `npx tsc --noEmit` passes (no TypeScript errors)
