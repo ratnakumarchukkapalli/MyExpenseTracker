@@ -14,6 +14,7 @@ export async function POST(request: NextRequest) {
 
   const file = formData.get("file") as File | null;
   if (!file) return Response.json({ error: "file field required" }, { status: 400 });
+  if (file.size > 10 * 1024 * 1024) return Response.json({ error: "File too large (max 10MB)" }, { status: 413 });
 
   const nodeBuf = Buffer.from(await file.arrayBuffer());
   const wb = new ExcelJS.Workbook();
