@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ML Reference — MyExpenseTracker</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d27;
+    --border: #2a2d3e;
+    --accent: #7c6af7;
+    --accent2: #f7836a;
+    --green: #4ade80;
+    --yellow: #facc15;
+    --text: #e2e8f0;
+    --muted: #94a3b8;
+    --code-bg: #13151f;
+    --analogy-bg: #1a2210;
+    --analogy-text: #bbf7d0;
+    --interview-bg: #1f1510;
+    --interview-text: #fed7aa;
+    --realworld-bg: #101a1f;
+    --realworld-text: #bae6fd;
+    --yourdata-bg: #1a1020;
+    --yourdata-border: #6d28d9;
+    --yourdata-text: #ddd6fe;
+    --formula-bg: #1a1230;
+    --formula-border: #3d2f8f;
+    --formula-text: #c4b5fd;
+    --tag-bg: #2a1f6e;
+    --table-head-bg: #1e2035;
+    --table-hover-bg: #1e2035;
+  }
+  [data-theme="light"] {
+    --bg: #f8fafc;
+    --surface: #ffffff;
+    --border: #e2e8f0;
+    --accent: #5b4fcf;
+    --accent2: #e05a3a;
+    --green: #16a34a;
+    --yellow: #b45309;
+    --text: #1e293b;
+    --muted: #64748b;
+    --code-bg: #f1f5f9;
+    --analogy-bg: #f0fdf4;
+    --analogy-text: #166534;
+    --interview-bg: #fff7ed;
+    --interview-text: #9a3412;
+    --realworld-bg: #f0f9ff;
+    --realworld-text: #0c4a6e;
+    --yourdata-bg: #faf5ff;
+    --yourdata-border: #7c3aed;
+    --yourdata-text: #4c1d95;
+    --formula-bg: #eef2ff;
+    --formula-border: #a5b4fc;
+    --formula-text: #3730a3;
+    --tag-bg: #ede9fe;
+    --table-head-bg: #f8fafc;
+    --table-hover-bg: #f1f5f9;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    font-size: 15px;
+    line-height: 1.7;
+    padding: 40px 20px;
+    transition: background 0.2s, color 0.2s;
+  }
+  .page { max-width: 900px; margin: 0 auto; }
+  h1 {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--accent);
+    margin-bottom: 6px;
+  }
+  .subtitle { color: var(--muted); margin-bottom: 40px; font-size: 0.95rem; }
+  h2 {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--accent);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin: 48px 0 20px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+  }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+    margin-bottom: 20px;
+  }
+  .card-title {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--yellow);
+    margin-bottom: 4px;
+  }
+  .card-subtitle {
+    color: var(--muted);
+    font-size: 0.88rem;
+    margin-bottom: 16px;
+  }
+  .tag {
+    display: inline-block;
+    background: var(--tag-bg);
+    color: var(--accent);
+    font-size: 0.75rem;
+    padding: 2px 8px;
+    border-radius: 99px;
+    margin-right: 6px;
+    margin-bottom: 12px;
+  }
+  .theme-toggle {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 8px;
+    padding: 8px 14px;
+    font-size: 0.85rem;
+    cursor: pointer;
+    z-index: 100;
+    font-family: inherit;
+    transition: background 0.2s;
+  }
+  .theme-toggle:hover { background: var(--border); }
+  code, pre {
+    font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+    font-size: 0.85rem;
+  }
+  pre {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+    overflow-x: auto;
+    margin: 12px 0;
+    line-height: 1.6;
+  }
+  .diagram {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent);
+    border-radius: 8px;
+    padding: 16px;
+    margin: 12px 0;
+    font-family: monospace;
+    font-size: 0.85rem;
+    white-space: pre;
+  }
+  .formula {
+    background: var(--formula-bg);
+    border: 1px solid var(--formula-border);
+    border-radius: 8px;
+    padding: 14px 18px;
+    margin: 12px 0;
+    font-family: monospace;
+    color: var(--formula-text);
+    font-size: 0.9rem;
+  }
+  .analogy {
+    background: var(--analogy-bg);
+    border-left: 3px solid var(--green);
+    padding: 12px 16px;
+    border-radius: 0 8px 8px 0;
+    margin: 12px 0;
+    font-size: 0.9rem;
+    color: var(--analogy-text);
+  }
+  .interview {
+    background: var(--interview-bg);
+    border-left: 3px solid var(--accent2);
+    padding: 12px 16px;
+    border-radius: 0 8px 8px 0;
+    margin: 12px 0;
+    font-size: 0.88rem;
+    color: var(--interview-text);
+  }
+  .interview::before {
+    content: "🎯 Interview: ";
+    font-weight: 600;
+  }
+  .realworld {
+    background: var(--realworld-bg);
+    border-left: 3px solid #38bdf8;
+    padding: 12px 16px;
+    border-radius: 0 8px 8px 0;
+    margin: 12px 0;
+    font-size: 0.88rem;
+    color: var(--realworld-text);
+  }
+  .realworld::before {
+    content: "🌍 Real world: ";
+    font-weight: 600;
+  }
+  .your-data {
+    background: var(--yourdata-bg);
+    border: 1px solid var(--yourdata-border);
+    border-radius: 8px;
+    padding: 12px 16px;
+    margin: 12px 0;
+    font-size: 0.88rem;
+    color: var(--yourdata-text);
+  }
+  .your-data::before {
+    content: "📊 Your data: ";
+    font-weight: 600;
+    color: var(--accent);
+  }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .hl-purple { color: var(--formula-text); }
+  .hl-green  { color: var(--green); }
+  .hl-yellow { color: var(--yellow); }
+  .hl-orange { color: #fb923c; }
+  .hl-blue   { color: #60a5fa; }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 12px;
+    font-size: 0.88rem;
+  }
+  th {
+    background: var(--table-head-bg);
+    color: var(--accent);
+    padding: 10px 14px;
+    text-align: left;
+    font-weight: 600;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  td {
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+  }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: var(--table-hover-bg); }
+  .phase-badge {
+    font-size: 0.75rem;
+    padding: 2px 7px;
+    border-radius: 99px;
+    background: var(--table-head-bg);
+    color: var(--muted);
+  }
+  @media (max-width: 600px) { .grid2 { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<button class="theme-toggle" onclick="toggleTheme()" id="themeBtn">☀️ Light mode</button>
+<script>
+  function toggleTheme() {
+    const html = document.documentElement;
+    const btn = document.getElementById('themeBtn');
+    if (html.getAttribute('data-theme') === 'light') {
+      html.removeAttribute('data-theme');
+      btn.textContent = '☀️ Light mode';
+      localStorage.setItem('theme', 'dark');
+    } else {
+      html.setAttribute('data-theme', 'light');
+      btn.textContent = '🌙 Dark mode';
+      localStorage.setItem('theme', 'light');
+    }
+  }
+  // Restore saved preference
+  if (localStorage.getItem('theme') === 'light') {
+    document.documentElement.setAttribute('data-theme', 'light');
+    document.addEventListener('DOMContentLoaded', () => {
+      document.getElementById('themeBtn').textContent = '🌙 Dark mode';
+    });
+  }
+</script>
+<div class="page">
+
+  <h1>ML Reference</h1>
+  <div class="subtitle">MyExpenseTracker · Phase 0 — Foundations · Updated as you learn</div>
+
+  <!-- ── PHASE 0 ─────────────────────────────────────────── -->
+  <h2>Phase 0 — Foundations</h2>
+
+  <!-- VECTOR -->
+  <div class="card">
+    <div class="card-title">Vector</div>
+    <div class="card-subtitle">A list of numbers representing one thing</div>
+    <span class="tag">Linear Algebra</span><span class="tag">All Phases</span>
+
+    <div class="diagram">One expense row = one vector
+
+  ┌────────────┬────────┬──────────┬─────────┐
+  │ 20260501   │ 450.0  │    0     │    1    │
+  └────────────┴────────┴──────────┴─────────┘
+     date        amount   category   payment
+  ◄──────────────── 4 dimensions ────────────►</div>
+
+    <div class="formula">vector = [x₁, x₂, x₃, ... xₙ]   ← n values, n dimensions</div>
+
+    <div class="analogy">Analogy: Your Swiggy receipt. One purchase described by multiple values — date, amount, category, payment method. Convert each to a number → that list IS a vector.</div>
+    <div class="realworld">Google Search converts your query into a vector of numbers. Results whose vectors are closest to yours get ranked higher. Same math.</div>
+    <div class="interview">A vector is an ordered list of numbers representing a point in n-dimensional space. In ML, one row of a dataset is called a feature vector.</div>
+  </div>
+
+  <!-- MATRIX -->
+  <div class="card">
+    <div class="card-title">Matrix</div>
+    <div class="card-subtitle">A table of numbers — rows × columns. A stack of vectors.</div>
+    <span class="tag">Linear Algebra</span><span class="tag">All Phases</span>
+
+    <div class="diagram">Your expenses table = matrix of shape (837, 3)
+
+         amount  category  payment
+       ┌────────┬──────────┬─────────┐
+row 0  │  450   │    0     │    1   │  ← vector
+row 1  │ 1800   │    1     │    0   │  ← vector
+row 2  │  320   │    0     │    1   │  ← vector
+  ...  │  ...   │   ...    │   ...  │
+row 836│  ...   │   ...    │   ...  │  ← vector
+       └────────┴──────────┴─────────┘
+         ▲                   ▲
+    837 rows (n_samples)   3 cols (n_features)
+
+df.shape = (837, 3)</div>
+
+    <div class="formula">shape = (rows, columns) = (n_samples, n_features)</div>
+
+    <div class="analogy">Analogy: Your expenses spreadsheet. Every row is one expense (vector). Stack 837 of them → a matrix. Every ML algorithm is just math operations on this matrix.</div>
+    <div class="realworld">A 100×100 grayscale image = a (100, 100) matrix where each number is pixel brightness. Neural networks read images as matrices directly.</div>
+    <div class="interview">A matrix is a 2D array with shape (m, n). Training data is represented as matrix X of shape (n_samples, n_features). All linear algebra operations in ML run on matrices.</div>
+  </div>
+
+  <!-- DOT PRODUCT -->
+  <div class="card">
+    <div class="card-title">Dot Product</div>
+    <div class="card-subtitle">Multiply element-by-element, then sum. The core operation of all ML.</div>
+    <span class="tag">Linear Algebra</span><span class="tag">Phase 1</span><span class="tag">Phase 5</span><span class="tag">Phase 6</span>
+
+    <div class="diagram">Step 1 — multiply element-by-element:
+
+  a = [  1,    2,    3  ]
+       ×      ×      ×
+  b = [  4,    5,    6  ]
+       =      =      =
+      [  4,   10,   18  ]
+
+Step 2 — sum:   4 + 10 + 18 = <span class="hl-yellow">32</span></div>
+
+    <div class="formula">a · b = a[0]×b[0] + a[1]×b[1] + ... + a[n]×b[n]</div>
+
+    <div class="diagram">Linear regression IS a dot product:
+
+  features = [month,   prev_spend,   season ]
+  weights  = [  w1,       w2,          w3  ]
+
+  prediction = features · weights
+             = (month × w1) + (prev_spend × w2) + (season × w3)
+
+  The algorithm's only job: find the best weights vector.</div>
+
+    <div class="diagram">Similarity — what the dot product measures:
+
+  a = [10, 10],  b = [10, 10]  →  a·b = 200   (same direction = very similar)
+  a = [10,  0],  b = [ 0, 10]  →  a·b = 0     (perpendicular = nothing in common)
+
+  Large dot product → vectors are similar
+  Zero dot product  → nothing in common</div>
+
+    <div class="realworld">Netflix recommendation: your_taste · movie_profile = match score. Higher dot product = better match. Recommendation engines are dot products at their core.</div>
+    <div class="interview">Dot product is the fundamental operation in ML. Linear regression, neural network layers, and transformer attention are all dot products. It measures alignment (similarity) between two vectors.</div>
+  </div>
+
+  <!-- MEAN / MEDIAN -->
+  <div class="card">
+    <div class="card-title">Mean &amp; Median</div>
+    <div class="card-subtitle">Two ways to describe the centre of your data</div>
+    <span class="tag">Statistics</span><span class="tag">Phase 1</span><span class="tag">Phase 2</span>
+
+    <div class="grid2">
+      <div>
+        <div style="color:var(--yellow);font-weight:600;margin-bottom:8px">Mean</div>
+        <div class="formula">mean = sum / count
+= (100+200+300+400+500) / 5
+= <span class="hl-green">300</span></div>
+        <div style="font-size:0.88rem;color:var(--muted);margin-top:8px">Sensitive to outliers. One large EMI pulls it up.</div>
+      </div>
+      <div>
+        <div style="color:var(--yellow);font-weight:600;margin-bottom:8px">Median</div>
+        <div class="formula">Sort → pick middle value
+[100, 200, <span class="hl-green">300</span>, 400, 500]
+median = 300</div>
+        <div style="font-size:0.88rem;color:var(--muted);margin-top:8px">Ignores outliers. Robust to skew.</div>
+      </div>
+    </div>
+
+    <div class="your-data">Mean = ₹3,999 vs Median = ₹619. Gap is huge because EMI/CC payments pull mean up. Median tells the real story — most day-to-day expenses are under ₹619.</div>
+    <div class="analogy">Analogy: 5 friends' salaries — ₹3L, ₹4L, ₹5L, ₹6L, ₹82L. Mean = ₹20L (looks rich). Median = ₹5L (actual reality). One outlier destroyed the mean.</div>
+    <div class="realworld">City salary reports always use median, not mean. A few tech executives inflate the mean. Median gives the typical worker's picture.</div>
+    <div class="interview">When mean >> median, data is right-skewed. For skewed distributions, median is a better measure of central tendency. Always check both before reporting.</div>
+  </div>
+
+  <!-- VARIANCE / STD DEV -->
+  <div class="card">
+    <div class="card-title">Variance &amp; Standard Deviation</div>
+    <div class="card-subtitle">How spread out is the data from the centre?</div>
+    <span class="tag">Statistics</span><span class="tag">Phase 2</span><span class="tag">Phase 5</span>
+
+    <div class="diagram">Given: [100, 200, 300, 400, 500],  mean = 300
+
+Step 1 — distance from mean:
+  100-300 = -200
+  200-300 = -100
+  300-300 =    0
+  400-300 = +100
+  500-300 = +200
+
+Step 2 — square each (removes negatives, punishes large gaps):
+  40000 + 10000 + 0 + 10000 + 40000 = 100000
+
+Step 3 — average:   variance = 100000 / 5 = <span class="hl-yellow">20000</span>  (in ₹²)
+
+Step 4 — square root to get back to ₹:
+  std dev = √20000 ≈ <span class="hl-green">141</span>  (in ₹)</div>
+
+    <div class="formula">variance = Σ(xᵢ - mean)² / n
+std dev  = √variance</div>
+
+    <div class="diagram">The 68-95-99 rule (critical for Phase 2 anomaly detection):
+
+  ┌──────────────────────────────────────────────┐
+  │                    ███                       │
+  │                  ███████                     │
+  │   68%          ███████████                   │
+  │ ◄──────►     ██████████████                  │
+  │   95%       ████████████████                 │
+  │ ◄────────► ██████████████████                │
+  │            mean-2σ  mean  mean+2σ            │
+  └──────────────────────────────────────────────┘
+  68% of data → within ±1 std dev of mean
+  95% of data → within ±2 std dev of mean
+  99.7% data  → within ±3 std dev of mean</div>
+
+    <div class="your-data">Mean=₹3,999, Std=₹13,301. Std larger than mean = extreme spread. 68% of expenses fall between ₹0 and ₹17,300. The distribution is very spread out due to EMI/CC entries.</div>
+    <div class="analogy">Two cricket batsmen both average 50. Batsman A always scores 45-55 (low std dev = consistent). Batsman B scores 0 or 100 randomly (high std dev = unpredictable). Same mean, very different std dev.</div>
+    <div class="realworld">Stock volatility IS std dev. Stable blue-chip stock = low std dev. Meme stock = high std dev. In manufacturing, bolt diameter tolerance = std dev specification.</div>
+    <div class="interview">Std dev is √variance, expressed in original units. Used in Z-score (Phase 2), confidence intervals, and neural net weight initialisation. High std dev relative to mean signals skewed data needing preprocessing.</div>
+  </div>
+
+  <!-- DISTRIBUTION -->
+  <div class="card">
+    <div class="card-title">Distribution</div>
+    <div class="card-subtitle">The shape of your data — where values cluster and how spread out they are</div>
+    <span class="tag">Statistics</span><span class="tag">Phase 2</span><span class="tag">Phase 3</span>
+
+    <div class="diagram">Three common shapes:
+
+Normal (bell curve)        Right-skewed (your data)    Left-skewed
+       ███                        █                          █
+      █████                       ██                        ██
+     ███████                      ████                    ████
+    █████████                     ███████░░░░░      ░░░███████
+─────────────────           ──────────────────   ──────────────────
+  mean ≈ median               mean >> median       mean &lt;&lt; median
+  symmetric                   tail on RIGHT        tail on LEFT</div>
+
+    <div class="your-data">Your spending is right-skewed. Tall bars on the left (most expenses ₹100-₹500). Long tail stretching right to ₹1,01,000 (EMIs, CC). Frequency y-axis peaks near 600 at low amounts.</div>
+    <div class="analogy">Exam scores in a class → usually normal (bell curve, most around 60-70). House prices in a city → right-skewed (most affordable, few luxury mansions create the right tail).</div>
+    <div class="realworld">Web server response times are right-skewed. Most requests: 50ms. A few "tail latency" requests: 5000ms. Your 99th percentile SLA is set based on that right tail.</div>
+    <div class="interview">Always plot your distribution before modelling. Right-skewed data needs preprocessing (log transform, robust scaling) for algorithms that assume normality (Z-score, linear regression).</div>
+  </div>
+
+  <!-- NUMPY -->
+  <div class="card">
+    <div class="card-title">numpy vs Python Loops</div>
+    <div class="card-subtitle">Vectorised operations — the reason ML is computationally possible</div>
+    <span class="tag">Engineering</span><span class="tag">All Phases</span>
+
+    <pre><span class="hl-orange"># Python loop — one number at a time (slow)</span>
+total = 0
+for a in df['amount']:       <span class="hl-orange"># 840 iterations</span>
+    total += a
+
+<span class="hl-green"># numpy — entire array at once (fast)</span>
+total = np.sum(df['amount'].values)   <span class="hl-green"># 1 operation</span></pre>
+
+    <div class="your-data">Benchmark on your 840 expenses: Python loop 0.365ms vs numpy 0.159ms = 2× faster. At 1,000,000 rows → ~100× faster. Neural net training runs this millions of times.</div>
+    <div class="analogy">Paying 840 employees. Loop = walk to each desk one by one. numpy = one bank transfer that auto-splits. Same result, completely different scale.</div>
+    <div class="realworld">pandas, scikit-learn, TensorFlow, PyTorch — all built on numpy. When you call model.fit(), it's running optimised matrix operations, not Python loops.</div>
+    <div class="interview">Vectorised operations avoid Python's interpreter overhead and use CPU SIMD instructions. For ML workloads this is the difference between minutes and hours of training time.</div>
+  </div>
+
+  <!-- SUMMARY TABLE -->
+  <h2>Quick Reference</h2>
+  <div class="card" style="padding:0;overflow:hidden">
+    <table>
+      <thead>
+        <tr>
+          <th>Concept</th>
+          <th>One Line</th>
+          <th>Formula</th>
+          <th>Used In</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="hl-yellow">Vector</td>
+          <td>One row of data as a list of numbers</td>
+          <td><code>[x₁, x₂, ... xₙ]</code></td>
+          <td><span class="phase-badge">All phases</span></td>
+        </tr>
+        <tr>
+          <td class="hl-yellow">Matrix</td>
+          <td>The full dataset (rows × columns)</td>
+          <td><code>shape = (n, m)</code></td>
+          <td><span class="phase-badge">All phases</span></td>
+        </tr>
+        <tr>
+          <td class="hl-yellow">Dot Product</td>
+          <td>Multiply element-wise then sum — measures similarity</td>
+          <td><code>a·b = Σ aᵢbᵢ</code></td>
+          <td><span class="phase-badge">1</span> <span class="phase-badge">5</span> <span class="phase-badge">6</span></td>
+        </tr>
+        <tr>
+          <td class="hl-yellow">Mean</td>
+          <td>The centre — sensitive to outliers</td>
+          <td><code>Σx / n</code></td>
+          <td><span class="phase-badge">1</span> <span class="phase-badge">2</span> <span class="phase-badge">3</span></td>
+        </tr>
+        <tr>
+          <td class="hl-yellow">Median</td>
+          <td>Middle value — robust to outliers</td>
+          <td>sort → middle</td>
+          <td><span class="phase-badge">0</span> <span class="phase-badge">2</span></td>
+        </tr>
+        <tr>
+          <td class="hl-yellow">Variance</td>
+          <td>Average squared distance from mean</td>
+          <td><code>Σ(xᵢ-μ)² / n</code></td>
+          <td><span class="phase-badge">2</span> <span class="phase-badge">5</span></td>
+        </tr>
+        <tr>
+          <td class="hl-yellow">Std Dev</td>
+          <td>Spread in original units</td>
+          <td><code>√variance</code></td>
+          <td><span class="phase-badge">2</span> <span class="phase-badge">3</span> <span class="phase-badge">5</span></td>
+        </tr>
+        <tr>
+          <td class="hl-yellow">Distribution</td>
+          <td>Shape of data when plotted as histogram</td>
+          <td>histogram</td>
+          <td><span class="phase-badge">2</span> <span class="phase-badge">3</span></td>
+        </tr>
+        <tr>
+          <td class="hl-yellow">numpy</td>
+          <td>Whole-array operations — ~100× faster than loops</td>
+          <td><code>np.sum(arr)</code></td>
+          <td><span class="phase-badge">All phases</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div style="margin-top:40px;color:var(--muted);font-size:0.8rem;text-align:center">
+    Phase 0 complete · Phase 1 next: Linear Regression
+  </div>
+
+</div>
+</body>
+</html>

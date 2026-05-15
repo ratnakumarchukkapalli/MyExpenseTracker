@@ -32,7 +32,7 @@ The platform I operate on: 40+ .NET 8 microservices, ~120 Helm charts across non
 
 ### What it is
 
-A production-grade, multi-tenant AI operations assistant. ~144K LoC across 149 Python files, 42 test suites with 11K LoC of tests, 143 tool functions, FastAPI + Streamlit, deployed via its own Helm chart to the same Kubernetes cluster it monitors. Built on Anthropic's Claude Opus model accessed through our enterprise SSO M2M authentication path (not the consumer API, not a proxy).
+A production-grade, multi-tenant AI operations assistant. ~144K LoC across 149 Python files, 42 test suites with 11K LoC of tests, 38 tool functions, FastAPI + Streamlit, deployed via its own Helm chart to the same Kubernetes cluster it monitors. Built on Anthropic's Claude Opus model accessed through our enterprise SSO M2M authentication path (not the consumer API, not a proxy).
 
 ### What problem it solves
 
@@ -40,7 +40,7 @@ Engineers were context-switching across `kubectl`, observability dashboards, Pos
 
 ### Architectural decisions I made and what I rejected
 
-**Three specialized agents, not one mega-agent.** I split the system into an Observability agent (logs, traces, metrics, RED correlation), a Cluster/Infra agent (pods, events, HPA, rollouts, plus eight subsystem modules — Postgres, message queues, search, certificates, secret-compare, infra-drift), and a TLS Certificates agent. Reason: tool ambiguity is the #1 failure mode in single-agent designs. With 143 tools in one namespace, the model picks the wrong one frequently; with three scoped agents, each agent's prompt and tool set stay focused.
+**Three specialized agents, not one mega-agent.** I split the system into an Observability agent (logs, traces, metrics, RED correlation), a Cluster/Infra agent (pods, events, HPA, rollouts, plus eight subsystem modules — Postgres, message queues, search, certificates, secret-compare, infra-drift), and a TLS Certificates agent. Reason: tool ambiguity is the #1 failure mode in single-agent designs. With 38 tools in one namespace, the model picks the wrong one frequently; with three scoped agents, each agent's prompt and tool set stay focused.
 
 I considered LangGraph and CrewAI as orchestration frameworks. Both were over-engineered for this use case (graph routing, role-playing) and would have locked me into their abstractions. I built a minimal orchestrator (~530 lines) instead. It's two-stage:
 
@@ -64,7 +64,7 @@ I considered LangGraph and CrewAI as orchestration frameworks. Both were over-en
 Most engineers building internal AI tools wrap an LLM around `kubectl` or an observability API and call it done. This one has:
 
 - **Domain-aware routing** with weighted keyword scoring, not a single agent
-- **143 functional tools** organized into 10 modules, not a thin tool layer
+- **38 functional tools** organized into 10 modules, not a thin tool layer
 - **Native enterprise auth** (M2M — Common Token API), not a shared proxy
 - **Production deployment** on the same cluster it monitors, with its own Helm chart, mesh mTLS, JWT auth, rate limiting, RFC 9457 error format, OpenTelemetry spans, Prometheus metrics
 - **42 test suites and 11K LoC of tests** — most internal AI tools have none
@@ -141,7 +141,7 @@ Representative patterns internalized:
 
 **Breadth:** Kubernetes, PostgreSQL, distributed actors, message queues, AWS (EKS Outposts, EBS, EC2, Secrets Manager, CDN, WAF, DynamoDB, CDK), networking (RFC 7540 cipher constraints, NO_PROXY, VPC endpoints), observability.
 
-**Depth in two areas:** The AI Ops assistant (three-agent orchestrator, 143 tools, enterprise M2M auth, SSE streaming, JWT pre-algorithm validation, NeMo Guardrails) — sole author. PostgreSQL operational layer (config-drift forensics, noisy-neighbor connection-pool pressure, on-prem backup-tool architectural gaps).
+**Depth in two areas:** The AI Ops assistant (three-agent orchestrator, 38 tools, enterprise M2M auth, SSE streaming, JWT pre-algorithm validation, NeMo Guardrails) — sole author. PostgreSQL operational layer (config-drift forensics, noisy-neighbor connection-pool pressure, on-prem backup-tool architectural gaps).
 
 **Solutions-architect mindset:** Challenge tech choices with cost/complexity reasoning. Examples: rejecting shared LLM proxy in favor of M2M (latency + SPOF + identity); rejecting wider Reloader rollout; replacing Lambda with CodeBuild for timeout/cold-start constraints.
 

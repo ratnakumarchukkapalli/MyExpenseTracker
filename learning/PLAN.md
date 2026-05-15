@@ -16,13 +16,13 @@
 ## Current Status
 
 ```
-PHASE    : Phase 0 — Setup
-TOPIC    : ml-service scaffold + Supabase connection + pandas DataFrame + Jupyter explore
-STATUS   : IN PROGRESS
-BEAD     : MyExpenseTracker-01t
-STUDY    : learning/phases/phase-0-setup.md
-NEXT     : Scaffold ml-service/ FastAPI, connect to Supabase, load expenses into pandas,
-           plot monthly spending in Jupyter
+PHASE    : Phase 1 — Linear Regression
+TOPIC    : trend line + forecasting + year-end balance prediction
+STATUS   : TODO
+BEAD     : MyExpenseTracker-k4t
+STUDY    : learning/phases/phase-1-regression.md
+NEXT     : Learn dot product formula, least squares, slope/intercept, R-squared.
+           Build POST /ml/trend endpoint. Plot trend line on monthly spend (Savings excluded).
 ```
 
 ---
@@ -97,7 +97,7 @@ MyExpenseTracker/
 ---
 
 ### Phase 0 — Setup & Data Stack
-**Bead:** MyExpenseTracker-01t | **Status: IN PROGRESS**
+**Bead:** MyExpenseTracker-01t | **Status: DONE**
 **Study file:** `learning/phases/phase-0-setup.md`
 
 **What you build:**

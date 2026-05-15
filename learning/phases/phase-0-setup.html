@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Phase 0 — Setup & Data Stack</title>
+<style>
+  :root {
+    --bg: #0f1117; --surface: #1a1d27; --border: #2a2d3e;
+    --accent: #7c6af7; --accent2: #f7836a; --green: #4ade80;
+    --yellow: #facc15; --text: #e2e8f0; --muted: #94a3b8;
+    --code-bg: #13151f; --tag-bg: #2a1f6e;
+    --analogy-bg: #1a2210; --analogy-text: #bbf7d0;
+    --interview-bg: #1f1510; --interview-text: #fed7aa;
+    --realworld-bg: #101a1f; --realworld-text: #bae6fd;
+    --yourdata-bg: #1a1020; --yourdata-border: #6d28d9; --yourdata-text: #ddd6fe;
+    --formula-bg: #1a1230; --formula-border: #3d2f8f; --formula-text: #c4b5fd;
+    --table-head: #1e2035;
+  }
+  [data-theme="light"] {
+    --bg: #f8fafc; --surface: #ffffff; --border: #e2e8f0;
+    --accent: #5b4fcf; --accent2: #e05a3a; --green: #16a34a;
+    --yellow: #b45309; --text: #1e293b; --muted: #64748b;
+    --code-bg: #f1f5f9; --tag-bg: #ede9fe;
+    --analogy-bg: #f0fdf4; --analogy-text: #166534;
+    --interview-bg: #fff7ed; --interview-text: #9a3412;
+    --realworld-bg: #f0f9ff; --realworld-text: #0c4a6e;
+    --yourdata-bg: #faf5ff; --yourdata-border: #7c3aed; --yourdata-text: #4c1d95;
+    --formula-bg: #eef2ff; --formula-border: #a5b4fc; --formula-text: #3730a3;
+    --table-head: #f8fafc;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; font-size: 15px; line-height: 1.7; padding: 40px 20px; transition: background 0.2s, color 0.2s; }
+  .page { max-width: 920px; margin: 0 auto; }
+  .theme-toggle { position: fixed; top: 20px; right: 20px; background: var(--surface); border: 1px solid var(--border); color: var(--text); border-radius: 8px; padding: 8px 14px; font-size: 0.85rem; cursor: pointer; z-index: 100; font-family: inherit; }
+  .theme-toggle:hover { background: var(--border); }
+  h1 { font-size: 2rem; font-weight: 700; color: var(--accent); margin-bottom: 4px; }
+  .phase-meta { color: var(--muted); font-size: 0.88rem; margin-bottom: 8px; }
+  .done-badge { display: inline-block; background: #14532d; color: #4ade80; font-size: 0.78rem; padding: 3px 10px; border-radius: 99px; font-weight: 600; margin-bottom: 32px; }
+  [data-theme="light"] .done-badge { background: #dcfce7; color: #15803d; }
+  h2 { font-size: 1rem; font-weight: 700; color: var(--accent); text-transform: uppercase; letter-spacing: 0.08em; margin: 44px 0 18px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 24px; margin-bottom: 20px; }
+  .card-title { font-size: 1.15rem; font-weight: 700; color: var(--yellow); margin-bottom: 4px; }
+  .card-subtitle { color: var(--muted); font-size: 0.88rem; margin-bottom: 14px; }
+  .tag { display: inline-block; background: var(--tag-bg); color: var(--accent); font-size: 0.74rem; padding: 2px 9px; border-radius: 99px; margin-right: 5px; margin-bottom: 12px; }
+  code, pre { font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 0.84rem; }
+  pre { background: var(--code-bg); border: 1px solid var(--border); border-radius: 8px; padding: 16px; overflow-x: auto; margin: 12px 0; line-height: 1.6; }
+  .diagram { background: var(--code-bg); border: 1px solid var(--border); border-left: 3px solid var(--accent); border-radius: 8px; padding: 16px; margin: 12px 0; font-family: monospace; font-size: 0.84rem; white-space: pre; overflow-x: auto; }
+  .formula { background: var(--formula-bg); border: 1px solid var(--formula-border); border-radius: 8px; padding: 14px 18px; margin: 12px 0; font-family: monospace; color: var(--formula-text); font-size: 0.9rem; }
+  .analogy { background: var(--analogy-bg); border-left: 3px solid var(--green); padding: 12px 16px; border-radius: 0 8px 8px 0; margin: 10px 0; font-size: 0.88rem; color: var(--analogy-text); }
+  .analogy::before { content: "💡 Analogy: "; font-weight: 600; }
+  .interview { background: var(--interview-bg); border-left: 3px solid var(--accent2); padding: 12px 16px; border-radius: 0 8px 8px 0; margin: 10px 0; font-size: 0.87rem; color: var(--interview-text); }
+  .interview::before { content: "🎯 Interview: "; font-weight: 600; }
+  .realworld { background: var(--realworld-bg); border-left: 3px solid #38bdf8; padding: 12px 16px; border-radius: 0 8px 8px 0; margin: 10px 0; font-size: 0.87rem; color: var(--realworld-text); }
+  .realworld::before { content: "🌍 Real world: "; font-weight: 600; }
+  .yourdata { background: var(--yourdata-bg); border: 1px solid var(--yourdata-border); border-radius: 8px; padding: 12px 16px; margin: 10px 0; font-size: 0.87rem; color: var(--yourdata-text); }
+  .yourdata::before { content: "📊 Your data: "; font-weight: 600; color: var(--accent); }
+  .hl-y { color: var(--yellow); } .hl-g { color: var(--green); } .hl-p { color: var(--formula-text); }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .mini-label { font-weight: 600; color: var(--yellow); margin-bottom: 8px; font-size: 0.9rem; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.87rem; margin-top: 12px; }
+  th { background: var(--table-head); color: var(--accent); padding: 10px 14px; text-align: left; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.05em; }
+  td { padding: 10px 14px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: var(--table-head); }
+  .badge { font-size: 0.74rem; padding: 2px 7px; border-radius: 99px; background: var(--table-head); color: var(--muted); margin-right: 3px; }
+  .checklist { list-style: none; padding: 0; }
+  .checklist li { padding: 6px 0; border-bottom: 1px solid var(--border); font-size: 0.9rem; }
+  .checklist li:last-child { border-bottom: none; }
+  .check { color: var(--green); margin-right: 8px; font-weight: 700; }
+  footer { margin-top: 48px; color: var(--muted); font-size: 0.8rem; text-align: center; padding-top: 24px; border-top: 1px solid var(--border); }
+  @media (max-width: 600px) { .grid2 { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<button class="theme-toggle" onclick="toggleTheme()" id="themeBtn">☀️ Light mode</button>
+<script>
+  function toggleTheme() {
+    const h = document.documentElement, b = document.getElementById('themeBtn');
+    if (h.getAttribute('data-theme') === 'light') { h.removeAttribute('data-theme'); b.textContent = '☀️ Light mode'; localStorage.setItem('mltheme','dark'); }
+    else { h.setAttribute('data-theme','light'); b.textContent = '🌙 Dark mode'; localStorage.setItem('mltheme','light'); }
+  }
+  if (localStorage.getItem('mltheme') === 'light') {
+    document.documentElement.setAttribute('data-theme','light');
+    document.addEventListener('DOMContentLoaded', () => { document.getElementById('themeBtn').textContent = '🌙 Dark mode'; });
+  }
+</script>
+
+<div class="page">
+  <h1>Phase 0 — Setup &amp; Data Stack</h1>
+  <div class="phase-meta">MyExpenseTracker ML · Prerequisites for all phases</div>
+  <div class="done-badge">✓ COMPLETE</div>
+
+  <!-- WHAT WE BUILT -->
+  <h2>What We Built</h2>
+  <div class="card">
+    <div class="diagram">ml-service/
+├── main.py            ← FastAPI app, GET /health → {"status":"ok"}
+├── db.py              ← Supabase → pandas DataFrame loader
+├── requirements.txt   ← pinned dependencies (supabase==2.30.0)
+└── notebooks/
+    └── explore.ipynb  ← 5 cells exploring YOUR real expense data
+
+Start: cd ml-service && source venv/bin/activate
+       uvicorn main:app --reload --port 8001</div>
+  </div>
+
+  <!-- CONCEPTS -->
+  <h2>Math Concepts</h2>
+
+  <!-- VECTOR -->
+  <div class="card">
+    <div class="card-title">Vector</div>
+    <div class="card-subtitle">A list of numbers representing one thing</div>
+    <span class="tag">Linear Algebra</span><span class="tag">All Phases</span>
+    <div class="diagram">One expense row = one vector
+
+  ┌────────────┬────────┬──────────┬─────────┐
+  │ 20260501   │ 450.0  │    0     │    1    │
+  └────────────┴────────┴──────────┴─────────┘
+     date        amount   category   payment
+  ◄──────────────── 4 dimensions ────────────►</div>
+    <div class="formula">vector = [x₁, x₂, x₃, ... xₙ]   ← n values, n dimensions</div>
+    <div class="analogy">Your Swiggy receipt. One purchase described by multiple values. Convert each to a number → that list IS a vector.</div>
+    <div class="realworld">Google Search converts your query into a vector. Results whose vectors are closest get ranked higher.</div>
+    <div class="interview">A vector is an ordered list of numbers representing a point in n-dimensional space. In ML, one row of a dataset is called a feature vector.</div>
+  </div>
+
+  <!-- MATRIX -->
+  <div class="card">
+    <div class="card-title">Matrix</div>
+    <div class="card-subtitle">A table of numbers — rows × columns. A stack of vectors.</div>
+    <span class="tag">Linear Algebra</span><span class="tag">All Phases</span>
+    <div class="diagram">Your expenses table = matrix of shape (837, 3)
+
+         amount  category  payment
+       ┌────────┬──────────┬─────────┐
+row 0  │  450   │    0     │    1   │  ← vector
+row 1  │ 1800   │    1     │    0   │  ← vector
+row 2  │  320   │    0     │    1   │  ← vector
+  ...  │  ...   │   ...    │   ...  │
+row 836│  ...   │   ...    │   ...  │  ← vector
+       └────────┴──────────┴─────────┘
+    837 rows (n_samples)   3 cols (n_features)
+
+df.shape = (837, 3)</div>
+    <div class="formula">shape = (rows, columns) = (n_samples, n_features)</div>
+    <div class="analogy">Your expenses spreadsheet. Every row is one expense (vector). Stack 837 of them → a matrix. Every ML algorithm is just math on this matrix.</div>
+    <div class="realworld">A 100×100 grayscale image = a (100,100) matrix. Each number = pixel brightness. Neural nets read images as matrices directly.</div>
+    <div class="interview">A matrix is a 2D array with shape (m, n). Training data is represented as matrix X of shape (n_samples, n_features).</div>
+  </div>
+
+  <!-- DOT PRODUCT -->
+  <div class="card">
+    <div class="card-title">Dot Product</div>
+    <div class="card-subtitle">Multiply element-by-element, then sum. The core operation of ALL ML.</div>
+    <span class="tag">Linear Algebra</span><span class="tag">Phase 1</span><span class="tag">Phase 5</span><span class="tag">Phase 6</span>
+    <div class="diagram">Step 1 — multiply element-by-element:
+
+  a = [  1,    2,    3  ]
+       ×      ×      ×
+  b = [  4,    5,    6  ]
+       =      =      =
+      [  4,   10,   18  ]
+
+Step 2 — sum:   4 + 10 + 18 = <span class="hl-y">32</span></div>
+    <div class="formula">a · b = a[0]×b[0] + a[1]×b[1] + ... + a[n]×b[n]</div>
+    <div class="diagram">Linear regression IS a dot product:
+
+  features = [month,  prev_spend,  season]
+  weights  = [  w1,      w2,        w3  ]
+
+  prediction = features · weights
+  The algorithm finds the best weights vector — that's its only job.
+
+Similarity rule:
+  a·b = large  →  vectors are similar (same direction)
+  a·b = 0      →  nothing in common (perpendicular)</div>
+    <div class="realworld">Netflix: your_taste · movie_profile = match score. Higher dot product = better match. Every recommendation engine works this way.</div>
+    <div class="interview">Dot product is the fundamental operation in ML. Linear regression, neural network layers, and transformer attention are all dot products. It measures alignment between two vectors.</div>
+  </div>
+
+  <!-- MEAN & MEDIAN -->
+  <div class="card">
+    <div class="card-title">Mean &amp; Median</div>
+    <div class="card-subtitle">Two ways to describe the centre of your data</div>
+    <span class="tag">Statistics</span><span class="tag">Phase 1</span><span class="tag">Phase 2</span>
+    <div class="grid2">
+      <div>
+        <div class="mini-label">Mean</div>
+        <div class="formula">mean = sum / count
+= (100+200+300+400+500) / 5
+= <span class="hl-g">300</span></div>
+        <div style="font-size:0.85rem;color:var(--muted);margin-top:8px">Sensitive to outliers. One large EMI pulls it up.</div>
+      </div>
+      <div>
+        <div class="mini-label">Median</div>
+        <div class="formula">Sort → pick middle value
+[100, 200, <span class="hl-g">300</span>, 400, 500]
+median = 300</div>
+        <div style="font-size:0.85rem;color:var(--muted);margin-top:8px">Ignores outliers. Use when data is skewed.</div>
+      </div>
+    </div>
+    <div class="yourdata">Mean = ₹3,999 vs Median = ₹619. EMI/CC payments pull mean up. Median tells the real story — most day-to-day expenses are under ₹619.</div>
+    <div class="analogy">5 friends' salaries: ₹3L, ₹4L, ₹5L, ₹6L, ₹82L. Mean = ₹20L (looks rich). Median = ₹5L (actual reality). One outlier destroyed the mean.</div>
+    <div class="interview">When mean >> median, data is right-skewed. For skewed distributions, median is a better measure of central tendency. Always check both.</div>
+  </div>
+
+  <!-- VARIANCE & STD DEV -->
+  <div class="card">
+    <div class="card-title">Variance &amp; Standard Deviation</div>
+    <div class="card-subtitle">How spread out is the data from the centre?</div>
+    <span class="tag">Statistics</span><span class="tag">Phase 2</span><span class="tag">Phase 5</span>
+    <div class="diagram">Given: [100, 200, 300, 400, 500],  mean = 300
+
+Step 1 — distance from mean:
+  100-300=-200,  200-300=-100,  300-300=0,  400-300=+100,  500-300=+200
+
+Step 2 — square each:
+  40000 + 10000 + 0 + 10000 + 40000 = 100000
+
+Step 3 — average:
+  variance = 100000 / 5 = <span class="hl-y">20000</span>  (in rupees²)
+
+Step 4 — square root to get back to rupees:
+  std dev = sqrt(20000) = <span class="hl-g">141</span></div>
+    <div class="formula">variance = Σ(xᵢ - mean)² / n
+std dev  = √variance</div>
+    <div class="diagram">68-95-99 rule (critical for Phase 2 anomaly detection):
+
+  68%  of data falls within mean ± 1 std dev
+  95%  of data falls within mean ± 2 std dev
+  99.7% of data falls within mean ± 3 std dev
+
+  Anything beyond ±2 std dev = likely anomaly (top 5%)</div>
+    <div class="yourdata">Mean=₹3,999, Std=₹13,301. Std larger than mean = extreme spread. Data is very skewed due to EMI/CC entries.</div>
+    <div class="analogy">Two cricket batsmen both average 50. Batsman A always scores 45-55 (low std dev = consistent). Batsman B scores 0 or 100 randomly (high std dev = unpredictable).</div>
+    <div class="interview">Std dev = √variance, expressed in original units. Used in Z-score (Phase 2), confidence intervals, and weight initialisation. High std dev relative to mean signals skewed data needing preprocessing.</div>
+  </div>
+
+  <!-- DISTRIBUTION -->
+  <div class="card">
+    <div class="card-title">Distribution &amp; Skew</div>
+    <div class="card-subtitle">The shape of your data — where values cluster</div>
+    <span class="tag">Statistics</span><span class="tag">Phase 2</span><span class="tag">Phase 3</span>
+    <div class="diagram">Three shapes:
+
+Normal (bell curve)        Right-skewed (YOUR data)     Left-skewed
+       |||                       |                              |
+      |||||                      ||                            ||
+     |||||||                     ||||                        ||||
+    |||||||||                    ||||||||....           ...||||||||
+  mean = median              mean >> median           mean &lt;&lt; median
+  tail: both sides           tail: RIGHT              tail: LEFT
+
+"Skew" = which side has the long tail on the x-axis.
+YOUR data: tall bars left (most expenses small), long tail right (EMIs).</div>
+    <div class="yourdata">Right-skewed. Mean=₹3,999 >> Median=₹619. Histogram: most expenses cluster at ₹100-500, tail stretches to ₹1,01,000.</div>
+    <div class="realworld">Web server response times = right-skewed. Most requests: 50ms. Rare tail-latency requests: 5000ms. SLA is set at the 99th percentile (the right tail).</div>
+    <div class="interview">Always plot distribution before modelling. Right-skewed data needs preprocessing (log transform, robust scaling) for algorithms that assume normality.</div>
+  </div>
+
+  <!-- CORRELATION -->
+  <div class="card">
+    <div class="card-title">Correlation (r)</div>
+    <div class="card-subtitle">Do two variables move together? How strongly?</div>
+    <span class="tag">Statistics</span><span class="tag">Phase 1</span><span class="tag">Phase 3</span>
+    <div class="diagram">r ranges from -1 to +1:
+
+  r = +1.0   perfect positive  (x up → y always up)
+  r = +0.5   moderate positive (x up → y usually up)
+  r =  0.0   no relationship
+  r = -0.5   moderate negative (x up → y usually down)
+  r = -1.0   perfect negative  (x up → y always down)
+
+Three patterns:
+
+Positive              Negative             None
+    *                *                  *   *
+  *                    *             *    *    *
+ *                       *         *         *   *
+*                          *      *              *
+x increases → y up    y down      no pattern</div>
+    <div class="formula">r = Σ((xᵢ-x̄)(yᵢ-ȳ)) / (n × std_x × std_y)
+r² = R-squared = % of variance explained by the model</div>
+    <div class="yourdata">
+      All categories: r=0.485 (Savings inflate upward trend)<br>
+      Exclude Savings: r=0.298 (real outflows, weak positive)<br>
+      Exclude Savings+LOANS: r=-0.262 (pure discretionary, slightly decreasing)<br><br>
+      Insight: your EMI/CC is growing over time but day-to-day spending is leaner.
+    </div>
+    <div class="analogy">Confounding: Savings entries were masking the real trend. Remove them → r flipped direction. Always understand what's in your data before modelling.</div>
+    <div class="interview">Correlation measures linear relationship strength. r² (R-squared) tells you what % of variance your model explains. Always check correlation before regression — if r≈0 there's nothing to model.</div>
+  </div>
+
+  <!-- NUMPY -->
+  <div class="card">
+    <div class="card-title">numpy vs Python Loops</div>
+    <div class="card-subtitle">Vectorised operations — why ML is computationally possible</div>
+    <span class="tag">Engineering</span><span class="tag">All Phases</span>
+    <pre><span class="hl-p"># Python loop — one number at a time</span>
+total = 0
+for a in df['amount']:
+    total += a          <span class="hl-p"># 840 iterations</span>
+
+<span class="hl-g"># numpy — entire array in one CPU instruction</span>
+total = np.sum(df['amount'].values)   <span class="hl-g"># 1 operation</span></pre>
+    <div class="yourdata">Benchmark: Python 0.365ms vs numpy 0.159ms = 2× on 840 rows. At 1,000,000 rows → ~100× faster. Neural net training = millions of rows × thousands of passes.</div>
+    <div class="analogy">Paying 840 employees. Loop = walk to each desk one by one. numpy = one bank transfer that auto-splits. Same result, completely different scale.</div>
+    <div class="interview">Vectorised operations use CPU SIMD instructions, avoiding Python's interpreter overhead. For ML workloads this is the difference between minutes and hours of training.</div>
+  </div>
+
+  <!-- SUMMARY TABLE -->
+  <h2>Quick Reference</h2>
+  <div class="card" style="padding:0;overflow:hidden">
+    <table>
+      <thead>
+        <tr><th>Concept</th><th>One Line</th><th>Formula</th><th>Phases</th></tr>
+      </thead>
+      <tbody>
+        <tr><td class="hl-y">Vector</td><td>One row of data as a list of numbers</td><td><code>[x₁..xₙ]</code></td><td><span class="badge">All</span></td></tr>
+        <tr><td class="hl-y">Matrix</td><td>Full dataset (rows × columns)</td><td><code>(n, m)</code></td><td><span class="badge">All</span></td></tr>
+        <tr><td class="hl-y">Dot Product</td><td>Multiply element-wise then sum</td><td><code>Σ aᵢbᵢ</code></td><td><span class="badge">1</span><span class="badge">5</span><span class="badge">6</span></td></tr>
+        <tr><td class="hl-y">Mean</td><td>Centre — sensitive to outliers</td><td><code>Σx/n</code></td><td><span class="badge">1</span><span class="badge">2</span><span class="badge">3</span></td></tr>
+        <tr><td class="hl-y">Median</td><td>Middle value — robust to outliers</td><td>sort → mid</td><td><span class="badge">0</span><span class="badge">2</span></td></tr>
+        <tr><td class="hl-y">Variance</td><td>Avg squared distance from mean</td><td><code>Σ(xᵢ-μ)²/n</code></td><td><span class="badge">2</span><span class="badge">5</span></td></tr>
+        <tr><td class="hl-y">Std Dev</td><td>Spread in original units</td><td><code>√variance</code></td><td><span class="badge">2</span><span class="badge">3</span><span class="badge">5</span></td></tr>
+        <tr><td class="hl-y">Distribution</td><td>Shape of data when plotted</td><td>histogram</td><td><span class="badge">2</span><span class="badge">3</span></td></tr>
+        <tr><td class="hl-y">Correlation r</td><td>How strongly two variables move together</td><td><code>-1 to +1</code></td><td><span class="badge">1</span><span class="badge">3</span></td></tr>
+        <tr><td class="hl-y">R-squared</td><td>% of variance explained by model</td><td><code>r²</code></td><td><span class="badge">1</span><span class="badge">3</span></td></tr>
+        <tr><td class="hl-y">numpy</td><td>Whole-array ops — ~100× faster than loops</td><td><code>np.sum(arr)</code></td><td><span class="badge">All</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- DONE WHEN -->
+  <h2>Done When</h2>
+  <div class="card">
+    <ul class="checklist">
+      <li><span class="check">✓</span> uvicorn runs on port 8001, /health returns ok</li>
+      <li><span class="check">✓</span> Jupyter loads 840 expenses from Supabase</li>
+      <li><span class="check">✓</span> Monthly totals chart plotted (Cell 3)</li>
+      <li><span class="check">✓</span> Distribution histogram understood — right-skewed, why</li>
+      <li><span class="check">✓</span> numpy benchmark run — 2× faster on 840 rows</li>
+      <li><span class="check">✓</span> Correlation computed: raw r=0.485, ex-savings r=0.298</li>
+      <li><span class="check">✓</span> PLAN.md updated — Phase 1 is next</li>
+    </ul>
+  </div>
+
+  <footer>Phase 0 complete &nbsp;·&nbsp; Next: <strong>Phase 1 — Linear Regression</strong> &nbsp;·&nbsp; Bead: MyExpenseTracker-k4t</footer>
+</div>
+</body>
+</html>
