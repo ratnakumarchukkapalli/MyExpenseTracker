@@ -18,11 +18,13 @@
 ```
 PHASE    : Phase 1 — Linear Regression
 TOPIC    : trend line + forecasting + year-end balance prediction
-STATUS   : TODO
+STATUS   : IN PROGRESS
 BEAD     : MyExpenseTracker-k4t
-STUDY    : learning/phases/phase-1-regression.md
-NEXT     : Learn dot product formula, least squares, slope/intercept, R-squared.
-           Build POST /ml/trend endpoint. Plot trend line on monthly spend (Savings excluded).
+STUDY    : learning/phases/phase-1-regression.md  (HTML: phase-1-regression.html)
+NEXT     : Theory captured: vectors, dot product, features/weights, bias trick, SSE,
+           why-squared, loss bowl, universal ML recipe, slope=cov/var meaning.
+           Pending: R² intuition → numpy implementation → sklearn verify →
+           POST /ml/trend → Next.js proxy → run on real Supabase data.
 ```
 
 ---

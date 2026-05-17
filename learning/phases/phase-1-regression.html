@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Phase 1 — Linear Regression</title>
+<style>
+  :root {
+    --bg: #0f1117; --surface: #1a1d27; --border: #2a2d3e;
+    --accent: #7c6af7; --accent2: #f7836a; --green: #4ade80;
+    --yellow: #facc15; --text: #e2e8f0; --muted: #94a3b8;
+    --code-bg: #13151f; --tag-bg: #2a1f6e;
+    --analogy-bg: #1a2210; --analogy-text: #bbf7d0;
+    --interview-bg: #1f1510; --interview-text: #fed7aa;
+    --realworld-bg: #101a1f; --realworld-text: #bae6fd;
+    --yourdata-bg: #1a1020; --yourdata-border: #6d28d9; --yourdata-text: #ddd6fe;
+    --formula-bg: #1a1230; --formula-border: #3d2f8f; --formula-text: #c4b5fd;
+    --recipe-bg: #102015; --recipe-border: #15803d; --recipe-text: #bbf7d0;
+    --table-head: #1e2035;
+  }
+  [data-theme="light"] {
+    --bg: #f8fafc; --surface: #ffffff; --border: #e2e8f0;
+    --accent: #5b4fcf; --accent2: #e05a3a; --green: #16a34a;
+    --yellow: #b45309; --text: #1e293b; --muted: #64748b;
+    --code-bg: #f1f5f9; --tag-bg: #ede9fe;
+    --analogy-bg: #f0fdf4; --analogy-text: #166534;
+    --interview-bg: #fff7ed; --interview-text: #9a3412;
+    --realworld-bg: #f0f9ff; --realworld-text: #0c4a6e;
+    --yourdata-bg: #faf5ff; --yourdata-border: #7c3aed; --yourdata-text: #4c1d95;
+    --formula-bg: #eef2ff; --formula-border: #a5b4fc; --formula-text: #3730a3;
+    --recipe-bg: #ecfdf5; --recipe-border: #16a34a; --recipe-text: #14532d;
+    --table-head: #f8fafc;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; font-size: 15px; line-height: 1.7; padding: 40px 20px; transition: background 0.2s, color 0.2s; }
+  .page { max-width: 920px; margin: 0 auto; }
+  .theme-toggle { position: fixed; top: 20px; right: 20px; background: var(--surface); border: 1px solid var(--border); color: var(--text); border-radius: 8px; padding: 8px 14px; font-size: 0.85rem; cursor: pointer; z-index: 100; font-family: inherit; }
+  .theme-toggle:hover { background: var(--border); }
+  h1 { font-size: 2rem; font-weight: 700; color: var(--accent); margin-bottom: 4px; }
+  .phase-meta { color: var(--muted); font-size: 0.88rem; margin-bottom: 8px; }
+  .progress-badge { display: inline-block; background: #422006; color: #facc15; font-size: 0.78rem; padding: 3px 10px; border-radius: 99px; font-weight: 600; margin-bottom: 32px; }
+  [data-theme="light"] .progress-badge { background: #fef3c7; color: #92400e; }
+  h2 { font-size: 1rem; font-weight: 700; color: var(--accent); text-transform: uppercase; letter-spacing: 0.08em; margin: 44px 0 18px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 24px; margin-bottom: 20px; }
+  .card-title { font-size: 1.15rem; font-weight: 700; color: var(--yellow); margin-bottom: 4px; }
+  .card-subtitle { color: var(--muted); font-size: 0.88rem; margin-bottom: 14px; }
+  .tag { display: inline-block; background: var(--tag-bg); color: var(--accent); font-size: 0.74rem; padding: 2px 9px; border-radius: 99px; margin-right: 5px; margin-bottom: 12px; }
+  code, pre { font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 0.84rem; }
+  pre { background: var(--code-bg); border: 1px solid var(--border); border-radius: 8px; padding: 16px; overflow-x: auto; margin: 12px 0; line-height: 1.6; }
+  .diagram { background: var(--code-bg); border: 1px solid var(--border); border-left: 3px solid var(--accent); border-radius: 8px; padding: 16px; margin: 12px 0; font-family: monospace; font-size: 0.84rem; white-space: pre; overflow-x: auto; }
+  .formula { background: var(--formula-bg); border: 1px solid var(--formula-border); border-radius: 8px; padding: 14px 18px; margin: 12px 0; font-family: monospace; color: var(--formula-text); font-size: 0.9rem; }
+  .recipe { background: var(--recipe-bg); border: 1.5px solid var(--recipe-border); border-radius: 8px; padding: 14px 18px; margin: 16px 0; font-family: monospace; color: var(--recipe-text); font-size: 0.88rem; white-space: pre; overflow-x: auto; }
+  .recipe-label { font-family: 'Segoe UI', system-ui, sans-serif; font-weight: 700; color: var(--green); font-size: 0.95rem; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.05em; }
+  .analogy { background: var(--analogy-bg); border-left: 3px solid var(--green); padding: 12px 16px; border-radius: 0 8px 8px 0; margin: 10px 0; font-size: 0.88rem; color: var(--analogy-text); }
+  .analogy::before { content: "💡 Analogy: "; font-weight: 600; }
+  .interview { background: var(--interview-bg); border-left: 3px solid var(--accent2); padding: 12px 16px; border-radius: 0 8px 8px 0; margin: 10px 0; font-size: 0.87rem; color: var(--interview-text); }
+  .interview::before { content: "🎯 Interview: "; font-weight: 600; }
+  .realworld { background: var(--realworld-bg); border-left: 3px solid #38bdf8; padding: 12px 16px; border-radius: 0 8px 8px 0; margin: 10px 0; font-size: 0.87rem; color: var(--realworld-text); }
+  .realworld::before { content: "🌍 Real world: "; font-weight: 600; }
+  .yourdata { background: var(--yourdata-bg); border: 1px solid var(--yourdata-border); border-radius: 8px; padding: 12px 16px; margin: 10px 0; font-size: 0.87rem; color: var(--yourdata-text); }
+  .yourdata::before { content: "📊 Your data: "; font-weight: 600; color: var(--accent); }
+  .hl-y { color: var(--yellow); } .hl-g { color: var(--green); } .hl-p { color: var(--formula-text); }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .mini-label { font-weight: 600; color: var(--yellow); margin-bottom: 8px; font-size: 0.9rem; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.87rem; margin-top: 12px; }
+  th { background: var(--table-head); color: var(--accent); padding: 10px 14px; text-align: left; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.05em; }
+  td { padding: 10px 14px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: var(--table-head); }
+  .badge { font-size: 0.74rem; padding: 2px 7px; border-radius: 99px; background: var(--table-head); color: var(--muted); margin-right: 3px; }
+  .checklist { list-style: none; padding: 0; }
+  .checklist li { padding: 6px 0; border-bottom: 1px solid var(--border); font-size: 0.9rem; }
+  .checklist li:last-child { border-bottom: none; }
+  .check { color: var(--muted); margin-right: 8px; font-weight: 700; }
+  .check.done { color: var(--green); }
+  footer { margin-top: 48px; color: var(--muted); font-size: 0.8rem; text-align: center; padding-top: 24px; border-top: 1px solid var(--border); }
+  @media (max-width: 600px) { .grid2 { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<button class="theme-toggle" onclick="toggleTheme()" id="themeBtn">☀️ Light mode</button>
+<script>
+  function toggleTheme() {
+    const h = document.documentElement, b = document.getElementById('themeBtn');
+    if (h.getAttribute('data-theme') === 'light') { h.removeAttribute('data-theme'); b.textContent = '☀️ Light mode'; localStorage.setItem('mltheme','dark'); }
+    else { h.setAttribute('data-theme','light'); b.textContent = '🌙 Dark mode'; localStorage.setItem('mltheme','light'); }
+  }
+  if (localStorage.getItem('mltheme') === 'light') {
+    document.documentElement.setAttribute('data-theme','light');
+    document.addEventListener('DOMContentLoaded', () => { document.getElementById('themeBtn').textContent = '🌙 Dark mode'; });
+  }
+</script>
+
+<div class="page">
+  <h1>Phase 1 — Linear Regression</h1>
+  <div class="phase-meta">MyExpenseTracker ML · Bead: MyExpenseTracker-k4t</div>
+  <div class="progress-badge">◐ IN PROGRESS</div>
+
+  <!-- BIG IDEA -->
+  <h2>The Big Idea</h2>
+  <div class="card">
+    <div class="card-subtitle">You have N monthly expense totals. Draw the single best line through them.</div>
+    <div class="diagram">₹ Amount
+│                              ● ← actual month
+│           ●               /
+│       ●         →  best line /
+│   ●         /
+│       /  ●
+└─────────────────────────── time</div>
+    <div class="analogy">Once you have the line, extend it forward → that's <strong>forecasting</strong>. The same algorithm trains every neural network in existence — just with many more weights.</div>
+  </div>
+
+  <!-- CONCEPTS -->
+  <h2>Conceptual Foundations</h2>
+
+  <!-- SCALAR VS VECTOR -->
+  <div class="card">
+    <div class="card-title">Scalar vs Vector</div>
+    <div class="card-subtitle">A single number is not a vector. A list is.</div>
+    <span class="tag">Linear Algebra</span><span class="tag">Phase 1</span>
+    <div class="diagram"><span class="hl-y">3262</span>                                       ← scalar (one number)
+[3262, 1250, 20260315, 4]                  ← vector (a whole row)
+[1250, 480, 3200, 750, 950, ...]           ← vector (a whole column, N elements)</div>
+    <div class="formula">Vector = ordered list of numbers. Length is fixed. Order matters.</div>
+    <div class="analogy">A vector is one row OR one column of your expenses table. For Phase 1, the <em>amount</em> column across many months IS your y-vector.</div>
+    <div class="interview">A scalar has no dimensions; a vector lives in n-dimensional space. ML datasets are matrices of feature vectors (rows) plus a target vector (the label column).</div>
+  </div>
+
+  <!-- DOT PRODUCT AS UNIVERSAL COMBINE -->
+  <div class="card">
+    <div class="card-title">Dot Product as a "Weighted Combine"</div>
+    <div class="card-subtitle">Sum, mean, weighted average, and a regression prediction are all the same operation.</div>
+    <span class="tag">Linear Algebra</span><span class="tag">Phase 1</span><span class="tag">Phase 5</span>
+    <div class="diagram">months   = [1,  2,  3]
+expenses = [40, 50, 60]
+
+months · expenses = 1×40 + 2×50 + 3×60 = <span class="hl-y">320</span></div>
+    <div class="formula">a · b = a₁·b₁ + a₂·b₂ + ... + aₙ·bₙ</div>
+    <div class="diagram">Same operation, different weight vectors → different meanings:
+
+  expenses · <span class="hl-g">[1, 1, 1]</span>          = 150        ← <span class="hl-g">SUM</span>
+  expenses · <span class="hl-g">[1/3, 1/3, 1/3]</span>    = 50         ← <span class="hl-g">MEAN</span>
+  expenses · <span class="hl-g">[w₁, w₂, w₃]</span>       = ?          ← <span class="hl-g">WEIGHTED AVERAGE / PREDICTION</span></div>
+    <div class="analogy">The dot product is the universal "combine these numbers, weighting them however I want" operation. Linear regression's only job: pick the BEST weights.</div>
+    <div class="interview">Sum, mean, dot product, matrix multiplication, neural network forward pass, and transformer attention are all built from one operation: element-wise multiply then sum.</div>
+  </div>
+
+  <!-- FEATURES VS WEIGHTS -->
+  <div class="card">
+    <div class="card-title">Features vs Weights</div>
+    <div class="card-subtitle">The leap from regular programming to machine learning</div>
+    <span class="tag">Core ML Concept</span><span class="tag">All Phases</span>
+    <table>
+      <thead><tr><th></th><th>What it is</th><th>Who decides</th></tr></thead>
+      <tbody>
+        <tr><td class="hl-y">Features</td><td>The inputs you measure → e.g. <code>[month, 1]</code></td><td><strong>YOU</strong> — by deciding what to measure</td></tr>
+        <tr><td class="hl-y">Weights</td><td>Numbers multiplied with features → e.g. <code>[slope, intercept]</code></td><td><strong>The algorithm</strong>, by minimising loss on your data</td></tr>
+      </tbody>
+    </table>
+    <div class="diagram">          Regular Programming             Machine Learning
+          ───────────────────             ────────────────
+You:      Write the rule                  Provide (input, output) examples
+          if month > 9: predict 60000     (1, 45k), (2, 50k), (3, 48k), ...
+Output:   Constants you chose             Constants the algorithm chose
+                                          (slope, intercept) → the trained model</div>
+    <div class="analogy">In regular code you write the rule. In ML you give examples and the algorithm <em>discovers</em> the rule. For Phase 1, "the rule" is the two numbers (slope, intercept) that minimise SSE.</div>
+    <div class="realworld">A pretrained LLM is a 70-billion-weight vector. Nobody set those values by hand — gradient descent did, on terabytes of text.</div>
+    <div class="interview">In ML, you choose the model architecture and feature representation; the algorithm finds the parameter values. This separation is what makes ML scale to problems where rules are too complex to hand-code.</div>
+  </div>
+
+  <!-- BIAS TRICK -->
+  <div class="card">
+    <div class="card-title">The Bias Trick — why a constant "1" sneaks in</div>
+    <div class="card-subtitle">Reformulating the intercept so every prediction is a clean dot product</div>
+    <span class="tag">Linear Algebra</span><span class="tag">Phase 1</span><span class="tag">Phase 5</span>
+    <div class="diagram">Naive:    prediction = slope × month + intercept
+
+Reframed: prediction = slope × month  +  intercept × <span class="hl-y">1</span>
+                                                    ↑
+                                            fake feature, always 1
+
+Dot product form:
+  prediction = [slope, intercept] · [month, <span class="hl-y">1</span>]
+                └── weights ───┘    └ features ┘</div>
+    <div class="formula">Every ML prediction in the universe has shape:    weights · features</div>
+    <div class="analogy">If you skip the "1", then at month=0 the prediction is slope×0 = 0 — you'd have no baseline. The constant 1 lets the intercept survive the dot product.</div>
+    <div class="interview">The bias term is a fake feature whose value is always 1. It lets us write any affine function (Wx + b) as a single dot product. Every neural net layer uses this trick.</div>
+  </div>
+
+  <!-- WHY y=mx+b -->
+  <h2>The Line Equation</h2>
+  <div class="card">
+    <div class="card-title">Where does <code>y = mx + b</code> come from?</div>
+    <div class="card-subtitle">Derived from the definition of "straight" — not assumed</div>
+    <span class="tag">Geometry</span><span class="tag">Phase 1</span>
+    <div class="diagram">A line is the UNIQUE curve whose slope is the same everywhere.
+If the slope changed, the curve would bend → not straight.
+
+y
+│         (x₂, y₂)
+│           ●
+│         ╱│
+│        ╱ │ rise = y₂ − y₁
+│       ╱  │
+│  (x₁,y₁) │
+│    ●─────┘
+│    ╲ run = x₂ − x₁
+└──────────────────── x
+
+For ANY two points on the same line:
+   slope = (y₂ − y₁) / (x₂ − x₁) = constant = m</div>
+    <div class="diagram">Derivation — pick reference point (0, b) where the line crosses the y-axis.
+Pick a general point (x, y). Apply the constant-slope property:
+
+  (y − b) / (x − 0)  =  m
+       y − b          =  m · x
+       <span class="hl-y">y              =  m · x + b   ✓</span></div>
+    <div class="formula">y = m·x + b   ↔   "start at height b. Move x right. Line went up by m·x. You're now at m·x + b."</div>
+    <table>
+      <thead><tr><th>Symbol</th><th>Name</th><th>Meaning</th></tr></thead>
+      <tbody>
+        <tr><td><code>m</code></td><td>Slope</td><td>How fast y changes per unit of x</td></tr>
+        <tr><td><code>b</code></td><td>Intercept</td><td>Value of y when x = 0</td></tr>
+        <tr><td><code>x</code></td><td>Input</td><td>e.g. month index 1, 2, 3, ...</td></tr>
+        <tr><td><code>y</code></td><td>Output</td><td>What the line predicts</td></tr>
+      </tbody>
+    </table>
+    <div class="analogy">Why a line is the right starting model: it's the simplest non-trivial relationship. Rule #1 of ML — start with the simplest model that could work. Anything fancier only earns its keep if it beats the line.</div>
+  </div>
+
+  <!-- PREDICTION VS ACTUAL -->
+  <div class="card">
+    <div class="card-title">Prediction (ŷ) vs Actual (y)</div>
+    <div class="card-subtitle">The hat-notation matters — they're different numbers</div>
+    <span class="tag">Notation</span><span class="tag">All Phases</span>
+    <div class="diagram"><span class="hl-y">y_i</span>        ← actual observed value for point i (from Supabase)
+<span class="hl-g">ŷ_i</span>   "y-hat" ← what the MODEL predicts for point i
+
+  ŷ_i  =  m · x_i  +  b
+
+The GAP between them is what we want to minimise:
+  error_i  =  y_i  −  ŷ_i</div>
+    <div class="analogy">Bare y = truth. y-hat = our guess. The whole job of training is to make ŷ approach y across all data points.</div>
+  </div>
+
+  <!-- CHAIN: LINE → SSE -->
+  <div class="card">
+    <div class="card-title">From <code>y = mx + b</code> to <code>SSE = Σ(y − m·x − b)²</code></div>
+    <div class="card-subtitle">Three substitution links — every symbol has a name</div>
+    <span class="tag">Derivation</span><span class="tag">Phase 1</span>
+    <div class="diagram"><span class="hl-y">Link 1</span> — apply the line to each data point:
+  ŷ_i  =  m · x_i + b
+
+<span class="hl-y">Link 2</span> — error per point = actual minus predicted (substitute ŷ_i):
+  error_i  =  y_i  −  ŷ_i
+           =  y_i  −  (m · x_i + b)
+           =  <span class="hl-g">y_i  −  m · x_i  −  b</span>     ← just expanded the parentheses
+
+<span class="hl-y">Link 3</span> — square (so signs don't cancel + smooth math) and sum across N points:
+  SSE  =  Σ <span class="hl-g">(y_i − m · x_i − b)</span>²</div>
+    <div class="formula">SSE  =  Σ ( yᵢ  −  m·xᵢ + b )²
+            ↑          ↑
+            actual     predicted by the line</div>
+    <div class="analogy">Every symbol inside the parentheses came directly from the line equation. <code>m·x_i + b</code> is just "what the line predicted at point i". Subtracting it from <code>y_i</code> gives the error. Squaring and summing gives a score.</div>
+  </div>
+
+  <!-- SSE -->
+  <h2>The Loss Function</h2>
+  <div class="card">
+    <div class="card-title">SSE — Sum of Squared Errors</div>
+    <div class="card-subtitle">A single number that scores how bad a candidate line is</div>
+    <span class="tag">Loss Function</span><span class="tag">Phase 1</span>
+    <div class="formula">SSE = Σ (y_i − ŷ_i)²        ← sum of squared errors across all N points</div>
+    <div class="diagram">Worked example — candidate line m=2000, b=40000:
+
+  Data point     Prediction        Error    Squared
+  (1, ₹45k)  →   2000×1+40000=42k   +3       9
+  (2, ₹50k)  →   2000×2+40000=44k   +6      36
+  (3, ₹48k)  →   2000×3+40000=46k   +2       4
+                                          ─────
+                                    SSE =   <span class="hl-y">49</span>
+
+A different line gives a different SSE. The line with the SMALLEST SSE wins.</div>
+    <div class="analogy">Is SSE=49 good or bad? Meaningless on its own — depends on the scale of y and the number of points. That's why we ALSO compute R² (a 0-to-1 normalised score) — coming up next session.</div>
+    <div class="interview">SSE / MSE (Mean Squared Error = SSE/N) are the standard regression losses. For classification you'd use cross-entropy; for robust regression, Huber loss. The model + loss + minimiser triple defines every ML system.</div>
+  </div>
+
+  <!-- WHY SQUARED -->
+  <div class="card">
+    <div class="card-title">Why Squared Errors?</div>
+    <div class="card-subtitle">A loss function must satisfy three properties — squaring is the cleanest fit</div>
+    <span class="tag">Math Intuition</span>
+    <table>
+      <thead><tr><th>Property</th><th>Why it matters</th><th>How squaring delivers it</th></tr></thead>
+      <tbody>
+        <tr><td>Penalises wrong predictions</td><td>Bigger miss = bigger score</td><td><code>e²</code> grows with <code>|e|</code></td></tr>
+        <tr><td>Treats +/− errors equally</td><td>+500 isn't better than −500</td><td>Squaring kills the sign</td></tr>
+        <tr><td>Smooth (no kinks)</td><td>So calculus can find the minimum</td><td><code>x²</code> smooth everywhere; <code>|x|</code> has a kink at 0</td></tr>
+      </tbody>
+    </table>
+    <div class="formula">Punishment grows quadratically:  a ₹10k error is 100× worse than ₹1k, not 10×.</div>
+    <div class="analogy">MAE (Mean Absolute Error) is also valid and robust to outliers — but no clean closed-form solution because of the kink in |x| at 0. Phase 1 uses SSE because it gives us the exact formula.</div>
+  </div>
+
+  <!-- WHY DERIVATIVES -->
+  <h2>Finding the Best Line</h2>
+  <div class="card">
+    <div class="card-title">The Loss Bowl + Why Derivatives</div>
+    <div class="card-subtitle">SSE is a function of (m, b). The minimum is where derivatives equal zero.</div>
+    <span class="tag">Calculus</span><span class="tag">Phase 1</span><span class="tag">Phase 5</span>
+    <div class="diagram">SSE depends on two unknowns (m, b) → 3D bowl shape:
+
+        SSE
+         │      ╱╲
+         │     ╱  ╲          ← high SSE = bad line
+         │    ╱    ╲
+         │   ╱  <span class="hl-g">●</span>   ╲        ← bottom of bowl = best (m*, b*)
+         │  ╱        ╲
+         └──────────────  (m, b) plane</div>
+    <div class="diagram">Finding the minimum of any function f(x):
+
+  f(x)
+   │   ╲                ╱
+   │    ╲      <span class="hl-g">●</span>       ╱       <span class="hl-g">●</span> = minimum (derivative = 0)
+   │     ╲    ╱ ╲     ╱
+   │      ╲  ╱   ╲   ╱
+   │       ╲╱     ╲ ╱
+   └────────────────────  x
+       slope &lt; 0   slope = 0   slope &gt; 0
+       (downhill)  (bottom)    (uphill)</div>
+    <div class="formula">Recipe: set ∂SSE/∂m = 0 AND ∂SSE/∂b = 0   →   two equations, two unknowns</div>
+    <div class="analogy">Imagine standing on a hillside in fog. The slope of the ground tells you which way is downhill. Where the ground is flat in every direction — you're at the bottom. Calculus formalises this.</div>
+    <div class="interview">Minimising a loss function = setting its gradient (vector of partial derivatives) to zero. For convex losses like SSE on a linear model, this has a closed-form solution. For neural networks the loss is non-convex, so we walk downhill iteratively (gradient descent).</div>
+  </div>
+
+  <!-- FULL DERIVATION -->
+  <div class="card">
+    <div class="card-title">The Full Derivation — where the formulas come from</div>
+    <div class="card-subtitle">Two simple moves: take the derivative, set it to zero. Read once, never wonder again.</div>
+    <span class="tag">Calculus</span><span class="tag">Phase 1</span>
+    <div class="formula">Starting point:  SSE(m, b) = Σ (yᵢ − m·xᵢ − b)²</div>
+
+    <div class="mini-label" style="margin-top:18px">Step 1 — derivative w.r.t. <code>b</code></div>
+    <div class="diagram">∂SSE/∂b  =  Σ 2·(yᵢ − m·xᵢ − b)·(−1)
+         =  −2 · Σ (yᵢ − m·xᵢ − b)
+
+Set to zero:
+  Σ (yᵢ − m·xᵢ − b) = 0
+  Σ yᵢ  −  m·Σ xᵢ  −  N·b  =  0        ← N copies of b
+
+Divide by N (take means):
+  ȳ − m·x̄ − b = 0</div>
+    <div class="formula">→  b = ȳ − m·x̄        <span class="hl-g">✓ INTERCEPT FORMULA</span></div>
+    <div class="analogy">Meaning: the best line is FORCED to pass through (x̄, ȳ) — the centre of mass of your data. Once slope is known, intercept is determined.</div>
+
+    <div class="mini-label" style="margin-top:18px">Step 2 — derivative w.r.t. <code>m</code></div>
+    <div class="diagram">∂SSE/∂m  =  Σ 2·(yᵢ − m·xᵢ − b)·(−xᵢ)         ← inner derivative is −xᵢ now
+         =  −2 · Σ xᵢ·(yᵢ − m·xᵢ − b)
+
+Set to zero:
+  Σ xᵢ·yᵢ  −  m·Σ xᵢ²  −  b·Σ xᵢ  =  0        ... (★)</div>
+
+    <div class="mini-label" style="margin-top:18px">Step 3 — substitute <code>b</code> from Step 1, solve for <code>m</code></div>
+    <div class="diagram">Plug b = ȳ − m·x̄ into (★):
+
+  Σ xᵢ·yᵢ  −  m·Σ xᵢ²  −  (ȳ − m·x̄)·Σ xᵢ  =  0
+  Σ xᵢ·yᵢ  −  ȳ·Σ xᵢ   =   m·Σ xᵢ²  −  m·x̄·Σ xᵢ
+  Σ xᵢ·(yᵢ − ȳ)        =   m · Σ xᵢ·(xᵢ − x̄)
+
+Algebra trick: Σ x̄·(yᵢ − ȳ) = 0  and  Σ x̄·(xᵢ − x̄) = 0,
+so we can replace xᵢ with (xᵢ − x̄) on both sides:
+
+  Σ (xᵢ − x̄)·(yᵢ − ȳ)   =   m · Σ (xᵢ − x̄)²
+
+Solve:
+         Σ (xᵢ − x̄)·(yᵢ − ȳ)        cov(x, y)
+  m  =  ────────────────────────  =  ───────────
+            Σ (xᵢ − x̄)²                var(x)</div>
+    <div class="formula">→  m = cov(x, y) / var(x)        <span class="hl-g">✓ SLOPE FORMULA</span></div>
+    <div class="interview">For convex losses on linear models, ∇Loss = 0 has a closed-form solution. For neural nets the gradient equation is too hairy to solve algebraically, so we walk downhill iteratively. Same principle: find where the gradient is zero.</div>
+    <div class="realworld">Closed-form solutions like this are why linear models still dominate banking, insurance, and any regulated industry — every prediction is reproducible from a tiny, auditable formula.</div>
+  </div>
+
+  <!-- UNIVERSAL RECIPE -->
+  <div class="card">
+    <div class="card-title">The Universal ML Recipe</div>
+    <div class="card-subtitle">Every algorithm in this learning plan follows this exact 3-step pattern</div>
+    <span class="tag">Mental Model</span><span class="tag">All Phases</span>
+    <div class="recipe-label">Memorise this</div>
+    <div class="recipe">1. Pick a model       →  here:  ŷ = mx + b
+2. Pick a loss        →  here:  SSE
+3. Minimise the loss
+   ├── Closed-form    →  calculus → exact formulas      <span class="hl-g">(linear regression)</span>
+   └── Iterative      →  gradient descent               <span class="hl-y">(every other model)</span></div>
+    <div class="analogy">Linear regression is the ONLY model in this plan with a closed-form answer. Logistic regression, decision trees, neural nets, transformers — all use gradient descent because the math gets too gnarly for closed-form. But the recipe is the same: model + loss + minimise.</div>
+    <div class="realworld">When you read an ML paper, the first three things to identify: the model architecture, the loss function, and the optimiser. That's the whole system in a single sentence.</div>
+  </div>
+
+  <!-- SLOPE FORMULA MEANING -->
+  <div class="card">
+    <div class="card-title">Slope Formula — Plain English Meaning</div>
+    <div class="card-subtitle">m = cov(x,y) / var(x) is not magic — it's forced by minimising SSE</div>
+    <span class="tag">Statistics</span><span class="tag">Phase 1</span>
+    <div class="formula">       Σ (xᵢ − x̄)(yᵢ − ȳ)        cov(x, y)
+m  =  ────────────────────  =  ──────────
+         Σ (xᵢ − x̄)²              var(x)</div>
+    <table>
+      <thead><tr><th>Term</th><th>Name</th><th>What it measures</th></tr></thead>
+      <tbody>
+        <tr><td><code>cov(x, y)</code></td><td>Covariance</td><td>How much x and y move <em>together</em></td></tr>
+        <tr><td><code>var(x)</code></td><td>Variance</td><td>How much x spreads out on its own</td></tr>
+      </tbody>
+    </table>
+    <div class="formula">Slope = (how much x and y move together) ÷ (how much x moves)</div>
+    <div class="diagram">  cov &gt; 0   →  x and y rise together         →  slope <span class="hl-g">positive</span>
+  cov &lt; 0   →  x rises while y falls          →  slope <span class="hl-y">negative</span>
+  cov ≈ 0   →  y ignores x                    →  slope ≈ 0
+
+Intercept formula: b = ȳ − m·x̄
+  → The best line ALWAYS passes through (x̄, ȳ) — the centre of mass of your data.
+  → Once you know the slope, the intercept is forced.</div>
+    <div class="yourdata">For your monthly expenses, x = month index (1..N), y = total spend. Slope tells you how much your spending changes per month. R² (next) tells you whether the line is actually trustworthy.</div>
+  </div>
+
+  <!-- R-SQUARED -->
+  <h2>Evaluating the Fit</h2>
+  <div class="card">
+    <div class="card-title">R² — Is the Line Actually Worth Trusting?</div>
+    <div class="card-subtitle">SSE on its own is unreadable. R² normalises it to a 0-to-1 score you can interpret.</div>
+    <span class="tag">Statistics</span><span class="tag">Phase 1</span><span class="tag">Phase 3</span>
+    <div class="formula">          SSE             Σ (yᵢ − ŷᵢ)²
+R²  =  1  −  ─────  =  1  −  ──────────────
+          SST             Σ (yᵢ − ȳ)²
+
+SSE = sum of squared errors from YOUR line
+SST = sum of squared errors from the WORST-CASE model (just predict the mean every time)</div>
+    <div class="diagram">Interpretation:
+
+  R² = <span class="hl-g">1.0</span>   →  perfect prediction (every point on the line)
+  R² = <span class="hl-y">0.7</span>   →  your line explains 70% of the variance — good
+  R² = <span class="hl-y">0.3</span>   →  weak trend — line barely better than predicting the mean
+  R² = <span class="hl-y">0.0</span>   →  your line is no better than just shouting "ȳ" every time
+  R² &lt; 0     →  your line is WORSE than the mean — model is broken</div>
+    <div class="analogy">R² answers: "How much of the wiggling in y did my line actually explain?" 0% means none — y is random as far as your features are concerned. 100% means the line nailed it.</div>
+    <div class="yourdata">For your monthly expenses with "noisy" trend, expect R² somewhere between 0.3 and 0.7. Below 0.3, don't trust the forecast — the line isn't capturing enough signal to project forward safely.</div>
+    <div class="interview">R² is also called the coefficient of determination. It compares your model's error against a baseline (predict the mean). Always report R² alongside any regression — without it, slope and intercept are meaningless.</div>
+  </div>
+
+  <!-- GRADIENT DESCENT INTUITION -->
+  <h2>Beyond Closed-Form</h2>
+  <div class="card">
+    <div class="card-title">Gradient Descent — How Neural Nets Find Weights</div>
+    <div class="card-subtitle">When the math is too hairy for closed-form, walk downhill instead</div>
+    <span class="tag">Optimisation</span><span class="tag">Phase 1</span><span class="tag">Phase 5</span>
+    <div class="diagram">Linear regression gives us the slope/intercept in ONE shot
+via the closed-form formula (cov/var, etc.).
+
+Neural networks have millions of weights and a non-convex loss surface
+→ no closed form possible. Instead: walk downhill iteratively.
+
+The algorithm:
+
+  1.  start with RANDOM weights (slope, intercept, ... whatever)
+  2.  loop:
+       a.  compute current SSE on the data
+       b.  compute the GRADIENT — direction of steepest uphill
+       c.  step a tiny amount in the OPPOSITE direction (downhill)
+       d.  repeat until SSE stops improving</div>
+    <div class="formula">"gradient" = vector of partial derivatives = (∂SSE/∂m, ∂SSE/∂b, ...)
+Walking the OPPOSITE direction is called "gradient descent".</div>
+    <div class="diagram">SSE
+ │ ╲                              ╱
+ │   ╲   ←─ start here (random)  ╱
+ │    ╲                         ╱
+ │     ●─→ ● ─→ ● ─→ ● ─→ ● ─→ <span class="hl-g">●</span>     <span class="hl-g">●</span> = minimum
+ │              walk downhill
+ └─────────────────────────────────  weight</div>
+    <div class="analogy">Imagine standing on a foggy hillside. You can't see the valley — but you can feel which way the ground slopes. Step downhill. Repeat. Eventually you reach the bottom. Same idea, in millions of dimensions.</div>
+    <div class="realworld">Linear regression: closed-form (cov/var). Logistic regression: gradient descent (no closed form because of the sigmoid). Neural networks: gradient descent + backpropagation (chain rule applied through layers). The RECIPE is the same — only step 3 differs.</div>
+    <div class="interview">For convex losses on linear models, gradient descent and closed-form give the same answer. For non-convex losses (neural nets), there's no closed form and gradient descent may converge to a local minimum, not the global one. Choice of learning rate, initialisation, and optimiser (SGD, Adam) all matter.</div>
+  </div>
+
+  <!-- QUICK REF -->
+  <h2>Quick Reference</h2>
+  <div class="card" style="padding:0;overflow:hidden">
+    <table>
+      <thead><tr><th>Concept</th><th>One line</th><th>Formula / Code</th></tr></thead>
+      <tbody>
+        <tr><td class="hl-y">SSE</td><td>How bad is this line? — one number</td><td><code>Σ (yᵢ − ŷᵢ)²</code></td></tr>
+        <tr><td class="hl-y">Features</td><td>Inputs you give the model</td><td><code>[month, 1]</code></td></tr>
+        <tr><td class="hl-y">Weights</td><td>Numbers the algorithm finds</td><td><code>[slope, intercept]</code></td></tr>
+        <tr><td class="hl-y">Bias trick</td><td>The "always-1" feature for the intercept</td><td>append <code>1</code> to features</td></tr>
+        <tr><td class="hl-y">Slope</td><td>How x and y move together / how x moves</td><td><code>np.cov(x,y)[0,1] / np.var(x)</code></td></tr>
+        <tr><td class="hl-y">Intercept</td><td>Forces line through (x̄, ȳ)</td><td><code>np.mean(y) − slope·np.mean(x)</code></td></tr>
+        <tr><td class="hl-y">R²</td><td>% of y-variance the model explains</td><td><code>1 − SSE / Σ(yᵢ−ȳ)²</code></td></tr>
+        <tr><td class="hl-y">Recipe</td><td>Every ML algorithm in one line</td><td>model + loss + minimise</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- DONE WHEN -->
+  <h2>Done When</h2>
+  <div class="card">
+    <ul class="checklist">
+      <li><span class="check">○</span> Numpy implementation works and matches sklearn output</li>
+      <li><span class="check">○</span> <code>POST /trend</code> endpoint runs and returns slope, intercept, R², forecast</li>
+      <li><span class="check">○</span> Dashboard shows trend line on monthly expense chart</li>
+      <li><span class="check">○</span> Can explain in own words: what R² means, why we square errors, what gradient descent does</li>
+      <li><span class="check">○</span> Can recite the universal recipe: model + loss + minimise</li>
+      <li><span class="check">○</span> PLAN.md updated → STATUS: DONE, Phase 2 next</li>
+    </ul>
+  </div>
+
+  <footer>Phase 1 in progress &nbsp;·&nbsp; Bead: MyExpenseTracker-k4t &nbsp;·&nbsp; Next: <strong>Phase 2 — Anomaly Detection</strong></footer>
+</div>
+</body>
+</html>
