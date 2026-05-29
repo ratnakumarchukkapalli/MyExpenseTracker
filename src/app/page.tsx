@@ -1,23 +1,15 @@
-import { redirect } from "next/navigation";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
-import AppShell from "@/components/AppShell";
-import { fetchBootstrapData } from "@/lib/bootstrap-data";
+import { Suspense } from "react";
+import Loading from "./loading";
+import DashboardLoader from "./DashboardLoader";
 
-export default async function Home() {
-  const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect("/login");
-  }
-
+export default function Home() {
   const now = new Date();
   const month = now.getMonth() + 1;
   const year = now.getFullYear();
 
-  const initialData = await fetchBootstrapData(supabase, user, month, year);
-
-  return <AppShell initialData={initialData} serverMonth={month} serverYear={year} />;
+  return (
+    <Suspense fallback={<Loading />}>
+      <DashboardLoader month={month} year={year} />
+    </Suspense>
+  );
 }
