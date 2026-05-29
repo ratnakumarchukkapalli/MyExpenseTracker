@@ -323,6 +323,10 @@ function Dashboard({ expenses, subscriptions, monthlySummary, currentMonth, curr
   const nwMomAbs = nwCurrent - nwPrev;
   const nwMomPct = nwPrev > 0 ? ((nwCurrent - nwPrev) / nwPrev) * 100 : null;
 
+  const prevCash = Number(monthlySummary?.previous_month_remaining ?? 0);
+  const cashMomAbs = currentCash - prevCash;
+  const cashMomPct = prevCash > 0 ? ((currentCash - prevCash) / prevCash) * 100 : null;
+
   const salary = Number(monthlySummary?.salary || 0);
   const sodexoBalance = Number(monthlySummary?.sodexo_balance || 0);
   // Prefer stored sodexo_spent (set by server-side recalc or migration) over live expense filter
@@ -497,7 +501,13 @@ function Dashboard({ expenses, subscriptions, monthlySummary, currentMonth, curr
             <div className="serif dash-stat-value" style={{ fontSize: 26, marginTop: 4, color: 'var(--ink)' }}>
               {privacyMode ? PRIVACY_MASK : formatCurrency(currentCash)}
             </div>
-
+            {!privacyMode && cashMomPct !== null && (
+              <div className="dash-hero-deltas" style={{ marginTop: 6 }}>
+                <span className={`delta-pill ${cashMomAbs >= 0 ? 'pos' : 'neg'}`}>
+                  {cashMomAbs >= 0 ? '↑' : '↓'} {Math.abs(cashMomPct).toFixed(1)}% MoM
+                </span>
+              </div>
+            )}
           </div>
           <div className="hr" />
           <div className="stat-bar-row">
