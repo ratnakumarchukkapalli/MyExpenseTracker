@@ -45,16 +45,17 @@
   .tag { display: inline-block; background: var(--tag-bg); color: var(--accent); font-size: 0.74rem; padding: 2px 9px; border-radius: 99px; margin-right: 5px; margin-bottom: 12px; }
   code, pre { font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 0.84rem; }
   pre { background: var(--code-bg); border: 1px solid var(--border); border-radius: 8px; padding: 16px; overflow-x: auto; margin: 12px 0; line-height: 1.6; }
-  .diagram { background: var(--code-bg); border: 1px solid var(--border); border-left: 3px solid var(--accent); border-radius: 8px; padding: 16px; margin: 12px 0; font-family: monospace; font-size: 0.84rem; white-space: pre; overflow-x: auto; }
-  .formula { background: var(--formula-bg); border: 1px solid var(--formula-border); border-radius: 8px; padding: 14px 18px; margin: 12px 0; font-family: monospace; color: var(--formula-text); font-size: 0.9rem; }
-  .analogy { background: var(--analogy-bg); border-left: 3px solid var(--green); padding: 12px 16px; border-radius: 0 8px 8px 0; margin: 10px 0; font-size: 0.88rem; color: var(--analogy-text); }
+  .diagram { background: var(--code-bg); border: 1px solid var(--border); border-left: 3px solid var(--accent); border-radius: 8px; padding: 18px 16px; margin: 16px 0; font-family: monospace; font-size: 0.84rem; white-space: pre; overflow-x: auto; line-height: 1.7; }
+  .formula { background: var(--formula-bg); border: 1px solid var(--formula-border); border-radius: 8px; padding: 16px 18px; margin: 16px 0; font-family: monospace; color: var(--formula-text); font-size: 0.9rem; line-height: 1.8; }
+  .analogy { background: var(--analogy-bg); border-left: 3px solid var(--green); padding: 14px 18px; border-radius: 0 8px 8px 0; margin: 14px 0; font-size: 0.88rem; color: var(--analogy-text); line-height: 1.7; }
   .analogy::before { content: "💡 Analogy: "; font-weight: 600; }
-  .interview { background: var(--interview-bg); border-left: 3px solid var(--accent2); padding: 12px 16px; border-radius: 0 8px 8px 0; margin: 10px 0; font-size: 0.87rem; color: var(--interview-text); }
+  .interview { background: var(--interview-bg); border-left: 3px solid var(--accent2); padding: 14px 18px; border-radius: 0 8px 8px 0; margin: 14px 0; font-size: 0.87rem; color: var(--interview-text); line-height: 1.7; }
   .interview::before { content: "🎯 Interview: "; font-weight: 600; }
-  .realworld { background: var(--realworld-bg); border-left: 3px solid #38bdf8; padding: 12px 16px; border-radius: 0 8px 8px 0; margin: 10px 0; font-size: 0.87rem; color: var(--realworld-text); }
+  .realworld { background: var(--realworld-bg); border-left: 3px solid #38bdf8; padding: 14px 18px; border-radius: 0 8px 8px 0; margin: 14px 0; font-size: 0.87rem; color: var(--realworld-text); line-height: 1.7; }
   .realworld::before { content: "🌍 Real world: "; font-weight: 600; }
-  .yourdata { background: var(--yourdata-bg); border: 1px solid var(--yourdata-border); border-radius: 8px; padding: 12px 16px; margin: 10px 0; font-size: 0.87rem; color: var(--yourdata-text); }
+  .yourdata { background: var(--yourdata-bg); border: 1px solid var(--yourdata-border); border-radius: 8px; padding: 14px 18px; margin: 14px 0; font-size: 0.87rem; color: var(--yourdata-text); line-height: 1.8; }
   .yourdata::before { content: "📊 Your data: "; font-weight: 600; color: var(--accent); }
+  .yourdata p { margin-top: 6px; }
   .hl-y { color: var(--yellow); } .hl-g { color: var(--green); } .hl-p { color: var(--formula-text); }
   .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
   .mini-label { font-weight: 600; color: var(--yellow); margin-bottom: 8px; font-size: 0.9rem; }
@@ -284,10 +285,10 @@ x increases → y up    y down      no pattern</div>
     <div class="formula">r = Σ((xᵢ-x̄)(yᵢ-ȳ)) / (n × std_x × std_y)
 r² = R-squared = % of variance explained by the model</div>
     <div class="yourdata">
-      All categories: r=0.485 (Savings inflate upward trend)<br>
-      Exclude Savings: r=0.298 (real outflows, weak positive)<br>
-      Exclude Savings+LOANS: r=-0.262 (pure discretionary, slightly decreasing)<br><br>
-      Insight: your EMI/CC is growing over time but day-to-day spending is leaner.
+      <p>All categories: r = 0.485 — Savings entries inflate the upward trend</p>
+      <p>Exclude Savings only: r = 0.298 — real outflows, weak positive trend</p>
+      <p>Exclude Savings + LOANS: r = −0.262 — pure discretionary, slightly decreasing</p>
+      <p style="margin-top:10px;font-style:italic">Insight: your EMI/CC outflows are growing over time, but day-to-day discretionary spending is actually leaner.</p>
     </div>
     <div class="analogy">Confounding: Savings entries were masking the real trend. Remove them → r flipped direction. Always understand what's in your data before modelling.</div>
     <div class="interview">Correlation measures linear relationship strength. r² (R-squared) tells you what % of variance your model explains. Always check correlation before regression — if r≈0 there's nothing to model.</div>
