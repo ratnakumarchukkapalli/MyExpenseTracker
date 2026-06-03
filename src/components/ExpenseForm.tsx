@@ -22,14 +22,20 @@ interface Props {
 
 
 
+const LAST_PAYMENT_SOURCE_KEY = 'met_last_payment_source';
+
 function ExpenseForm({ expense, onSubmit, onCancel, defaultDate }: Props) {
+  const lastSource = (typeof window !== 'undefined'
+    ? (localStorage.getItem(LAST_PAYMENT_SOURCE_KEY) as 'bank' | 'sodexo' | null)
+    : null) ?? 'bank';
+
   const [formData, setFormData] = useState({
     date: defaultDate ?? new Date().toISOString().split('T')[0],
     description: '',
     amount: '',
     category: 'Personal',
     note: '',
-    payment_source: 'bank' as 'bank' | 'sodexo',
+    payment_source: lastSource,
   });
 
   useEffect(() => {
@@ -55,6 +61,9 @@ function ExpenseForm({ expense, onSubmit, onCancel, defaultDate }: Props) {
     }
     setIsSubmitting(true);
     try {
+      if (!expense) {
+        localStorage.setItem(LAST_PAYMENT_SOURCE_KEY, formData.payment_source);
+      }
       await onSubmit({ ...formData, amount: parseFloat(formData.amount) });
     } finally {
       setIsSubmitting(false);

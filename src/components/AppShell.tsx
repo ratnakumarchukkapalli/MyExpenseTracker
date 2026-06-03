@@ -427,6 +427,7 @@ function AppShell({ initialData, serverMonth, serverYear }: AppShellProps) {
         amount: Number(expense.amount),
         category: expense.category,
         note: expense.note ?? '',
+        payment_source: (expense as any).payment_source ?? 'bank',
       }),
     });
     if (!res.ok) {
