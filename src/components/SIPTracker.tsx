@@ -472,43 +472,52 @@ const LogSIPModal = ({ funds, onLog, onCancel }: LogSIPModalProps) => {
     if (!selectedFund?.scheme_code || !date) return;
     setLoading(true);
     try {
-      const path = `mf/${selectedFund.scheme_code}`;
+      // Use /latest endpoint — single entry, fast, reliable
+      const path = `mf/${selectedFund.scheme_code}/latest`;
       const res = await fetch(`/api/sip/mfapi?path=${encodeURIComponent(path)}`);
+      if (!res.ok) {
+        alert(`Failed to fetch NAV (HTTP ${res.status}). Please enter NAV manually.`);
+        setLoading(false);
+        return;
+      }
       const data = await res.json();
-      if (!data?.data?.length) { setLoading(false); return; }
-
-      const navByDate: Record<string, number> = {};
-      data.data.forEach((d: { date: string; nav: string }) => {
-        navByDate[convertNavDate(d.date)] = parseFloat(d.nav);
-      });
-
-      let found: { date: string; nav: number } | null = null;
-      for (let offset = 0; offset <= 5; offset++) {
-        const d = new Date(date);
-        d.setDate(d.getDate() - offset);
-        const key = d.toISOString().split('T')[0];
-        if (navByDate[key]) { found = { date: key, nav: navByDate[key] }; break; }
+      if (!data?.data?.length) {
+        alert('No NAV data returned. Please enter NAV manually.');
+        setLoading(false);
+        return;
       }
 
-      if (found) {
-        setNav(String(found.nav.toFixed(4)));
-        if (amount) setUnits((parseFloat(amount) / found.nav).toFixed(4));
-        const navData = data.data.slice(0, 365)
-          .map((d: { date: string; nav: string }) => ({ date: convertNavDate(d.date), nav: d.nav }))
-          .filter((d: { date: string; nav: string }) => d.date && !isNaN(parseFloat(d.nav)));
+      const latest = data.data[0] as { date: string; nav: string };
+      const latestNav = parseFloat(latest.nav);
+      const latestDate = convertNavDate(latest.date); // "15-06-2026" → "2026-06-15"
+
+      // Accept latest NAV if within 7 days of selected date (handles weekends/holidays)
+      const selectedMs = new Date(date).getTime();
+      const latestMs = new Date(latestDate).getTime();
+      const daysDiff = (selectedMs - latestMs) / (1000 * 60 * 60 * 24);
+
+      if (daysDiff >= -1 && daysDiff <= 7) {
+        setNav(String(latestNav.toFixed(4)));
+        if (amount) setUnits((parseFloat(amount) / latestNav).toFixed(4));
         try {
           await fetch('/api/sip/nav-history', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ schemeCode: selectedFund.scheme_code, navData }),
+            body: JSON.stringify({
+              schemeCode: selectedFund.scheme_code,
+              navData: [{ date: latestDate, nav: latest.nav }],
+            }),
           });
         } catch {
           // silently fail — NAV history is optional
         }
       } else {
-        alert('No NAV data found for this date range. Market may have been closed.');
+        alert(`Latest available NAV is from ${latestDate}. Please enter NAV manually for older dates.`);
       }
-    } catch (e) { console.error('Fetch NAV error:', e); }
+    } catch (e) {
+      console.error('Fetch NAV error:', e);
+      alert('Failed to fetch NAV. Please enter it manually.');
+    }
     setLoading(false);
   };
 
