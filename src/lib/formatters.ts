@@ -6,7 +6,7 @@ export function formatToLakhs(amount: number, decimals = 1): string {
 
 export function formatCurrency(amount: number): string {
   if (amount === null || amount === undefined || isNaN(amount)) return '₹0';
-  return `₹${amount.toLocaleString('en-IN')}`;
+  return `₹${Math.round(amount).toLocaleString('en-IN')}`;
 }
 
 export function formatToLakhsSmart(amount: number): string {
