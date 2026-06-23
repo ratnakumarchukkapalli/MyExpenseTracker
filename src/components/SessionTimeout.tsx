@@ -15,6 +15,13 @@ export default function SessionTimeout({ onLogout }: SessionTimeoutProps) {
   const [countdown, setCountdown] = useState(60);
   const logoutTriggered = useRef(false);
 
+  // Always reset timer on mount — stale localStorage from a closed browser tab would
+  // otherwise trigger immediate logout on the very next login.
+  useEffect(() => {
+    localStorage.setItem('session_last_active', Date.now().toString());
+    logoutTriggered.current = false;
+  }, []);
+
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
@@ -31,11 +38,6 @@ export default function SessionTimeout({ onLogout }: SessionTimeoutProps) {
         localStorage.setItem('session_last_active', now.toString());
       }
     };
-
-    // Initial set if not present
-    if (!localStorage.getItem('session_last_active')) {
-      localStorage.setItem('session_last_active', Date.now().toString());
-    }
 
     const checkSession = async () => {
       if (logoutTriggered.current) return;
