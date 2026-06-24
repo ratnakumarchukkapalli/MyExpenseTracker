@@ -50,20 +50,22 @@ function Analytics({ expenses, yearlyRows, currentMonth, currentYear, privacyMod
       .sort((a, b) => b.value - a.value);
   }, [expenses]);
 
-  // 6-month bar chart — total spend per month from yearlyRows
+  // 6-month bar chart — past months only (exclude future carry-forward rows)
   const last6 = useMemo(() => {
-    const sorted = [...yearlyRows].sort((a, b) => a.year !== b.year ? a.year - b.year : a.month - b.month);
+    const sorted = [...yearlyRows]
+      .filter((r) => r.year < currentYear || (r.year === currentYear && r.month <= currentMonth))
+      .sort((a, b) => a.year !== b.year ? a.year - b.year : a.month - b.month);
     return sorted.slice(-6).map((r) => ({
       label: MONTHS_SHORT[r.month - 1],
       networth: Math.round(r.cash + r.fd + r.sip + r.shares + r.nps_pf),
       savings: Math.round(r.savings ?? 0),
     }));
-  }, [yearlyRows]);
+  }, [yearlyRows, currentMonth, currentYear]);
 
-  // Year view — full table for currentYear
+  // Year view — past months only for currentYear
   const yearRows = useMemo(() => {
     return yearlyRows
-      .filter((r) => r.year === currentYear)
+      .filter((r) => r.year === currentYear && r.month <= currentMonth)
       .sort((a, b) => a.month - b.month)
       .map((r) => {
         const networth = r.cash + r.fd + r.sip + r.shares + r.nps_pf;
