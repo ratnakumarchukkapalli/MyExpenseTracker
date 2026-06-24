@@ -25,6 +25,7 @@ interface SipFund {
   units: number;
   invested_value: number;
   current_nav?: number | null;
+  prev_nav?: number | null;
   last_nav_update?: string | null;
 }
 
@@ -107,6 +108,11 @@ const FundCard = ({ fund, onDelete, onRefreshNav }: FundCardProps) => {
   const gainPct = invested > 0 ? (gainAmt / invested) * 100 : 0;
   const breakevenNav = fund.units > 0 ? invested / fund.units : 0;
   const navGapPct = currentNav > 0 ? ((breakevenNav - currentNav) / currentNav) * 100 : 0;
+
+  const prevNav = fund.prev_nav ?? null;
+  const navDayChange = (currentNav > 0 && prevNav != null && prevNav > 0) ? currentNav - prevNav : null;
+  const navDayChangePct = navDayChange != null ? (navDayChange / prevNav!) * 100 : null;
+  const dayChangeAmt = navDayChange != null ? fund.units * navDayChange : null;
 
   const loadTransactions = async () => {
     if (loadingTxn || transactions.length > 0) return;
@@ -232,6 +238,17 @@ const FundCard = ({ fund, onDelete, onRefreshNav }: FundCardProps) => {
                 : '—'}
             </p>
           </div>
+          <div>
+            <p className="text-xs text-gray-500 dark:text-gray-400">Today&apos;s Change</p>
+            {dayChangeAmt != null && navDayChangePct != null ? (
+              <p className={`text-sm font-semibold num ${gainClass(dayChangeAmt)}`}>
+                {dayChangeAmt >= 0 ? '+' : ''}{formatCurrency(Math.abs(dayChangeAmt))}
+                <span className="text-xs font-normal ml-1">({navDayChangePct >= 0 ? '+' : ''}{navDayChangePct.toFixed(2)}%)</span>
+              </p>
+            ) : (
+              <p className="text-sm text-gray-400 dark:text-gray-500">—</p>
+            )}
+          </div>
         </div>
 
         {currentNav > 0 && breakevenNav > 0 && (
@@ -254,7 +271,15 @@ const FundCard = ({ fund, onDelete, onRefreshNav }: FundCardProps) => {
         <div className="flex items-center justify-between mt-3">
           <div className="flex items-center gap-3 text-xs text-gray-400 dark:text-gray-500">
             {fund.current_nav && (
-              <span>NAV: ₹{fund.current_nav.toFixed(4)} · Updated: {fund.last_nav_update || 'never'}</span>
+              <span>
+                NAV: ₹{fund.current_nav.toFixed(4)}
+                {navDayChange != null && (
+                  <span className={`ml-1 font-medium ${navDayChange >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                    ({navDayChange >= 0 ? '+' : ''}₹{navDayChange.toFixed(4)})
+                  </span>
+                )}
+                {' · Updated: '}{fund.last_nav_update || 'never'}
+              </span>
             )}
             {fund.sip_amount > 0 && (
               <span className="text-primary-600 dark:text-primary-400 font-medium">
@@ -1110,6 +1135,12 @@ const SIPTracker = ({ currentMonth: _currentMonth, currentYear: _currentYear, on
   const totalGainPct = totalInvested > 0 ? (totalGain / totalInvested) * 100 : 0;
   const monthlySIP = activeFunds.reduce((s, f) => s + (f.sip_amount ?? 0), 0);
 
+  const dayChangeFunds = funds.filter(f => f.current_nav != null && f.prev_nav != null && f.prev_nav > 0);
+  const totalDayChange = dayChangeFunds.reduce((s, f) => s + f.units * ((f.current_nav ?? 0) - (f.prev_nav ?? 0)), 0);
+  const totalDayChangePct = dayChangeFunds.length > 0
+    ? (totalDayChange / dayChangeFunds.reduce((s, f) => s + f.units * (f.prev_nav ?? 0), 0)) * 100
+    : null;
+
   if (loading) {
     return (
       <div className="space-y-6 animate-pulse">
@@ -1246,24 +1277,40 @@ const SIPTracker = ({ currentMonth: _currentMonth, currentYear: _currentYear, on
 
       {/* Portfolio Summary */}
       {funds.length > 0 && (
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
           {[
-            { label: 'Total Invested', value: formatCurrency(totalInvested), sub: `${funds.length} holdings`, color: 'blue' },
-            { label: 'Current Value', value: totalCurrent > 0 ? formatCurrency(parseFloat(totalCurrent.toFixed(2))) : '—', sub: 'All holdings', color: 'indigo' },
+            { label: 'Total Invested', value: formatCurrency(totalInvested), sub: `${funds.length} holdings` },
+            { label: 'Current Value', value: totalCurrent > 0 ? formatCurrency(parseFloat(totalCurrent.toFixed(2))) : '—', sub: 'All holdings' },
             { label: 'P & L', value: totalCurrent > 0 ? `${totalGain >= 0 ? '+' : ''}${formatCurrency(parseFloat(Math.abs(totalGain).toFixed(2)))}` : '—',
-              sub: totalGainPct !== 0 ? `${totalGainPct.toFixed(1)}%` : '', color: totalGain >= 0 ? 'green' : 'red' },
-            { label: 'Monthly SIP', value: formatCurrency(monthlySIP), sub: `${activeFunds.length} active funds`, color: 'purple' },
-            { label: 'Funds', value: String(activeFunds.length), sub: `+ ${histFunds.length} historical`, color: 'orange' },
-          ].map(({ label, value, sub, color }) => (
+              sub: totalGainPct !== 0 ? `${totalGainPct.toFixed(1)}%` : '' },
+            { label: 'Monthly SIP', value: formatCurrency(monthlySIP), sub: `${activeFunds.length} active funds` },
+            { label: 'Funds', value: String(activeFunds.length), sub: `+ ${histFunds.length} historical` },
+          ].map(({ label, value, sub }) => (
             <div key={label}
               className="rounded-2xl border p-4"
               style={{ background: 'var(--pane)', borderColor: 'var(--hairline)' }}
             >
-              <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: `var(--ink-muted)` }}>{label}</p>
+              <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--ink-muted)' }}>{label}</p>
               <p className="text-xl font-bold mt-1 num" style={{ color: 'var(--ink)' }}>{value}</p>
               {sub && <p className="text-xs mt-0.5" style={{ color: 'var(--ink-faint)' }}>{sub}</p>}
             </div>
           ))}
+          <div className="rounded-2xl border p-4" style={{
+            background: dayChangeFunds.length > 0 ? (totalDayChange >= 0 ? 'var(--pos-bg)' : 'var(--neg-bg)') : 'var(--pane)',
+            borderColor: dayChangeFunds.length > 0 ? (totalDayChange >= 0 ? 'var(--pos-soft)' : 'var(--neg-soft)') : 'var(--hairline)',
+            opacity: dayChangeFunds.length > 0 ? 1 : 0.5,
+          }}>
+            <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--ink-muted)' }}>Today&apos;s P&amp;L</p>
+            <p className={`text-xl font-bold mt-1 num ${dayChangeFunds.length > 0 ? (totalDayChange >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400') : ''}`}
+              style={dayChangeFunds.length === 0 ? { color: 'var(--ink-faint)' } : {}}>
+              {dayChangeFunds.length > 0 ? `${totalDayChange >= 0 ? '+' : ''}${formatCurrency(Math.abs(parseFloat(totalDayChange.toFixed(2))))}` : '—'}
+            </p>
+            {totalDayChangePct != null && (
+              <p className={`text-xs mt-0.5 font-medium ${totalDayChangePct >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                {totalDayChangePct >= 0 ? '+' : ''}{totalDayChangePct.toFixed(2)}% vs prev NAV
+              </p>
+            )}
+          </div>
         </div>
       )}
 

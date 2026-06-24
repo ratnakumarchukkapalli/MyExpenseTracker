@@ -5,7 +5,7 @@ import { after } from "next/server";
 
 // Yahoo Finance unofficial API — no key needed, works on Vercel
 // Mirrors the yfinance fallback in Electron app's api/main.py
-async function fetchStockPrice(ticker: string): Promise<number | null> {
+async function fetchStockPrice(ticker: string): Promise<{ price: number; prevClose: number | null } | null> {
   for (const suffix of [".NS", ".BO"]) {
     try {
       const url = `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}${suffix}?interval=1d&range=1d`;
@@ -15,8 +15,12 @@ async function fetchStockPrice(ticker: string): Promise<number | null> {
       });
       if (!res.ok) continue;
       const data = await res.json();
-      const price: number | undefined = data?.chart?.result?.[0]?.meta?.regularMarketPrice;
-      if (price && price > 0) return price;
+      const meta = data?.chart?.result?.[0]?.meta;
+      const price: number | undefined = meta?.regularMarketPrice;
+      if (price && price > 0) {
+        const prevClose: number | null = meta?.chartPreviousClose ?? meta?.previousClose ?? null;
+        return { price, prevClose: prevClose && prevClose > 0 ? prevClose : null };
+      }
     } catch {
       continue;
     }
@@ -42,14 +46,14 @@ export async function POST() {
   const priceResults = await Promise.all(
     holdings.map(async (h) => {
       try {
-        const price = await fetchStockPrice(h.ticker);
-        if (price != null) {
-          return { id: h.id, ticker: h.ticker, price, success: true };
+        const result = await fetchStockPrice(h.ticker);
+        if (result != null) {
+          return { id: h.id, ticker: h.ticker, price: result.price, prevClose: result.prevClose, success: true };
         }
-        return { id: h.id, ticker: h.ticker, price: null, success: false, error: "No price returned" };
+        return { id: h.id, ticker: h.ticker, price: null, prevClose: null, success: false, error: "No price returned" };
       } catch (e: unknown) {
         const msg = e instanceof Error ? e.message : String(e);
-        return { id: h.id, ticker: h.ticker, price: null, success: false, error: msg };
+        return { id: h.id, ticker: h.ticker, price: null, prevClose: null, success: false, error: msg };
       }
     })
   );
@@ -61,13 +65,15 @@ export async function POST() {
 
   if (successfulUpdates.length > 0) {
     await Promise.all(
-      successfulUpdates.map((r) =>
-        supabase
+      successfulUpdates.map((r) => {
+        const updatePayload: Record<string, unknown> = { current_price: r.price, last_updated: today };
+        if (r.prevClose != null) updatePayload.prev_close = r.prevClose;
+        return supabase
           .from("stock_holdings")
-          .update({ current_price: r.price, last_updated: today })
+          .update(updatePayload)
           .eq("user_id", user.id)
-          .eq("id", r.id)
-      )
+          .eq("id", r.id);
+      })
     );
   }
 

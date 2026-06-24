@@ -18,12 +18,25 @@ export async function PUT(
   const body = await request.json().catch(() => null);
   if (!body?.currentNav) return Response.json({ error: "currentNav required" }, { status: 400 });
 
+  // Read current NAV before overwriting so we can store it as prev_nav
+  const { data: existing } = await supabase
+    .from("sip_funds")
+    .select("current_nav")
+    .eq("user_id", user.id)
+    .eq("id", fundId)
+    .maybeSingle();
+
+  const updatePayload: Record<string, unknown> = {
+    current_nav: body.currentNav,
+    last_nav_update: body.lastNavUpdate ?? new Date().toISOString().split("T")[0],
+  };
+  if (existing?.current_nav != null && Number(existing.current_nav) > 0) {
+    updatePayload.prev_nav = existing.current_nav;
+  }
+
   const { error: dbError } = await supabase
     .from("sip_funds")
-    .update({
-      current_nav: body.currentNav,
-      last_nav_update: body.lastNavUpdate ?? new Date().toISOString().split("T")[0],
-    })
+    .update(updatePayload)
     .eq("user_id", user.id)
     .eq("id", fundId);
 

@@ -21,6 +21,7 @@ interface StockHolding {
   buy_price: number;
   buy_date?: string | null;
   current_price?: number | null;
+  prev_close?: number | null;
   last_updated?: string | null;
   notes?: string | null;
   av_symbol?: string | null;
@@ -544,6 +545,14 @@ const StockCard = ({ holding, onDelete, onEdit, onPriceUpdate, currentMonth, cur
   const gainPct = (gainAmt != null && invested > 0) ? (gainAmt / invested) * 100 : null;
   const period = holdingPeriod(holding.buy_date);
 
+  const dayChange = (holding.current_price != null && holding.prev_close != null)
+    ? holding.current_price - holding.prev_close
+    : null;
+  const dayChangePct = (dayChange != null && holding.prev_close! > 0)
+    ? (dayChange / holding.prev_close!) * 100
+    : null;
+  const dayChangeAmt = dayChange != null ? holding.shares * dayChange : null;
+
   return (
     <div className="rounded-2xl border shadow-sm overflow-hidden" style={{ background: 'var(--pane)', borderColor: 'var(--hairline)' }}>
       <div className="p-5">
@@ -560,6 +569,11 @@ const StockCard = ({ holding, onDelete, onEdit, onPriceUpdate, currentMonth, cur
                 <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-full" style={{ background: gainAmt >= 0 ? 'var(--pos-bg)' : 'var(--neg-bg)', color: gainAmt >= 0 ? 'var(--pos)' : 'var(--neg)' }}>
                   {gainAmt >= 0 ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
                   {gainPct != null ? `${gainPct >= 0 ? '+' : ''}${gainPct.toFixed(2)}%` : '—'}
+                </span>
+              )}
+              {dayChangePct != null && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-full border" style={{ background: dayChange! >= 0 ? 'var(--pos-bg)' : 'var(--neg-bg)', color: dayChange! >= 0 ? 'var(--pos)' : 'var(--neg)', borderColor: dayChange! >= 0 ? 'var(--pos-soft)' : 'var(--neg-soft)' }}>
+                  {dayChange! >= 0 ? '▲' : '▼'} {dayChangePct >= 0 ? '+' : ''}{dayChangePct.toFixed(2)}% today
                 </span>
               )}
             </div>
@@ -583,7 +597,7 @@ const StockCard = ({ holding, onDelete, onEdit, onPriceUpdate, currentMonth, cur
           </div>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-4">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mt-4">
           <div>
             <p className="text-xs" style={{ color: 'var(--ink-muted)' }}>Invested</p>
             <p className="text-sm font-semibold num" style={{ color: 'var(--ink-soft)' }}>{formatCurrency(invested)}</p>
@@ -599,6 +613,17 @@ const StockCard = ({ holding, onDelete, onEdit, onPriceUpdate, currentMonth, cur
             <p className={`text-sm font-semibold num ${gainAmt != null ? gainClass(gainAmt) : ''}`} style={!gainAmt ? { color: 'var(--ink-faint)' } : {}}>
               {gainAmt != null ? `${gainAmt >= 0 ? '+' : ''}${formatCurrency(Math.abs(gainAmt))}` : '—'}
             </p>
+          </div>
+          <div>
+            <p className="text-xs" style={{ color: 'var(--ink-muted)' }}>Today&apos;s Change</p>
+            {dayChangeAmt != null && dayChangePct != null ? (
+              <p className={`text-sm font-semibold num ${gainClass(dayChangeAmt)}`}>
+                {dayChangeAmt >= 0 ? '+' : ''}{formatCurrency(Math.abs(dayChangeAmt))}
+                <span className="text-xs font-normal ml-1">({dayChangePct >= 0 ? '+' : ''}{dayChangePct.toFixed(2)}%)</span>
+              </p>
+            ) : (
+              <p className="text-sm" style={{ color: 'var(--ink-faint)' }}>—</p>
+            )}
           </div>
           <div>
             <p className="text-xs text-gray-500 dark:text-gray-400">Buy / Current Price</p>
@@ -760,6 +785,12 @@ const StockTracker = ({ currentMonth = new Date().getMonth() + 1, currentYear = 
   const totalGainPct = totalInvestedPriced > 0 ? (totalGain / totalInvestedPriced) * 100 : 0;
   const unpricedCount = holdings.length - priced.length;
 
+  const dayChangePriced = priced.filter(h => h.prev_close != null);
+  const totalDayChange = dayChangePriced.reduce((sum, h) => sum + h.shares * (h.current_price! - h.prev_close!), 0);
+  const totalDayChangePct = dayChangePriced.length > 0
+    ? (totalDayChange / dayChangePriced.reduce((sum, h) => sum + h.shares * h.prev_close!, 0)) * 100
+    : null;
+
   const chartData: ChartDatum[] = holdings.map(h => ({
     ticker:       h.ticker,
     company:      h.company_name,
@@ -918,7 +949,7 @@ const StockTracker = ({ currentMonth = new Date().getMonth() + 1, currentYear = 
 
       {/* Summary Cards */}
       {holdings.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div className="rounded-2xl border shadow-sm p-5" style={{ background: 'var(--pane)', borderColor: 'var(--hairline)' }}>
             <p className="text-xs font-medium uppercase tracking-wide" style={{ color: 'var(--ink-muted)' }}>Total Invested</p>
             <p className="text-2xl font-bold mt-1 num" style={{ color: 'var(--ink)' }}>{formatCurrency(totalInvested)}</p>
@@ -950,6 +981,23 @@ const StockTracker = ({ currentMonth = new Date().getMonth() + 1, currentYear = 
               <p className={`text-sm font-medium mt-0.5 ${gainClass(totalGainPct)}`}>
                 {totalGainPct >= 0 ? '+' : ''}{totalGainPct.toFixed(2)}%
                 <span className="ml-1 text-sm"> on priced holdings</span>
+              </p>
+            )}
+          </div>
+          <div className="rounded-2xl border shadow-sm p-5" style={{
+            background: dayChangePriced.length > 0 ? (totalDayChange >= 0 ? 'var(--pos-bg)' : 'var(--neg-bg)') : 'var(--pane)',
+            borderColor: dayChangePriced.length > 0 ? (totalDayChange >= 0 ? 'var(--pos-soft)' : 'var(--neg-soft)') : 'var(--hairline)',
+            opacity: dayChangePriced.length > 0 ? 1 : 0.5,
+          }}>
+            <p className="text-xs font-medium uppercase tracking-wide" style={{ color: 'var(--ink-muted)' }}>Today&apos;s P&amp;L</p>
+            <p className={`text-2xl font-bold mt-1 num ${dayChangePriced.length > 0 ? gainClass(totalDayChange) : ''}`} style={dayChangePriced.length === 0 ? { color: 'var(--ink-faint)' } : {}}>
+              {dayChangePriced.length > 0
+                ? `${totalDayChange >= 0 ? '+' : ''}${formatCurrency(Math.abs(totalDayChange))}`
+                : '—'}
+            </p>
+            {totalDayChangePct != null && (
+              <p className={`text-sm font-medium mt-0.5 ${gainClass(totalDayChangePct)}`}>
+                {totalDayChangePct >= 0 ? '+' : ''}{totalDayChangePct.toFixed(2)}% vs prev close
               </p>
             )}
           </div>
