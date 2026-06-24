@@ -34,6 +34,7 @@ const Loans = dynamic(() => import('./Loans'));
 const LoanForm = dynamic(() => import('./LoanForm'));
 const Insurance = dynamic(() => import('./Insurance'));
 const MonthlyReport = dynamic(() => import('./MonthlyReport'));
+const Analytics = dynamic(() => import('./Analytics'));
 const YearEndProjection = dynamic(() => import('./YearEndProjection'));
 const SIPTracker = dynamic(() => import('./SIPTracker'));
 const StockTracker = dynamic(() => import('./StockTracker'));
@@ -118,6 +119,7 @@ type LoanMilestone = {
 type ViewId =
   | 'dashboard'
   | 'expenses'
+  | 'analytics'
   | 'subscriptions'
   | 'loans'
   | 'insurance'
@@ -135,6 +137,7 @@ const NAV_SECTIONS: Array<{
     items: [
       { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
       { id: 'expenses', label: 'Expenses', icon: Receipt },
+      { id: 'analytics', label: 'Analytics', icon: BarChart2 },
     ],
   },
   {
@@ -326,6 +329,16 @@ function AppShell({ initialData, serverMonth, serverYear }: AppShellProps) {
   }, [currentMonth, currentYear, refreshKey, mounted]);
 
   const filteredExpenses = useMemo(() => expenses, [expenses]);
+
+  // Descriptions that appear in both current and previous month = recurring
+  const recurringDescriptions = useMemo(() => {
+    const prevDescs = new Set(prevMonthExpenses.map((e) => e.description.toLowerCase().trim()));
+    return new Set(
+      expenses
+        .map((e) => e.description.toLowerCase().trim())
+        .filter((d) => prevDescs.has(d))
+    );
+  }, [expenses, prevMonthExpenses]);
   
   // Use stable defaults during hydration
   const displayMonth = mounted ? currentMonth : now.getMonth() + 1;
@@ -705,6 +718,7 @@ function AppShell({ initialData, serverMonth, serverYear }: AppShellProps) {
                   <div style={{ display: currentView === 'expenses' ? undefined : 'none' }}>
                     <ExpenseList
                       expenses={filteredExpenses}
+                      recurringDescriptions={recurringDescriptions}
                       onEdit={async (expense, mode) => {
                         if (mode === 'save-inline') {
                           await handleExpenseUpdate(expense);
@@ -716,6 +730,18 @@ function AppShell({ initialData, serverMonth, serverYear }: AppShellProps) {
                       onDelete={(id) => {
                         handleExpenseDelete(id);
                       }}
+                    />
+                  </div>
+                )}
+
+                {mountedTabs.has('analytics') && (
+                  <div style={{ display: currentView === 'analytics' ? undefined : 'none' }}>
+                    <Analytics
+                      expenses={expenses}
+                      yearlyRows={yearlyRows}
+                      currentMonth={currentMonth}
+                      currentYear={currentYear}
+                      privacyMode={privacyMode}
                     />
                   </div>
                 )}

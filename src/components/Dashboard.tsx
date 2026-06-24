@@ -595,6 +595,38 @@ function Dashboard({ expenses, subscriptions, monthlySummary, currentMonth, curr
             ✏️ Edit budgets
           </button>
         </div>
+        {!privacyMode && (() => {
+          const alerts = categoryDefinitions
+            .map((cat) => {
+              const spent = categoryTotals[cat.key] || 0;
+              const pct = cat.budget > 0 ? (spent / cat.budget) * 100 : 0;
+              return { ...cat, spent, pct };
+            })
+            .filter((cat) => cat.pct >= 80 && cat.budget > 0);
+          if (alerts.length === 0) return null;
+          return (
+            <div className="flex flex-wrap gap-2 mb-4">
+              {alerts.map((cat) => {
+                const over = cat.pct > 100;
+                return (
+                  <div
+                    key={cat.key}
+                    className="flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold"
+                    style={{
+                      background: over ? '#fef2f2' : '#fffbeb',
+                      color: over ? '#b91c1c' : '#92400e',
+                      border: `1px solid ${over ? '#fecaca' : '#fde68a'}`,
+                    }}
+                  >
+                    <span>{over ? '🔴' : '🟡'}</span>
+                    <span>{cat.label} — {cat.pct.toFixed(0)}% used{over ? ' (over budget)' : ''}</span>
+                  </div>
+                );
+              })}
+            </div>
+          );
+        })()}
+
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 lg:gap-4">
 
 

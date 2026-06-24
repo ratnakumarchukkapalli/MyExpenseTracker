@@ -26,9 +26,10 @@ interface Props {
   onEdit: (expense: Expense, mode?: 'open-form' | 'save-inline') => void;
   onDelete: (id: number) => void;
   categoryIcons?: Record<string, React.ComponentType<any>>;
+  recurringDescriptions?: Set<string>;
 }
 
-function ExpenseList({ expenses, onEdit, onDelete, categoryIcons = {} }: Props) {
+function ExpenseList({ expenses, onEdit, onDelete, categoryIcons = {}, recurringDescriptions }: Props) {
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [sortBy, setSortBy] = useState('date-desc');
@@ -401,6 +402,11 @@ function ExpenseList({ expenses, onEdit, onDelete, categoryIcons = {} }: Props) 
                           {expense.payment_source === 'sodexo' && (
                             <span className="inline-flex px-2 py-0.5 text-[10px] font-bold rounded-full bg-orange-100 text-orange-700">
                               Sodexo
+                            </span>
+                          )}
+                          {recurringDescriptions?.has(expense.description.toLowerCase().trim()) && (
+                            <span className="inline-flex px-2 py-0.5 text-[10px] font-bold rounded-full bg-blue-50 text-blue-600">
+                              ↻ Recurring
                             </span>
                           )}
                         </div>
