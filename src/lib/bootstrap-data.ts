@@ -67,7 +67,7 @@ export async function fetchBootstrapData(
       .maybeSingle(),
     supabase
       .from("expenses")
-      .select("category, amount")
+      .select("category, amount, description")
       .eq("user_id", user.id)
       .gte("date", `${prevYear}-${prevM}-01`)
       .lt("date", prevMonth === 12 ? `${prevYear + 1}-01-01` : `${prevYear}-${String(prevMonth + 1).padStart(2, "0")}-01`),
