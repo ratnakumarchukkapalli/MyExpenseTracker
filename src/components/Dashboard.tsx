@@ -139,6 +139,7 @@ function Dashboard({ expenses, subscriptions, monthlySummary, currentMonth, curr
     }
     return map;
   });
+  const [dashMounted, setDashMounted] = useState(false);
   const [showBudgetSettings, setShowBudgetSettings] = useState(false);
   const [showEditFinancials, setShowEditFinancials] = useState(false);
   const [savingFinancials, setSavingFinancials] = useState(false);
@@ -166,6 +167,8 @@ function Dashboard({ expenses, subscriptions, monthlySummary, currentMonth, curr
   useEffect(() => {
     setLoanMilestones(initialLoanMilestones ?? []);
   }, [initialLoanMilestones]);
+
+  useEffect(() => { setDashMounted(true); }, []);
 
   // Load live portfolio — only after bootstrap delivers summary for the current month.
   // Deps are primitive month/year (not the summary object) to avoid firing on every
@@ -599,7 +602,7 @@ function Dashboard({ expenses, subscriptions, monthlySummary, currentMonth, curr
             ✏️ Edit budgets
           </button>
         </div>
-        {budgetAlerts.length > 0 && (
+        {dashMounted && budgetAlerts.length > 0 && (
           <div className="flex flex-wrap gap-2 mb-4">
             {budgetAlerts.map((cat) => {
               const over = cat.pct > 100;
