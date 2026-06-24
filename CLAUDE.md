@@ -8,6 +8,21 @@ See [learning/career/retrospective.md](learning/career/retrospective.md) for my 
 - `npx tsc --noEmit` passes (no TypeScript errors)
 - If UI changed: visually confirm in browser before reporting done
 
+## AI/ML Feature Philosophy — Non-Negotiable
+Every AI/ML feature must satisfy all three:
+1. **Production-ready** — auth-gated, secure, deployable on Vercel/Railway
+2. **Learning-oriented** — explain the ML concept, algorithm, and tradeoffs while building. If Ratna can't explain what it does and why, we haven't finished.
+3. **Interview/career-ready** — Ratna must be able to walk an interviewer through: what was built, what problem it solves, what model/algorithm was used and why, and what result it achieved. Every feature is a portfolio piece.
+
+If a feature doesn't serve all three goals, rethink it before building.
+
+## Security — Every Feature Must Pass This Before Done
+- All API routes protected with `requireAuthFast` (no unprotected endpoints)
+- API keys in `.env.local` + Vercel vault only — never hardcoded or logged
+- All user input validated/sanitized at the API boundary
+- No sensitive data (keys, user PII) in client-side code or browser-visible responses
+- Any route calling a paid external API (Anthropic, Yahoo Finance) must be auth-gated
+
 
 <!-- BEGIN BEADS INTEGRATION v:1 profile:minimal hash:ca08a54f -->
 ## Beads Issue Tracker

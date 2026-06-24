@@ -18,6 +18,7 @@ interface Expense {
   category: string;
   note?: string;
   is_auto_generated?: number;
+  payment_source?: string;
 }
 
 interface Props {
@@ -393,9 +394,16 @@ function ExpenseList({ expenses, onEdit, onDelete, categoryIcons = {} }: Props) 
                             )}
                           </div>
                         )}
-                        <span className={`inline-flex mt-1 px-2 py-0.5 text-xs font-medium rounded-full ${getCategoryColor(expense.category)}`}>
-                          {expense.category}
-                        </span>
+                        <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                          <span className={`inline-flex px-2 py-0.5 text-xs font-medium rounded-full ${getCategoryColor(expense.category)}`}>
+                            {expense.category}
+                          </span>
+                          {expense.payment_source === 'sodexo' && (
+                            <span className="inline-flex px-2 py-0.5 text-[10px] font-bold rounded-full bg-orange-100 text-orange-700">
+                              Sodexo
+                            </span>
+                          )}
+                        </div>
                         {expense.note && (
                           <p className="mt-0.5 text-xs italic truncate" style={{ color: 'var(--ink-faint)' }} title={expense.note}>
                             {expense.note}

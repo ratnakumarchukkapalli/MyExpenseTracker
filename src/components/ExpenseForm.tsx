@@ -161,11 +161,11 @@ function ExpenseForm({ expense, onSubmit, onCancel, defaultDate }: Props) {
                     onClick={() => setFormData((p) => ({ ...p, category: cat }))}
                     className={`
                       px-3 py-1.5 rounded-full text-[11px] font-bold border-2 transition-all flex items-center gap-1.5 cursor-pointer
-                      ${active 
-                        ? 'border-transparent text-white shadow-sm' 
+                      ${active
+                        ? 'border-transparent text-white shadow-sm'
                         : 'text-gray-400 hover:border-gray-200'}
                     `}
-                    style={{ 
+                    style={{
                       backgroundColor: active ? color : 'var(--bg-tint)',
                       borderColor: active ? 'transparent' : 'var(--hairline)',
                       color: active ? 'white' : 'var(--ink-muted)'
