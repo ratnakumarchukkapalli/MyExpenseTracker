@@ -5,7 +5,7 @@ import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell,
   LineChart, Line, PieChart, Pie, Legend,
 } from 'recharts';
-import { CATEGORY_COLORS } from '../constants/categories';
+import { CATEGORY_COLORS, EXPENSE_CATEGORIES } from '../constants/categories';
 
 const MONTHS_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
@@ -27,9 +27,12 @@ type Expense = {
   category: string;
 };
 
+type CategoryRow = { month: number; category: string; total: number };
+
 interface Props {
   expenses: Expense[];
   yearlyRows: YearlyRow[];
+  yearlyCategoryRows?: CategoryRow[];
   currentMonth: number;
   currentYear: number;
   privacyMode?: boolean;
@@ -38,7 +41,7 @@ interface Props {
 const fmt = (v: number) =>
   v >= 100000 ? `${(v / 100000).toFixed(1)}L` : v >= 1000 ? `₹${Math.round(v / 1000)}K` : `₹${Math.round(v)}`;
 
-function Analytics({ expenses, yearlyRows, currentMonth, currentYear, privacyMode }: Props) {
+function Analytics({ expenses, yearlyRows, yearlyCategoryRows = [], currentMonth, currentYear, privacyMode }: Props) {
   // Category donut — current month
   const categoryData = useMemo(() => {
     const totals: Record<string, number> = {};
@@ -61,6 +64,24 @@ function Analytics({ expenses, yearlyRows, currentMonth, currentYear, privacyMod
       savings: Math.round(r.savings ?? 0),
     }));
   }, [yearlyRows, currentMonth, currentYear]);
+
+  // Category spend trend — last 6 past months, excluding Savings
+  const SPEND_CATS = EXPENSE_CATEGORIES.filter((c) => c !== 'Savings');
+  const categoryTrend = useMemo(() => {
+    const pastMonths = [...yearlyRows]
+      .filter((r) => r.year < currentYear || (r.year === currentYear && r.month <= currentMonth))
+      .sort((a, b) => a.year !== b.year ? a.year - b.year : a.month - b.month)
+      .slice(-6);
+
+    return pastMonths.map((r) => {
+      const row: Record<string, string | number> = { label: MONTHS_SHORT[r.month - 1] };
+      for (const cat of SPEND_CATS) {
+        const found = yearlyCategoryRows.find((c) => c.month === r.month && c.category === cat);
+        row[cat] = found?.total ?? 0;
+      }
+      return row;
+    });
+  }, [yearlyRows, yearlyCategoryRows, currentMonth, currentYear]);
 
   // Year view — past months only for currentYear
   const yearRows = useMemo(() => {
@@ -164,6 +185,39 @@ function Analytics({ expenses, yearlyRows, currentMonth, currentYear, privacyMod
               <Bar dataKey="savings" fill="#10b981" radius={[4, 4, 0, 0]} name="Savings" />
             </BarChart>
           </ResponsiveContainer>
+        )}
+      </div>
+
+      {/* Category spend trend */}
+      <div className="pane mb-6" style={{ padding: '20px 24px' }}>
+        <div className="eyebrow mb-1">Last 6 months</div>
+        <div className="serif mb-4" style={{ fontSize: 18, color: 'var(--ink)' }}>Spend by Category</div>
+        {categoryTrend.length === 0 ? (
+          <p style={{ color: 'var(--ink-faint)', fontSize: 13 }}>Not enough history yet.</p>
+        ) : (
+          <>
+            <ResponsiveContainer width="100%" height={220}>
+              <BarChart data={categoryTrend} margin={{ top: 4, right: 8, bottom: 0, left: 0 }} barSize={20}>
+                <XAxis dataKey="label" tick={{ fontSize: 11, fill: 'var(--ink-faint)' }} axisLine={false} tickLine={false} />
+                <YAxis tickFormatter={(v) => privacyMode ? '' : fmt(v)} tick={{ fontSize: 10, fill: 'var(--ink-faint)' }} axisLine={false} tickLine={false} width={48} />
+                <Tooltip
+                  formatter={(value, name) => privacyMode ? [MASK, name] : [fmt(Number(value)), name]}
+                  contentStyle={{ background: 'var(--pane)', border: '1px solid var(--hairline)', borderRadius: 8, fontSize: 12 }}
+                />
+                {SPEND_CATS.map((cat) => (
+                  <Bar key={cat} dataKey={cat} stackId="a" fill={CATEGORY_COLORS[cat]} radius={cat === SPEND_CATS[SPEND_CATS.length - 1] ? [4, 4, 0, 0] : [0, 0, 0, 0]} />
+                ))}
+              </BarChart>
+            </ResponsiveContainer>
+            <div className="flex flex-wrap gap-3 mt-3">
+              {SPEND_CATS.map((cat) => (
+                <div key={cat} className="flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: CATEGORY_COLORS[cat] }} />
+                  <span style={{ fontSize: 11, color: 'var(--ink-muted)' }}>{cat}</span>
+                </div>
+              ))}
+            </div>
+          </>
         )}
       </div>
 

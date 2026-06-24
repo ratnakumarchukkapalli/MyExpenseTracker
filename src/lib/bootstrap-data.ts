@@ -19,6 +19,7 @@ export type BootstrapData = {
     salary: number;
     savings: number;
   }[];
+  yearlyCategoryRows: { month: number; category: string; total: number }[];
   categoryBudgets: unknown[];
   loanMilestones: unknown[];
 };
@@ -79,9 +80,8 @@ export async function fetchBootstrapData(
       .order("month"),
     light ? staticPlaceholder : supabase
       .from("expenses")
-      .select("date, amount")
+      .select("date, amount, category")
       .eq("user_id", user.id)
-      .eq("category", "Savings")
       .gte("date", `${year}-01-01`)
       .lt("date", `${year + 1}-01-01`),
     light ? staticPlaceholder : supabase.from("category_budgets").select("*").eq("user_id", user.id).order("category"),
@@ -105,11 +105,22 @@ export async function fetchBootstrapData(
   }
 
   let yearlyRows: BootstrapData["yearlyRows"] = [];
+  let yearlyCategoryRows: BootstrapData["yearlyCategoryRows"] = [];
   if (!light) {
     const savingsByMonth: Record<number, number> = {};
-    for (const e of (yearlyExpensesRes.data as { date: string; amount: number }[] | null) ?? []) {
-      const mo = Number((e.date as string).slice(5, 7));
-      savingsByMonth[mo] = (savingsByMonth[mo] ?? 0) + Number(e.amount);
+    const categoryByMonth: Record<string, Record<string, number>> = {};
+    for (const e of (yearlyExpensesRes.data as { date: string; amount: number; category: string }[] | null) ?? []) {
+      const mo = String(Number((e.date as string).slice(5, 7)));
+      if (e.category === "Savings") {
+        savingsByMonth[Number(mo)] = (savingsByMonth[Number(mo)] ?? 0) + Number(e.amount);
+      }
+      if (!categoryByMonth[mo]) categoryByMonth[mo] = {};
+      categoryByMonth[mo][e.category] = (categoryByMonth[mo][e.category] ?? 0) + Number(e.amount);
+    }
+    for (const [mo, cats] of Object.entries(categoryByMonth)) {
+      for (const [category, total] of Object.entries(cats)) {
+        yearlyCategoryRows.push({ month: Number(mo), category, total: Math.round(total) });
+      }
     }
     yearlyRows = ((yearlySummaryRes.data as any[] | null) ?? []).map((r) => ({
       month: r.month,
@@ -134,6 +145,7 @@ export async function fetchBootstrapData(
     },
     prevMonthExpenses: prevExpensesRes.data ?? [],
     yearlyRows,
+    yearlyCategoryRows,
     categoryBudgets: (categoryBudgetsRes.data as unknown[] | null) ?? [],
     loanMilestones: (loanMilestonesRes.data as unknown[] | null) ?? [],
   };
