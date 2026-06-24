@@ -54,6 +54,7 @@ type MonthlySummary = {
   cash_equivalents: number;
   sodexo_balance?: number;
   sodexo_spent?: number;
+  sodexo_credit?: number;
 };
 
 type YearlyRow = {
@@ -84,6 +85,7 @@ type FinancialFields = {
   savings_nps: number;
   savings_pf: number;
   sodexo_balance: number;
+  sodexo_credit: number;
 };
 
 type Props = {
@@ -993,7 +995,9 @@ function FinancialEditModal({
   onSave: (data: FinancialFields) => Promise<void>;
   onClose: () => void;
 }) {
-  const [form, setForm] = useState<FinancialFields>({
+  const sodexoCarry = Math.max(0, Number(monthlySummary?.sodexo_balance ?? 0) - Number(monthlySummary?.sodexo_credit ?? 0));
+
+  const [form, setForm] = useState({
     salary: Number(monthlySummary?.salary ?? 0),
     previous_month_remaining: Number(monthlySummary?.previous_month_remaining ?? 0),
     interest_income: Number(monthlySummary?.interest_income ?? 0),
@@ -1002,12 +1006,11 @@ function FinancialEditModal({
     savings_shares: Number(monthlySummary?.savings_shares ?? 0),
     savings_nps: Number(monthlySummary?.savings_nps ?? 0),
     savings_pf: Number(monthlySummary?.savings_pf ?? 0),
-    sodexo_balance: Number(monthlySummary?.sodexo_balance ?? 0),
+    sodexo_credit: Number(monthlySummary?.sodexo_credit ?? 0),
   });
 
-  const fields: Array<{ key: keyof FinancialFields; label: string }> = [
+  const fields: Array<{ key: keyof typeof form; label: string }> = [
     { key: 'salary', label: 'Monthly Salary' },
-    { key: 'sodexo_balance', label: 'Sodexo Balance' },
     { key: 'previous_month_remaining', label: 'Opening Cash' },
     { key: 'interest_income', label: 'Interest Income' },
     { key: 'savings_fd', label: 'Fixed Deposits' },
@@ -1056,6 +1059,28 @@ function FinancialEditModal({
             ))}
           </div>
 
+          {/* Sodexo Credit — custom field with carry hint */}
+          <div className="mt-5">
+            <label className="block text-[11px] font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--ink-faint)' }}>
+              Sodexo Credit This Month
+            </label>
+            <div className="relative">
+              <span className="absolute left-4 top-1/2 -translate-y-1/2 font-medium text-sm" style={{ color: 'var(--ink-muted)' }}>₹</span>
+              <input
+                type="number"
+                value={form.sodexo_credit}
+                onChange={(e) => setForm((prev) => ({ ...prev, sodexo_credit: parseFloat(e.target.value) || 0 }))}
+                className="w-full pl-8 pr-4 py-3 rounded-2xl focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all text-sm font-medium"
+                style={{ background: 'var(--surface-solid)', border: '1px solid var(--hairline)', color: 'var(--ink)' }}
+              />
+            </div>
+            {sodexoCarry > 0 && (
+              <p className="mt-1.5 text-[11px]" style={{ color: 'var(--ink-faint)' }}>
+                + ₹{Math.round(sodexoCarry).toLocaleString('en-IN')} carried · effective balance ₹{Math.round(form.sodexo_credit + sodexoCarry).toLocaleString('en-IN')}
+              </p>
+            )}
+          </div>
+
           <div className="flex items-center gap-3 mt-8">
             <button
               onClick={onClose}
@@ -1066,7 +1091,7 @@ function FinancialEditModal({
               Cancel
             </button>
             <button
-              onClick={() => onSave(form)}
+              onClick={() => onSave({ ...form, sodexo_balance: form.sodexo_credit + sodexoCarry })}
               disabled={saving}
               className="flex-1 py-4 rounded-2xl bg-blue-600 text-white font-bold text-sm shadow-xl shadow-blue-600/20 hover:bg-blue-700 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
             >

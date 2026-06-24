@@ -174,6 +174,7 @@ export async function cascadeUpdateFutureMonths(
       if (currentNPS !== undefined) update.savings_nps = currentNPS;
       if (currentPF !== undefined) update.savings_pf = currentPF;
       if (currentSodexo !== undefined) update.sodexo_balance = currentSodexo;
+      update.sodexo_credit = 0;
     }
 
     // Recalculate cash_equivalents with new (potentially propagated) values
