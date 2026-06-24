@@ -404,7 +404,7 @@ function ExpenseList({ expenses, onEdit, onDelete, categoryIcons = {}, recurring
                               Sodexo
                             </span>
                           )}
-                          {recurringDescriptions?.has(expense.description.toLowerCase().trim()) && (
+                          {expense.description && recurringDescriptions?.has(expense.description.toLowerCase().trim()) && (
                             <span className="inline-flex px-2 py-0.5 text-[10px] font-bold rounded-full bg-blue-50 text-blue-600">
                               ↻ Recurring
                             </span>

@@ -332,9 +332,14 @@ function AppShell({ initialData, serverMonth, serverYear }: AppShellProps) {
 
   // Descriptions that appear in both current and previous month = recurring
   const recurringDescriptions = useMemo(() => {
-    const prevDescs = new Set(prevMonthExpenses.map((e) => e.description.toLowerCase().trim()));
+    const prevDescs = new Set(
+      prevMonthExpenses
+        .filter((e) => e.description)
+        .map((e) => e.description.toLowerCase().trim())
+    );
     return new Set(
       expenses
+        .filter((e) => e.description)
         .map((e) => e.description.toLowerCase().trim())
         .filter((d) => prevDescs.has(d))
     );
