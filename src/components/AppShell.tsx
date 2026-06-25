@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { BootstrapData } from '@/lib/bootstrap-data';
 import {
   Calendar,
@@ -374,7 +374,7 @@ function AppShell({ initialData, serverMonth, serverYear }: AppShellProps) {
   const periodLabel = `${MONTHS_SHORT[displayMonth - 1]} ${displayYear}`;
   const currentLabel = NAV_SECTIONS.flatMap((section) => section.items).find((item) => item.id === displayView)?.label || 'Dashboard';
 
-  const triggerRefresh = () => setRefreshKey((value) => value + 1);
+  const triggerRefresh = useCallback(() => setRefreshKey((value) => value + 1), []);
 
   const userInitials = (() => {
     if (userInfo?.name) {

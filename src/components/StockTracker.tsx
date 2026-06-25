@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useDarkMode } from '@/hooks/useDarkMode';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell,
@@ -710,6 +710,7 @@ const StockTracker = ({ currentMonth = new Date().getMonth() + 1, currentYear = 
     updatedCount?: number; total?: number;
     errors?: { ticker: string }[]; error?: string;
   } | null>(null);
+  const autoRefreshedRef = useRef(false);
 
   const loadHoldings = useCallback(async () => {
     setLoading(true);
@@ -737,9 +738,16 @@ const StockTracker = ({ currentMonth = new Date().getMonth() + 1, currentYear = 
 
   useEffect(() => {
     if (loading || holdings.length === 0) return;
+    if (autoRefreshedRef.current) return;
     const today = new Date().toISOString().split('T')[0];
+    const lastScrape = localStorage.getItem('lastStockScrapeTime');
+    const lastScrapeDay = lastScrape ? new Date(parseInt(lastScrape)).toISOString().split('T')[0] : null;
+    if (lastScrapeDay === today) return;
     const hasStale = holdings.some(h => h.last_updated !== today);
-    if (hasStale) handleRefreshPrices();
+    if (hasStale) {
+      autoRefreshedRef.current = true;
+      handleRefreshPrices();
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading]);
 
