@@ -231,6 +231,57 @@ function Dashboard({ expenses, subscriptions, monthlySummary, currentMonth, curr
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [monthlySummary?.month, monthlySummary?.year]);
 
+  // Month-end snapshot: when viewing the previous calendar month within the first 3 days of the
+  // new month (day 1 = ideal, 2-3 cover weekends/holidays), snapshot live SIP+Stocks into that
+  // month's monthly_summary record — once only (localStorage guard). The cascade in the POST
+  // handler propagates the updated values to all future carry-forward months automatically.
+  useEffect(() => {
+    if (!monthlySummary || !onFinancialsUpdate) return;
+
+    const now = new Date();
+    const todayDay = now.getDate();
+    const todayMonth = now.getMonth() + 1;
+    const todayYear = now.getFullYear();
+
+    if (todayDay > 3) return; // outside snapshot window
+
+    const snapMonth = todayMonth === 1 ? 12 : todayMonth - 1;
+    const snapYear  = todayMonth === 1 ? todayYear - 1 : todayYear;
+
+    if (currentMonth !== snapMonth || currentYear !== snapYear) return; // not viewing prev month
+
+    const key = `snapshot_${snapYear}_${String(snapMonth).padStart(2, '0')}`;
+    if (typeof window !== 'undefined' && localStorage.getItem(key) === 'done') return;
+
+    const doSnapshot = async () => {
+      try {
+        const res = await fetch('/api/wealth/total');
+        if (!res.ok) return;
+        const data = await res.json();
+
+        await onFinancialsUpdate({
+          salary:                    Number(monthlySummary.salary                    ?? 0),
+          previous_month_remaining:  Number(monthlySummary.previous_month_remaining  ?? 0),
+          interest_income:           Number(monthlySummary.interest_income           ?? 0),
+          savings_fd:                Number(monthlySummary.savings_fd                ?? 0),
+          savings_sip:               data.breakdown?.sip    ?? Number(monthlySummary.savings_sip    ?? 0),
+          savings_shares:            data.breakdown?.stocks ?? Number(monthlySummary.savings_shares ?? 0),
+          savings_nps:               Number(monthlySummary.savings_nps               ?? 0),
+          savings_pf:                Number(monthlySummary.savings_pf                ?? 0),
+          sodexo_balance:            Number(monthlySummary.sodexo_balance            ?? 0),
+          sodexo_credit:             Number(monthlySummary.sodexo_credit             ?? 0),
+        });
+
+        localStorage.setItem(key, 'done');
+      } catch (e) {
+        console.error('Month-end snapshot failed:', e);
+      }
+    };
+
+    void doSnapshot();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentMonth, currentYear]);
+
   // Re-fetch wealth when StockTracker manually refreshes prices
   useEffect(() => {
     if (!stockRefreshTick) return;
