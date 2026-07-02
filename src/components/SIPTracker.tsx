@@ -92,9 +92,10 @@ interface FundCardProps {
   fund: SipFund;
   onDelete: (id: number) => void;
   onRefreshNav: () => void;
+  isCurrentMonth: boolean;
 }
 
-const FundCard = ({ fund, onDelete, onRefreshNav }: FundCardProps) => {
+const FundCard = ({ fund, onDelete, onRefreshNav, isCurrentMonth }: FundCardProps) => {
   const { chartColors } = useDarkMode();
   const [expanded, setExpanded] = useState(false);
   const [transactions, setTransactions] = useState<SipTransaction[]>([]);
@@ -129,7 +130,7 @@ const FundCard = ({ fund, onDelete, onRefreshNav }: FundCardProps) => {
   };
 
   const handleRefresh = async () => {
-    if (!fund.scheme_code || refreshing) return;
+    if (!fund.scheme_code || refreshing || !isCurrentMonth) return;
     setRefreshing(true);
     try {
       const res = await fetch('/api/sip/amfi-nav', {
@@ -201,9 +202,9 @@ const FundCard = ({ fund, onDelete, onRefreshNav }: FundCardProps) => {
             {fund.scheme_code && (
               <button
                 onClick={handleRefresh}
-                disabled={refreshing}
-                title="Refresh NAV from AMFI"
-                className="p-1.5 rounded-lg text-gray-400 hover:text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-all"
+                disabled={refreshing || !isCurrentMonth}
+                title={isCurrentMonth ? "Refresh NAV from AMFI" : "NAV refresh is only available for the current month"}
+                className="p-1.5 rounded-lg text-gray-400 hover:text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? 'animate-spin' : ''}`} />
               </button>
@@ -928,9 +929,10 @@ interface SIPTrackerProps {
   currentMonth?: number;
   currentYear?: number;
   onPortfolioUpdate?: () => void;
+  frozenSip?: number;
 }
 
-const SIPTracker = ({ currentMonth: _currentMonth, currentYear: _currentYear, onPortfolioUpdate }: SIPTrackerProps) => {
+const SIPTracker = ({ currentMonth, currentYear, onPortfolioUpdate, frozenSip }: SIPTrackerProps) => {
   const [funds, setFunds] = useState<SipFund[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -944,6 +946,8 @@ const SIPTracker = ({ currentMonth: _currentMonth, currentYear: _currentYear, on
 
   const holdingsFileRef = useRef<HTMLInputElement>(null);
   const capitalGainsFileRef = useRef<HTMLInputElement>(null);
+
+  const isCurrentMonth = currentMonth === new Date().getMonth() + 1 && currentYear === new Date().getFullYear();
 
   const loadFunds = useCallback(async () => {
     setLoading(true);
@@ -1024,6 +1028,7 @@ const SIPTracker = ({ currentMonth: _currentMonth, currentYear: _currentYear, on
 
   useEffect(() => {
     loadFunds().then(loadedFunds => {
+      if (!isCurrentMonth) return; // don't auto-refresh live NAVs while browsing history
       if (loadedFunds && loadedFunds.length > 0) {
         const lastRefresh = localStorage.getItem('lastSipRefreshDate');
         const today = new Date().toDateString();
@@ -1032,7 +1037,7 @@ const SIPTracker = ({ currentMonth: _currentMonth, currentYear: _currentYear, on
         }
       }
     });
-  }, [loadFunds, autoRefreshAllNavs]);
+  }, [loadFunds, autoRefreshAllNavs, isCurrentMonth]);
 
   const handleImportHoldings = () => holdingsFileRef.current?.click();
 
@@ -1129,13 +1134,19 @@ const SIPTracker = ({ currentMonth: _currentMonth, currentYear: _currentYear, on
 
   const activeFunds = funds.filter(f => f.fund_type === 'active');
   const histFunds = funds.filter(f => f.fund_type === 'historical');
+  // totalInvested has no historical snapshot (only the aggregate current-value total is frozen
+  // per month), so it stays live for all months — same tradeoff Dashboard already accepts.
   const totalInvested = funds.reduce((s, f) => s + (f.invested_value ?? 0), 0);
-  const totalCurrent = funds.reduce((s, f) => s + (f.units * (f.current_nav ?? 0)), 0);
+  const liveCurrent = funds.reduce((s, f) => s + (f.units * (f.current_nav ?? 0)), 0);
+  const totalCurrent = (isCurrentMonth || frozenSip == null) ? liveCurrent : frozenSip;
   const totalGain = totalCurrent - totalInvested;
   const totalGainPct = totalInvested > 0 ? (totalGain / totalInvested) * 100 : 0;
   const monthlySIP = activeFunds.reduce((s, f) => s + (f.sip_amount ?? 0), 0);
 
-  const dayChangeFunds = funds.filter(f => f.current_nav != null && f.prev_nav != null && f.prev_nav > 0);
+  // Day-change is inherently a "today" concept — meaningless for a past month.
+  const dayChangeFunds = isCurrentMonth
+    ? funds.filter(f => f.current_nav != null && f.prev_nav != null && f.prev_nav > 0)
+    : [];
   const totalDayChange = dayChangeFunds.reduce((s, f) => s + f.units * ((f.current_nav ?? 0) - (f.prev_nav ?? 0)), 0);
   const totalDayChangePct = dayChangeFunds.length > 0
     ? (totalDayChange / dayChangeFunds.reduce((s, f) => s + f.units * (f.prev_nav ?? 0), 0)) * 100
@@ -1275,12 +1286,23 @@ const SIPTracker = ({ currentMonth: _currentMonth, currentYear: _currentYear, on
         </div>
       )}
 
+      {/* Past-month snapshot notice */}
+      {!isCurrentMonth && funds.length > 0 && (
+        <div className="flex items-center gap-2 px-4 py-2 bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-900/30 rounded-xl text-blue-700 dark:text-blue-400">
+          <AlertCircle size={14} />
+          <span className="text-xs font-medium">
+            Viewing {new Date(currentYear ?? 0, (currentMonth ?? 1) - 1).toLocaleString('default', { month: 'long', year: 'numeric' })}.
+            Total Invested, Current Value and P&amp;L above reflect the frozen month-end snapshot. Individual fund NAVs below are today&apos;s live prices for reference only.
+          </span>
+        </div>
+      )}
+
       {/* Portfolio Summary */}
       {funds.length > 0 && (
         <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
           {[
             { label: 'Total Invested', value: formatCurrency(totalInvested), sub: `${funds.length} holdings` },
-            { label: 'Current Value', value: totalCurrent > 0 ? formatCurrency(parseFloat(totalCurrent.toFixed(2))) : '—', sub: 'All holdings' },
+            { label: 'Current Value', value: totalCurrent > 0 ? formatCurrency(parseFloat(totalCurrent.toFixed(2))) : '—', sub: isCurrentMonth ? 'All holdings' : 'Frozen · month-end' },
             { label: 'P & L', value: totalCurrent > 0 ? `${totalGain >= 0 ? '+' : ''}${formatCurrency(parseFloat(Math.abs(totalGain).toFixed(2)))}` : '—',
               sub: totalGainPct !== 0 ? `${totalGainPct.toFixed(1)}%` : '' },
             { label: 'Monthly SIP', value: formatCurrency(monthlySIP), sub: `${activeFunds.length} active funds` },
@@ -1345,7 +1367,7 @@ const SIPTracker = ({ currentMonth: _currentMonth, currentYear: _currentYear, on
         <div className="space-y-4">
           {activeFunds.length === 0
             ? <p className="text-sm text-gray-400 dark:text-gray-500">No active SIP funds. Import your Holdings Excel to get started.</p>
-            : activeFunds.map(f => <FundCard key={f.id} fund={f} onDelete={handleDelete} onRefreshNav={loadFunds} />)
+            : activeFunds.map(f => <FundCard key={f.id} fund={f} onDelete={handleDelete} onRefreshNav={loadFunds} isCurrentMonth={isCurrentMonth} />)
           }
         </div>
       )}
@@ -1354,7 +1376,7 @@ const SIPTracker = ({ currentMonth: _currentMonth, currentYear: _currentYear, on
         <div className="space-y-4">
           {histFunds.length === 0
             ? <p className="text-sm text-gray-400 dark:text-gray-500">No historical data. Import a Capital Gains Excel to see past investments.</p>
-            : histFunds.map(f => <FundCard key={f.id} fund={f} onDelete={handleDelete} onRefreshNav={loadFunds} />)
+            : histFunds.map(f => <FundCard key={f.id} fund={f} onDelete={handleDelete} onRefreshNav={loadFunds} isCurrentMonth={isCurrentMonth} />)
           }
         </div>
       )}

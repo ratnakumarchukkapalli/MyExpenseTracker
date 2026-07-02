@@ -455,14 +455,16 @@ interface PriceEditorProps {
   onPriceUpdate: () => void;
   currentMonth: number;
   currentYear: number;
+  isCurrentMonth: boolean;
 }
 
-const PriceEditor = ({ holding, onPriceUpdate, currentMonth, currentYear }: PriceEditorProps) => {
+const PriceEditor = ({ holding, onPriceUpdate, currentMonth, currentYear, isCurrentMonth }: PriceEditorProps) => {
   const [editing, setEditing] = useState(false);
   const [value, setValue] = useState('');
   const [saving, setSaving] = useState(false);
 
   const handleSave = async () => {
+    if (!isCurrentMonth) return;
     const price = parseFloat(value);
     if (isNaN(price) || price <= 0) return;
     setSaving(true);
@@ -515,14 +517,15 @@ const PriceEditor = ({ holding, onPriceUpdate, currentMonth, currentYear }: Pric
 
   return (
     <button
-      onClick={() => { setEditing(true); setValue(holding.current_price?.toString() || ''); }}
-      className="flex items-center gap-1 text-xs text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 transition-colors group"
-      title="Click to update price"
+      onClick={() => { if (isCurrentMonth) { setEditing(true); setValue(holding.current_price?.toString() || ''); } }}
+      disabled={!isCurrentMonth}
+      className="flex items-center gap-1 text-xs text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 transition-colors group disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:text-gray-700 dark:disabled:hover:text-gray-300"
+      title={isCurrentMonth ? "Click to update price" : "Price editing is only available for the current month"}
     >
       <span className="num font-medium">
         {holding.current_price != null ? `₹${holding.current_price.toFixed(2)}` : 'Set price'}
       </span>
-      <Edit2 className="h-3 w-3 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity" />
+      {isCurrentMonth && <Edit2 className="h-3 w-3 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity" />}
     </button>
   );
 };
@@ -536,9 +539,10 @@ interface StockCardProps {
   onPriceUpdate: () => void;
   currentMonth: number;
   currentYear: number;
+  isCurrentMonth: boolean;
 }
 
-const StockCard = ({ holding, onDelete, onEdit, onPriceUpdate, currentMonth, currentYear }: StockCardProps) => {
+const StockCard = ({ holding, onDelete, onEdit, onPriceUpdate, currentMonth, currentYear, isCurrentMonth }: StockCardProps) => {
   const invested = holding.shares * holding.buy_price;
   const currentValue = holding.current_price != null ? holding.shares * holding.current_price : null;
   const gainAmt = currentValue != null ? currentValue - invested : null;
@@ -630,11 +634,12 @@ const StockCard = ({ holding, onDelete, onEdit, onPriceUpdate, currentMonth, cur
             <div className="flex items-center gap-1.5 mt-0.5">
               <span className="text-xs text-gray-500 dark:text-gray-400 num">₹{holding.buy_price.toFixed(2)}</span>
               <span className="text-gray-300 dark:text-gray-600 text-xs">→</span>
-              <PriceEditor 
-                holding={holding} 
-                onPriceUpdate={onPriceUpdate} 
+              <PriceEditor
+                holding={holding}
+                onPriceUpdate={onPriceUpdate}
                 currentMonth={currentMonth}
                 currentYear={currentYear}
+                isCurrentMonth={isCurrentMonth}
               />
             </div>
           </div>
@@ -695,10 +700,12 @@ interface StockTrackerProps {
   currentYear?: number;
   onPortfolioUpdate?: () => void;
   onPricesRefreshed?: () => void;
+  frozenShares?: number;
 }
 
-const StockTracker = ({ currentMonth = new Date().getMonth() + 1, currentYear = new Date().getFullYear(), onPortfolioUpdate, onPricesRefreshed }: StockTrackerProps) => {
+const StockTracker = ({ currentMonth = new Date().getMonth() + 1, currentYear = new Date().getFullYear(), onPortfolioUpdate, onPricesRefreshed, frozenShares }: StockTrackerProps) => {
   const { chartColors } = useDarkMode();
+  const isCurrentMonth = currentMonth === new Date().getMonth() + 1 && currentYear === new Date().getFullYear();
   const [holdings, setHoldings] = useState<StockHolding[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -738,6 +745,7 @@ const StockTracker = ({ currentMonth = new Date().getMonth() + 1, currentYear = 
 
   useEffect(() => {
     if (loading || holdings.length === 0) return;
+    if (!isCurrentMonth) return; // don't auto-refresh live prices while browsing history
     if (autoRefreshedRef.current) return;
     const today = new Date().toISOString().split('T')[0];
     const lastScrape = localStorage.getItem('lastStockScrapeTime');
@@ -749,7 +757,7 @@ const StockTracker = ({ currentMonth = new Date().getMonth() + 1, currentYear = 
       handleRefreshPrices();
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loading]);
+  }, [loading, isCurrentMonth]);
 
   const handleDelete = async (id: number) => {
     if (!window.confirm('Delete this stock holding?')) return;
@@ -762,6 +770,7 @@ const StockTracker = ({ currentMonth = new Date().getMonth() + 1, currentYear = 
   };
 
   const handleRefreshPrices = async () => {
+    if (!isCurrentMonth) return;
     setRefreshing(true);
     setRefreshStatus(null);
     try {
@@ -785,15 +794,19 @@ const StockTracker = ({ currentMonth = new Date().getMonth() + 1, currentYear = 
     }
   };
 
+  // totalInvested has no historical snapshot (only the aggregate current-value total is frozen
+  // per month), so it stays live for all months — same tradeoff Dashboard already accepts.
   const totalInvested = holdings.reduce((sum, h) => sum + h.shares * h.buy_price, 0);
   const priced = holdings.filter(h => h.current_price != null);
-  const totalCurrentValue = priced.reduce((sum, h) => sum + h.shares * h.current_price!, 0);
+  const liveCurrentValue = priced.reduce((sum, h) => sum + h.shares * h.current_price!, 0);
+  const totalCurrentValue = (isCurrentMonth || frozenShares == null) ? liveCurrentValue : frozenShares;
   const totalInvestedPriced = priced.reduce((sum, h) => sum + h.shares * h.buy_price, 0);
   const totalGain = totalCurrentValue - totalInvestedPriced;
   const totalGainPct = totalInvestedPriced > 0 ? (totalGain / totalInvestedPriced) * 100 : 0;
   const unpricedCount = holdings.length - priced.length;
 
-  const dayChangePriced = priced.filter(h => h.prev_close != null);
+  // Day-change is inherently a "today" concept — meaningless for a past month.
+  const dayChangePriced = isCurrentMonth ? priced.filter(h => h.prev_close != null) : [];
   const totalDayChange = dayChangePriced.reduce((sum, h) => sum + h.shares * (h.current_price! - h.prev_close!), 0);
   const totalDayChangePct = dayChangePriced.length > 0
     ? (totalDayChange / dayChangePriced.reduce((sum, h) => sum + h.shares * h.prev_close!, 0)) * 100
@@ -907,9 +920,9 @@ const StockTracker = ({ currentMonth = new Date().getMonth() + 1, currentYear = 
           )}
           <button
             onClick={handleRefreshPrices}
-            disabled={refreshing || holdings.length === 0}
+            disabled={refreshing || holdings.length === 0 || !isCurrentMonth}
             className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-gray-600 dark:text-gray-400 bg-white dark:bg-surface-800 border border-gray-200 dark:border-surface-700 rounded-xl hover:border-primary-300 disabled:opacity-50 transition-colors cursor-pointer"
-            title="Fetch live NSE prices"
+            title={isCurrentMonth ? "Fetch live NSE prices" : "Price refresh is only available for the current month"}
           >
             <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
             {refreshing ? 'Fetching...' : 'Refresh Prices'}
@@ -955,6 +968,17 @@ const StockTracker = ({ currentMonth = new Date().getMonth() + 1, currentYear = 
         </div>
       )}
 
+      {/* Past-month snapshot notice */}
+      {!isCurrentMonth && holdings.length > 0 && (
+        <div className="flex items-center gap-2 px-4 py-2 bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-900/30 rounded-xl text-blue-700 dark:text-blue-400">
+          <AlertCircle size={14} />
+          <span className="text-xs font-medium">
+            Viewing {new Date(currentYear, currentMonth - 1).toLocaleString('default', { month: 'long', year: 'numeric' })}.
+            Total Invested, Current Value and Today&apos;s P&amp;L above reflect the frozen month-end snapshot. Individual holding prices below are today&apos;s live prices for reference only.
+          </span>
+        </div>
+      )}
+
       {/* Summary Cards */}
       {holdings.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -968,10 +992,13 @@ const StockTracker = ({ currentMonth = new Date().getMonth() + 1, currentYear = 
             <p className="text-2xl font-bold mt-1 num" style={{ color: 'var(--ink)' }}>
               {priced.length > 0 ? formatCurrency(totalCurrentValue) : '—'}
             </p>
-            {unpricedCount > 0 && (
+            {unpricedCount > 0 && isCurrentMonth && (
               <p className="text-xs mt-1" style={{ color: 'var(--warn)' }}>
                 {unpricedCount} stock{unpricedCount !== 1 ? 's' : ''} missing price
               </p>
+            )}
+            {!isCurrentMonth && (
+              <p className="text-xs mt-1" style={{ color: 'var(--ink-faint)' }}>Frozen · month-end</p>
             )}
           </div>
           <div className="rounded-2xl border shadow-sm p-5" style={{ 
@@ -1070,6 +1097,7 @@ const StockTracker = ({ currentMonth = new Date().getMonth() + 1, currentYear = 
               onPriceUpdate={() => { loadHoldings(); onPortfolioUpdate?.(); }}
               currentMonth={currentMonth}
               currentYear={currentYear}
+              isCurrentMonth={isCurrentMonth}
             />
           ))}
         </div>
