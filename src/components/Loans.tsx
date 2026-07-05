@@ -103,8 +103,13 @@ function Loans({ onShowForm, onEdit, refreshKey, currentMonth, currentYear, onPa
     return Math.ceil((dueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
   };
 
+  // CC EMIs (IGo, New EMI, PolicyBazaar, paytm, etc.) are paid as one lump credit card
+  // statement, not individually — only real fixed EMIs get due-soon/overdue tracking.
+  const BANNER_TRACKED_LOANS = new Set(['solar', 'home loan']);
+
   const payableLoans = useMemo(() => loans.filter(l => {
     if (l.status !== 'active' || l.paid_this_month) return false;
+    if (!BANNER_TRACKED_LOANS.has(l.name.trim().toLowerCase())) return false;
     if (!l.end_date) return true;
     const end = new Date(l.end_date);
     return end.getFullYear() * 12 + (end.getMonth() + 1) >= realPeriod;
