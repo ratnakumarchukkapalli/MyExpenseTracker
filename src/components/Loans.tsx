@@ -16,6 +16,7 @@ interface Loan {
   category?: string;
   status: string;
   comments?: string;
+  paid_this_month?: boolean;
 }
 
 interface Props {
@@ -24,23 +25,45 @@ interface Props {
   refreshKey: number;
   currentMonth: number;
   currentYear: number;
+  onPay?: () => void;
 }
 
-function Loans({ onShowForm, onEdit, refreshKey, currentMonth, currentYear }: Props) {
+function Loans({ onShowForm, onEdit, refreshKey, currentMonth, currentYear, onPay }: Props) {
   const [loans, setLoans] = useState<Loan[]>([]);
   const [loading, setLoading] = useState(true);
+  const [payingId, setPayingId] = useState<number | null>(null);
 
   useEffect(() => { loadLoans(); }, [refreshKey]);
 
   const loadLoans = async () => {
     try {
-      const res = await fetch('/api/loans');
+      // no-store: paid_this_month must be fresh after a Pay Now refresh
+      const res = await fetch('/api/loans', { cache: 'no-store' });
       const data = await res.json();
       setLoans(data || []);
     } catch (error) {
       console.error('Failed to load loans:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleMarkPaid = async (loan: Loan) => {
+    if (payingId) return;
+    setPayingId(loan.id);
+    try {
+      const res = await fetch(`/api/loans/${loan.id}/pay`, { method: 'POST' });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Failed to record payment');
+      }
+      setLoans(prev => prev.map(l => l.id === loan.id ? { ...l, paid_this_month: true } : l));
+      onPay?.();
+    } catch (error) {
+      console.error('Failed to record EMI payment:', error);
+      alert(error instanceof Error ? error.message : 'Failed to record payment');
+    } finally {
+      setPayingId(null);
     }
   };
 
@@ -68,6 +91,30 @@ function Loans({ onShowForm, onEdit, refreshKey, currentMonth, currentYear }: Pr
   const activeLoans = useMemo(() => loans.filter(l => l.status === 'active'), [loans]);
   const totalMonthlyEMI = useMemo(() => visibleLoans.reduce((sum, l) => sum + (l.amount || 0), 0), [visibleLoans]);
   const totalYearlyEMI = totalMonthlyEMI * 12;
+
+  // Banner logic runs against the real current month (EMIs are paid now, not in the viewed month)
+  const today = new Date();
+  const realPeriod = today.getFullYear() * 12 + (today.getMonth() + 1);
+  const isViewingCurrentMonth = currentMonth === today.getMonth() + 1 && currentYear === today.getFullYear();
+
+  const getDaysUntilDue = (loan: Loan) => {
+    const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
+    const dueDate = new Date(today.getFullYear(), today.getMonth(), Math.min(loan.due_day, daysInMonth));
+    return Math.ceil((dueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+  };
+
+  const payableLoans = useMemo(() => loans.filter(l => {
+    if (l.status !== 'active' || l.paid_this_month) return false;
+    if (!l.end_date) return true;
+    const end = new Date(l.end_date);
+    return end.getFullYear() * 12 + (end.getMonth() + 1) >= realPeriod;
+  }), [loans, realPeriod]);
+
+  const overdueLoans = payableLoans.filter(l => getDaysUntilDue(l) < 0);
+  const dueSoonLoans = payableLoans.filter(l => {
+    const d = getDaysUntilDue(l);
+    return d >= 0 && d <= 7;
+  });
 
   const getMonthsRemaining = (endDate?: string) => {
     if (!endDate) return null;
@@ -141,6 +188,71 @@ function Loans({ onShowForm, onEdit, refreshKey, currentMonth, currentYear }: Pr
 
   return (
     <div className="space-y-6">
+      {overdueLoans.length > 0 && (
+        <div className="bg-red-50 border border-red-200 rounded-2xl p-4">
+          <div className="flex items-start gap-3">
+            <AlertCircle className="h-5 w-5 text-red-600 mt-0.5" />
+            <div className="flex-1">
+              <h3 className="font-bold text-red-900">{overdueLoans.length} EMI{overdueLoans.length > 1 ? 's' : ''} Overdue</h3>
+              <div className="flex flex-wrap gap-2 mt-2">
+                {overdueLoans.map(loan => (
+                  <div key={loan.id} className="flex items-center gap-2 bg-white rounded-lg px-3 py-1.5 border border-red-200">
+                    <span className="text-sm font-medium">{loan.name}</span>
+                    <span className="text-xs text-red-700">due {loan.due_day}th</span>
+                    <span className="text-sm text-red-600 font-bold">₹{loan.amount.toLocaleString()}</span>
+                    <button
+                      onClick={() => handleMarkPaid(loan)}
+                      disabled={payingId === loan.id}
+                      className={`text-xs px-3 py-1 rounded-full font-bold transition-all cursor-pointer ${
+                        payingId === loan.id
+                          ? 'bg-gray-400 text-white cursor-wait'
+                          : 'bg-red-600 text-white hover:bg-red-700 active:scale-95 shadow-sm'
+                      }`}
+                    >
+                      {payingId === loan.id ? 'Processing...' : 'Pay Now'}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {dueSoonLoans.length > 0 && (
+        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4">
+          <div className="flex items-start gap-3">
+            <Calendar className="h-5 w-5 text-amber-600 mt-0.5" />
+            <div className="flex-1">
+              <h3 className="font-bold text-amber-900">{dueSoonLoans.length} EMI{dueSoonLoans.length > 1 ? 's' : ''} Due Soon</h3>
+              <div className="flex flex-wrap gap-2 mt-2">
+                {dueSoonLoans.map(loan => {
+                  const daysUntil = getDaysUntilDue(loan);
+                  return (
+                    <div key={loan.id} className="flex items-center gap-2 bg-white rounded-lg px-3 py-1.5 border border-amber-200">
+                      <span className="text-sm font-medium">{loan.name}</span>
+                      <span className="text-xs text-amber-700">{daysUntil === 0 ? 'due today' : `in ${daysUntil}d`}</span>
+                      <span className="text-sm text-amber-600 font-bold">₹{loan.amount.toLocaleString()}</span>
+                      <button
+                        onClick={() => handleMarkPaid(loan)}
+                        disabled={payingId === loan.id}
+                        className={`text-xs px-3 py-1 rounded-full font-bold transition-all cursor-pointer ${
+                          payingId === loan.id
+                            ? 'bg-gray-400 text-white cursor-wait'
+                            : 'bg-amber-600 text-white hover:bg-amber-700 active:scale-95 shadow-sm'
+                        }`}
+                      >
+                        {payingId === loan.id ? 'Processing...' : 'Pay Now'}
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -264,17 +376,38 @@ function Loans({ onShowForm, onEdit, refreshKey, currentMonth, currentYear }: Pr
                         )}
                       </td>
                       <td className="px-4 py-4 text-center">
-                        <span className="inline-flex px-2 py-0.5 text-xs font-medium rounded-full"
-                          style={{ 
-                            background: loan.status === 'active' ? 'var(--pos-bg)' : loan.status === 'completed' ? 'var(--hairline)' : 'var(--warn-bg)',
-                            color: loan.status === 'active' ? 'var(--pos)' : loan.status === 'completed' ? 'var(--ink-muted)' : 'var(--warn)'
-                          }}
-                        >
-                          {loan.status}
-                        </span>
+                        {isViewingCurrentMonth && loan.status === 'active' && loan.paid_this_month ? (
+                          <span className="inline-flex px-2 py-0.5 text-xs font-medium rounded-full" style={{ background: 'var(--pos-bg)', color: 'var(--pos)' }}>
+                            Paid
+                          </span>
+                        ) : (
+                          <span className="inline-flex px-2 py-0.5 text-xs font-medium rounded-full"
+                            style={{
+                              background: loan.status === 'active' ? 'var(--pos-bg)' : loan.status === 'completed' ? 'var(--hairline)' : 'var(--warn-bg)',
+                              color: loan.status === 'active' ? 'var(--pos)' : loan.status === 'completed' ? 'var(--ink-muted)' : 'var(--warn)'
+                            }}
+                          >
+                            {loan.status}
+                          </span>
+                        )}
                       </td>
                       <td className="px-4 py-4">
                         <div className="flex items-center justify-end gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
+                          {isViewingCurrentMonth && loan.status === 'active' && !loan.paid_this_month && (
+                            <button
+                              onClick={() => handleMarkPaid(loan)}
+                              disabled={payingId === loan.id}
+                              className="p-1.5 rounded-lg transition-all cursor-pointer"
+                              style={{ color: payingId === loan.id ? 'var(--ink-faint)' : 'var(--pos)' }}
+                              title="Mark EMI Paid"
+                            >
+                              {payingId === loan.id ? (
+                                <div className="h-4 w-4 border-2 border-t-transparent rounded-full animate-spin" style={{ borderColor: 'var(--pos)' }} />
+                              ) : (
+                                <CheckCircle className="h-4 w-4" />
+                              )}
+                            </button>
+                          )}
                           <button
                             onClick={() => onEdit(loan)}
                             className="p-1.5 rounded-lg cursor-pointer transition-colors"
@@ -305,7 +438,7 @@ function Loans({ onShowForm, onEdit, refreshKey, currentMonth, currentYear }: Pr
         <AlertCircle className="h-5 w-5 mt-0.5 flex-shrink-0" style={{ color: 'var(--accent)' }} />
         <div className="text-sm" style={{ color: 'var(--ink-soft)' }}>
           <p className="font-medium mb-1">How it works</p>
-          <p>Loan expenses are auto-generated monthly. Add a loan and it will appear in your expenses each month until the end date.</p>
+          <p>EMIs due within 7 days appear at the top each month. Tap Pay Now (or the check button) to record the payment — it&apos;s added to your expenses under LOANS/CC and reflected in your cash balance.</p>
         </div>
       </div>
     </div>

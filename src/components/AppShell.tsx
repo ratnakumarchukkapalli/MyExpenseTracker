@@ -792,11 +792,14 @@ function AppShell({ initialData, serverMonth, serverYear }: AppShellProps) {
                       }}
                       currentMonth={currentMonth}
                       currentYear={currentYear}
+                      onPay={() => {
+                        triggerRefresh();
+                      }}
                     />
                   </div>
                 )}
 
-                {mountedTabs.has('reports') && <div style={{ display: currentView === 'reports' ? undefined : 'none' }}><MonthlyReport currentMonth={currentMonth} currentYear={currentYear} /></div>}
+                {mountedTabs.has('reports') &&<div style={{ display: currentView === 'reports' ? undefined : 'none' }}><MonthlyReport currentMonth={currentMonth} currentYear={currentYear} /></div>}
                 {mountedTabs.has('projection') && <div style={{ display: currentView === 'projection' ? undefined : 'none' }}><YearEndProjection currentMonth={currentMonth} currentYear={currentYear} /></div>}
                 {mountedTabs.has('sip') && <div style={{ display: currentView === 'sip' ? undefined : 'none' }}><SIPTracker currentMonth={currentMonth} currentYear={currentYear} onPortfolioUpdate={triggerRefresh} frozenSip={monthlySummary?.savings_sip} /></div>}
                 {mountedTabs.has('stocks') && <div style={{ display: currentView === 'stocks' ? undefined : 'none' }}><StockTracker currentMonth={currentMonth} currentYear={currentYear} onPortfolioUpdate={triggerRefresh} onPricesRefreshed={() => setStockRefreshTick(t => t + 1)} frozenShares={monthlySummary?.savings_shares} /></div>}

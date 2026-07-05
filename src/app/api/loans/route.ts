@@ -24,14 +24,39 @@ export async function GET() {
   });
 
 
-  const { data, error: dbError } = await supabase
-    .from("loans")
-    .select("*")
-    .eq("user_id", user.id)
-    .order("due_day");
+  const now = new Date();
+  const month = now.getMonth() + 1;
+  const year = now.getFullYear();
+  const monthStart = `${year}-${String(month).padStart(2, "0")}-01`;
+  const nextMonthStart = month === 12
+    ? `${year + 1}-01-01`
+    : `${year}-${String(month + 1).padStart(2, "0")}-01`;
+
+  const [{ data, error: dbError }, paidRes] = await Promise.all([
+    supabase
+      .from("loans")
+      .select("*")
+      .eq("user_id", user.id)
+      .order("due_day"),
+    // EMI expenses this month act as the payment record (see /api/loans/[id]/pay)
+    supabase
+      .from("expenses")
+      .select("description")
+      .eq("user_id", user.id)
+      .like("description", "Loan EMI: %")
+      .gte("date", monthStart)
+      .lt("date", nextMonthStart),
+  ]);
 
   if (dbError) return Response.json({ error: dbError.message }, { status: 500 });
-  return Response.json(data ?? [], {
+
+  const paidDescriptions = new Set((paidRes.data ?? []).map((e) => e.description));
+  const loans = (data ?? []).map((l) => ({
+    ...l,
+    paid_this_month: paidDescriptions.has(`Loan EMI: ${l.name}`),
+  }));
+
+  return Response.json(loans, {
     headers: { "Cache-Control": "private, max-age=60, stale-while-revalidate=300" },
   });
 }
