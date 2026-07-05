@@ -113,12 +113,13 @@ function Subscriptions({ subscriptions, onAdd, onEdit, onDelete, onPay, currentM
     return !isPaid && daysUntil !== null && daysUntil < 0;
   });
 
-  const dueSoonCount = subscriptions.filter(sub => {
+  const dueSoonSubscriptions = subscriptions.filter(sub => {
     const projectedDate = getProjectedRenewalDate(sub);
     const isPaid = isPaidForSelectedPeriod(sub);
     const daysUntil = getDaysUntilRenewal(projectedDate);
     return !isPaid && daysUntil !== null && daysUntil >= 0 && daysUntil <= 7;
-  }).length;
+  });
+  const dueSoonCount = dueSoonSubscriptions.length;
 
   const handleMarkPaid = async (sub: Subscription) => {
     if (payingId) return;
@@ -347,6 +348,42 @@ function Subscriptions({ subscriptions, onAdd, onEdit, onDelete, onPay, currentM
                     </button>
                   </div>
                 ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {dueSoonSubscriptions.length > 0 && (
+        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4">
+          <div className="flex items-start gap-3">
+            <Calendar className="h-5 w-5 text-amber-600 mt-0.5" />
+            <div className="flex-1">
+              <h3 className="font-bold text-amber-900">{dueSoonSubscriptions.length} Due Soon</h3>
+              <div className="flex flex-wrap gap-2 mt-2">
+                {dueSoonSubscriptions.map(sub => {
+                  const daysUntil = getDaysUntilRenewal(getProjectedRenewalDate(sub));
+                  return (
+                    <div key={sub.id} className="flex items-center gap-2 bg-white rounded-lg px-3 py-1.5 border border-amber-200">
+                      <span className="text-sm font-medium">{sub.name}</span>
+                      <span className="text-xs text-amber-700">
+                        {sub.billing_type === 'yearly' ? 'yearly · ' : ''}{daysUntil === 0 ? 'due today' : `in ${daysUntil}d`}
+                      </span>
+                      <span className="text-sm text-amber-600 font-bold">₹{sub.amount.toLocaleString()}</span>
+                      <button
+                        onClick={() => handleMarkPaid(sub)}
+                        disabled={payingId === sub.id}
+                        className={`text-xs px-3 py-1 rounded-full font-bold transition-all cursor-pointer ${
+                          payingId === sub.id
+                            ? 'bg-gray-400 text-white cursor-wait'
+                            : 'bg-amber-600 text-white hover:bg-amber-700 active:scale-95 shadow-sm'
+                        }`}
+                      >
+                        {payingId === sub.id ? 'Processing...' : 'Pay Now'}
+                      </button>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           </div>
