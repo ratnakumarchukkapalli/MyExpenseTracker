@@ -540,7 +540,7 @@ function Dashboard({ expenses, subscriptions, monthlySummary, currentMonth, curr
                 { label: 'Sodexo used', value: sodexoSpent, color: '#f97316' },
                 { label: 'Saved', value: totalSavings, color: '#22c55e' },
                 { label: 'Salary', value: salary, color: 'var(--accent)' },
-                ...(sodexoBalance > 0 ? [{ label: 'Sodexo balance', value: sodexoBalance, color: '#f97316' }] : []),
+                ...(sodexoBalance > 0 ? [{ label: 'Sodexo allocated', value: sodexoBalance, color: '#f97316' }] : []),
                 { label: 'Total used', value: totalExpenses, color: '#6b7280' },
               ].map((item) => (
                 <div key={item.label} className="rings-legend-row" style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
