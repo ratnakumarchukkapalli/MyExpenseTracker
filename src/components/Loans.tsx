@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import {
   Plus, Edit2, Trash2, DollarSign, Calendar, Clock, AlertCircle,
-  CheckCircle, Landmark,
+  CheckCircle, Landmark, Wallet, TrendingDown, Search,
 } from 'lucide-react';
 
 interface Loan {
@@ -17,7 +17,35 @@ interface Loan {
   status: string;
   comments?: string;
   paid_this_month?: boolean;
+  remind_me?: boolean;
+  outstanding_balance?: number;
+  outstanding_balance_asof?: string;
 }
+
+const periodOf = (dateString: string) => {
+  const d = new Date(dateString);
+  return d.getFullYear() * 12 + (d.getMonth() + 1);
+};
+
+// A loan "covers" a given period if it started on/before it and (if it has an
+// end date) hasn't ended before it. Missing start_date is treated as "always started"
+// defensively, though the API always sets one.
+const loanCoversPeriod = (loan: Loan, period: number) => {
+  if (loan.start_date && periodOf(loan.start_date) > period) return false;
+  if (loan.end_date && periodOf(loan.end_date) < period) return false;
+  return true;
+};
+
+const REMAINING_BUCKETS = [
+  { value: 'all', label: 'All' },
+  { value: 'ending-soon', label: 'Ending ≤ 3 months' },
+  { value: 'this-year', label: 'Ending within 12 months' },
+  { value: 'long-term', label: 'Long-term (> 1 year)' },
+  { value: 'ongoing', label: 'No end date' },
+] as const;
+
+type RemainingBucket = typeof REMAINING_BUCKETS[number]['value'];
+type SortKey = 'due_day' | 'amount' | 'remaining' | 'name';
 
 interface Props {
   onShowForm: () => void;
@@ -32,6 +60,11 @@ function Loans({ onShowForm, onEdit, refreshKey, currentMonth, currentYear, onPa
   const [loans, setLoans] = useState<Loan[]>([]);
   const [loading, setLoading] = useState(true);
   const [payingId, setPayingId] = useState<number | null>(null);
+  const [search, setSearch] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('all');
+  const [remainingFilter, setRemainingFilter] = useState<RemainingBucket>('all');
+  const [showAllStatuses, setShowAllStatuses] = useState(false);
+  const [sortKey, setSortKey] = useState<SortKey>('due_day');
 
   useEffect(() => { loadLoans(); }, [refreshKey]);
 
@@ -80,17 +113,99 @@ function Loans({ onShowForm, onEdit, refreshKey, currentMonth, currentYear, onPa
 
   const selectedPeriod = (currentYear || new Date().getFullYear()) * 12 + ((currentMonth || new Date().getMonth() + 1));
 
-  const visibleLoans = useMemo(() => loans.filter(l => {
-    if (l.status !== 'active') return false;
-    if (!l.end_date) return true;
-    const end = new Date(l.end_date);
-    const endPeriod = end.getFullYear() * 12 + (end.getMonth() + 1);
-    return endPeriod >= selectedPeriod;
-  }), [loans, selectedPeriod]);
+  // Single definition of "active loan covering a given period" — status active
+  // AND start_date/end_date actually cover it. Previously only end_date was
+  // checked, so a loan added with a future start_date would already count
+  // toward the current month's EMI total. Reused everywhere below instead of
+  // re-deriving the same predicate per card, so the fix can't be missed in one spot.
+  const loansActiveIn = (period: number) => loans.filter(l => l.status === 'active' && loanCoversPeriod(l, period));
 
-  const activeLoans = useMemo(() => loans.filter(l => l.status === 'active'), [loans]);
-  const totalMonthlyEMI = useMemo(() => visibleLoans.reduce((sum, l) => sum + (l.amount || 0), 0), [visibleLoans]);
-  const totalYearlyEMI = totalMonthlyEMI * 12;
+  const activeInPeriod = useMemo(() => loansActiveIn(selectedPeriod), [loans, selectedPeriod]);
+
+  const categories = useMemo(
+    () => Array.from(new Set(loans.map(l => l.category).filter(Boolean))) as string[],
+    [loans]
+  );
+
+  const getMonthsRemaining = (endDate?: string) => {
+    if (!endDate) return null;
+    return Math.max(0, periodOf(endDate) - selectedPeriod);
+  };
+
+  const matchesRemainingBucket = (loan: Loan) => {
+    if (remainingFilter === 'all') return true;
+    if (remainingFilter === 'ongoing') return !loan.end_date;
+    const months = getMonthsRemaining(loan.end_date);
+    if (months === null) return false;
+    if (remainingFilter === 'ending-soon') return months <= 3;
+    if (remainingFilter === 'this-year') return months <= 12;
+    return months > 12; // long-term
+  };
+
+  const visibleLoans = useMemo(() => {
+    const filtered = (showAllStatuses ? loans : activeInPeriod).filter(l => {
+      if (search.trim() && !l.name.toLowerCase().includes(search.trim().toLowerCase())) return false;
+      if (categoryFilter !== 'all' && l.category !== categoryFilter) return false;
+      if (!matchesRemainingBucket(l)) return false;
+      return true;
+    });
+    const sorted = [...filtered].sort((a, b) => {
+      if (sortKey === 'amount') return b.amount - a.amount;
+      if (sortKey === 'name') return a.name.localeCompare(b.name);
+      if (sortKey === 'remaining') {
+        const ra = getMonthsRemaining(a.end_date) ?? Infinity;
+        const rb = getMonthsRemaining(b.end_date) ?? Infinity;
+        return ra - rb;
+      }
+      return a.due_day - b.due_day;
+    });
+    return sorted;
+  }, [loans, activeInPeriod, showAllStatuses, search, categoryFilter, remainingFilter, selectedPeriod, sortKey]);
+
+  const totalMonthlyEMI = useMemo(() => activeInPeriod.reduce((sum, l) => sum + (l.amount || 0), 0), [activeInPeriod]);
+
+  // Real 12-month projection instead of monthly * 12 — accounts for loans that
+  // end partway through the year instead of assuming every active loan runs all 12 months.
+  const totalYearlyEMI = useMemo(() => {
+    let total = 0;
+    for (let i = 0; i < 12; i++) {
+      total += loansActiveIn(selectedPeriod + i).reduce((sum, l) => sum + (l.amount || 0), 0);
+    }
+    return total;
+  }, [loans, selectedPeriod]);
+
+  // Nominal sum of every future EMI (principal + interest) for loans with a known
+  // end date — will run higher than Outstanding Loans, which is principal only.
+  // getMonthsRemaining counts months AFTER the viewed period, so +1 to include
+  // the viewed period's own payment (matches totalYearlyEMI's inclusive i=0 start).
+  const totalRemainingPayout = useMemo(
+    () => activeInPeriod.reduce((sum, l) => {
+      const months = getMonthsRemaining(l.end_date);
+      return months === null ? sum : sum + l.amount * (months + 1);
+    }, 0),
+    [activeInPeriod, selectedPeriod]
+  );
+
+  // Sum of manually-entered outstanding balances (from bank statements). Includes
+  // 'paused' loans (e.g. an EMI moratorium) since the debt still exists even while
+  // payments are on hold — only 'completed'/'inactive' loans are excluded, since
+  // those mean the loan itself is done. Not amortized/estimated — always exact as
+  // of its own date, goes stale between updates. Intentionally NOT wired into Net
+  // Worth — that number is built from monthly_summary snapshots (see snapshot
+  // rule) and retrofitting history here would need a separate backfill migration.
+  const outstandingLoans = useMemo(() => {
+    const tracked = loans.filter(l =>
+      (l.status === 'active' || l.status === 'paused') &&
+      loanCoversPeriod(l, selectedPeriod) &&
+      l.outstanding_balance != null
+    );
+    const total = tracked.reduce((sum, l) => sum + (l.outstanding_balance || 0), 0);
+    const oldestAsof = tracked
+      .map(l => l.outstanding_balance_asof)
+      .filter((d): d is string => !!d)
+      .sort()[0] ?? null;
+    return { total, trackedCount: tracked.length, oldestAsof };
+  }, [loans, selectedPeriod]);
 
   // Banner logic runs against the real current month (EMIs are paid now, not in the viewed month)
   const today = new Date();
@@ -103,30 +218,19 @@ function Loans({ onShowForm, onEdit, refreshKey, currentMonth, currentYear, onPa
     return Math.ceil((dueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
   };
 
-  // CC EMIs (IGo, New EMI, PolicyBazaar, paytm, etc.) are paid as one lump credit card
-  // statement, not individually — only real fixed EMIs get due-soon/overdue tracking.
-  const BANNER_TRACKED_LOANS = new Set(['solar', 'home loan']);
-
-  const payableLoans = useMemo(() => loans.filter(l => {
-    if (l.status !== 'active' || l.paid_this_month) return false;
-    if (!BANNER_TRACKED_LOANS.has(l.name.trim().toLowerCase())) return false;
-    if (!l.end_date) return true;
-    const end = new Date(l.end_date);
-    return end.getFullYear() * 12 + (end.getMonth() + 1) >= realPeriod;
-  }), [loans, realPeriod]);
+  // Only loans marked "remind me" get due-soon/overdue banner tracking (per-loan
+  // flag, set in LoanForm) — CC-bundled EMIs are usually left off since they're
+  // paid as one lump credit card statement, not individually.
+  const payableLoans = useMemo(
+    () => loansActiveIn(realPeriod).filter(l => !l.paid_this_month && l.remind_me),
+    [loans, realPeriod]
+  );
 
   const overdueLoans = payableLoans.filter(l => getDaysUntilDue(l) < 0);
   const dueSoonLoans = payableLoans.filter(l => {
     const d = getDaysUntilDue(l);
     return d >= 0 && d <= 7;
   });
-
-  const getMonthsRemaining = (endDate?: string) => {
-    if (!endDate) return null;
-    const end = new Date(endDate);
-    const endPeriod = end.getFullYear() * 12 + (end.getMonth() + 1);
-    return Math.max(0, endPeriod - selectedPeriod);
-  };
 
   const formatDate = (dateString?: string) => {
     if (!dateString) return '-';
@@ -298,7 +402,7 @@ function Loans({ onShowForm, onEdit, refreshKey, currentMonth, currentYear, onPa
             <div className="p-2 rounded-lg" style={{ background: 'var(--accent-bg)', color: 'var(--accent)' }}><CheckCircle className="h-5 w-5" /></div>
             <p className="text-sm font-medium" style={{ color: 'var(--ink-muted)' }}>Active Loans</p>
           </div>
-          <p className="text-2xl font-bold" style={{ color: 'var(--ink)' }}>{activeLoans.length}</p>
+          <p className="text-2xl font-bold" style={{ color: 'var(--ink)' }}>{activeInPeriod.length}</p>
         </div>
 
         <div className="rounded-2xl p-5" style={{ background: 'var(--pane)', border: '1px solid var(--hairline)' }}>
@@ -310,12 +414,101 @@ function Loans({ onShowForm, onEdit, refreshKey, currentMonth, currentYear, onPa
         </div>
       </div>
 
+      {/* Liability Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="rounded-2xl p-5" style={{ background: 'var(--pane)', border: '1px solid var(--hairline)' }}>
+          <div className="flex items-center gap-3 mb-2">
+            <div className="p-2 rounded-lg" style={{ background: 'var(--accent-bg)', color: 'var(--accent)' }}><Wallet className="h-5 w-5" /></div>
+            <p className="text-sm font-medium" style={{ color: 'var(--ink-muted)' }}>Total Future EMI Outflow</p>
+          </div>
+          <p className="text-2xl font-bold" style={{ color: 'var(--ink)' }}>₹{totalRemainingPayout.toLocaleString()}</p>
+          <p className="text-xs mt-1" style={{ color: 'var(--ink-faint)' }}>Sum of EMI × months left — includes interest, so this will exceed the Outstanding Loans balance</p>
+        </div>
+
+        <div className="rounded-2xl p-5" style={{ background: 'var(--pane)', border: '1px solid var(--hairline)' }}>
+          <div className="flex items-center gap-3 mb-2">
+            <div className="p-2 rounded-lg" style={{ background: 'var(--warn-bg)', color: 'var(--warn)' }}><TrendingDown className="h-5 w-5" /></div>
+            <p className="text-sm font-medium" style={{ color: 'var(--ink-muted)' }}>Outstanding Loans</p>
+          </div>
+          <p className="text-2xl font-bold" style={{ color: 'var(--ink)' }}>₹{Math.round(outstandingLoans.total).toLocaleString()}</p>
+          <p className="text-xs mt-1" style={{ color: 'var(--ink-faint)' }}>
+            {outstandingLoans.trackedCount > 0
+              ? `From ${outstandingLoans.trackedCount} loan${outstandingLoans.trackedCount > 1 ? 's' : ''} with a balance entered${outstandingLoans.oldestAsof ? `, oldest as of ${formatDate(outstandingLoans.oldestAsof)}` : ''} — not included in Net Worth`
+              : 'Enter a balance from your latest statement when editing a loan to track this'}
+          </p>
+        </div>
+      </div>
+
+      {/* Filters */}
+      <div className="rounded-2xl p-4 flex flex-wrap items-center gap-3" style={{ background: 'var(--pane)', border: '1px solid var(--hairline)' }}>
+        <div style={{ position: 'relative', flex: 1, minWidth: 180 }}>
+          <Search style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', width: 14, height: 14, color: 'var(--ink-faint)' }} />
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search loans…"
+            className="text-sm outline-none"
+            style={{ width: '100%', paddingLeft: 32, paddingRight: 12, paddingTop: 8, paddingBottom: 8, background: 'var(--bg-tint)', border: '1px solid var(--hairline)', borderRadius: 12, color: 'var(--ink)' }}
+          />
+        </div>
+
+        <select
+          value={remainingFilter}
+          onChange={(e) => setRemainingFilter(e.target.value as RemainingBucket)}
+          className="px-3 py-2 text-sm rounded-xl outline-none cursor-pointer"
+          style={{ background: 'var(--bg-tint)', border: '1px solid var(--hairline)', color: 'var(--ink)' }}
+        >
+          {REMAINING_BUCKETS.map(b => <option key={b.value} value={b.value}>{b.label}</option>)}
+        </select>
+
+        {categories.length > 1 && (
+          <select
+            value={categoryFilter}
+            onChange={(e) => setCategoryFilter(e.target.value)}
+            className="px-3 py-2 text-sm rounded-xl outline-none cursor-pointer"
+            style={{ background: 'var(--bg-tint)', border: '1px solid var(--hairline)', color: 'var(--ink)' }}
+          >
+            <option value="all">All categories</option>
+            {categories.map(c => <option key={c} value={c}>{c}</option>)}
+          </select>
+        )}
+
+        <select
+          value={sortKey}
+          onChange={(e) => setSortKey(e.target.value as SortKey)}
+          className="px-3 py-2 text-sm rounded-xl outline-none cursor-pointer"
+          style={{ background: 'var(--bg-tint)', border: '1px solid var(--hairline)', color: 'var(--ink)' }}
+        >
+          <option value="due_day">Sort: Due day</option>
+          <option value="amount">Sort: EMI amount</option>
+          <option value="remaining">Sort: Remaining</option>
+          <option value="name">Sort: Name</option>
+        </select>
+
+        <label className="flex items-center gap-2 text-sm cursor-pointer px-1" style={{ color: 'var(--ink-soft)' }}>
+          <input
+            type="checkbox"
+            checked={showAllStatuses}
+            onChange={(e) => setShowAllStatuses(e.target.checked)}
+            className="h-4 w-4 rounded cursor-pointer"
+          />
+          Show completed/inactive too
+        </label>
+      </div>
+
       {/* Loans Table */}
       {visibleLoans.length === 0 ? (
         <div className="pane p-12 text-center">
           <Landmark className="h-12 w-12 mx-auto mb-4" style={{ color: 'var(--ink-faint)' }} />
-          <h3 className="text-lg font-semibold" style={{ color: 'var(--ink)' }}>No loans yet</h3>
-          <p className="mt-2" style={{ color: 'var(--ink-muted)' }}>Add your loans and EMIs to track them automatically.</p>
+          <h3 className="text-lg font-semibold" style={{ color: 'var(--ink)' }}>
+            {loans.length === 0 ? 'No loans yet' : 'No loans match these filters'}
+          </h3>
+          <p className="mt-2" style={{ color: 'var(--ink-muted)' }}>
+            {loans.length === 0
+              ? 'Add your loans and EMIs to track them automatically.'
+              : 'Try clearing the search, category, or remaining-months filter.'}
+          </p>
         </div>
       ) : (
         <div className="rounded-2xl overflow-hidden" style={{ background: 'var(--pane)', border: '1px solid var(--hairline)', boxShadow: 'var(--shadow-sm)' }}>
@@ -335,6 +528,12 @@ function Loans({ onShowForm, onEdit, refreshKey, currentMonth, currentYear, onPa
               <tbody>
                 {visibleLoans.map((loan) => {
                   const monthsRemaining = getMonthsRemaining(loan.end_date);
+                  const totalMonths = loan.start_date && loan.end_date
+                    ? Math.max(1, periodOf(loan.end_date) - periodOf(loan.start_date))
+                    : null;
+                  const progressPct = totalMonths !== null && monthsRemaining !== null
+                    ? Math.min(100, Math.max(0, Math.round(((totalMonths - monthsRemaining) / totalMonths) * 100)))
+                    : null;
                   return (
                     <tr key={loan.id} className="group">
                       <td className="px-4 py-4">
@@ -379,6 +578,11 @@ function Loans({ onShowForm, onEdit, refreshKey, currentMonth, currentYear, onPa
                         ) : (
                           <span style={{ color: 'var(--ink-faint)' }}>-</span>
                         )}
+                        {progressPct !== null && (
+                          <div className="w-20 h-1 rounded-full mt-2 mx-auto overflow-hidden" style={{ background: 'var(--hairline)' }} title={`${progressPct}% paid`}>
+                            <div className="h-full rounded-full" style={{ width: `${progressPct}%`, background: 'var(--accent)' }} />
+                          </div>
+                        )}
                       </td>
                       <td className="px-4 py-4 text-center">
                         {isViewingCurrentMonth && loan.status === 'active' && loan.paid_this_month ? (
@@ -388,8 +592,8 @@ function Loans({ onShowForm, onEdit, refreshKey, currentMonth, currentYear, onPa
                         ) : (
                           <span className="inline-flex px-2 py-0.5 text-xs font-medium rounded-full"
                             style={{
-                              background: loan.status === 'active' ? 'var(--pos-bg)' : loan.status === 'completed' ? 'var(--hairline)' : 'var(--warn-bg)',
-                              color: loan.status === 'active' ? 'var(--pos)' : loan.status === 'completed' ? 'var(--ink-muted)' : 'var(--warn)'
+                              background: loan.status === 'active' ? 'var(--pos-bg)' : loan.status === 'completed' ? 'var(--hairline)' : loan.status === 'paused' ? 'var(--accent-bg)' : 'var(--warn-bg)',
+                              color: loan.status === 'active' ? 'var(--pos)' : loan.status === 'completed' ? 'var(--ink-muted)' : loan.status === 'paused' ? 'var(--accent)' : 'var(--warn)'
                             }}
                           >
                             {loan.status}

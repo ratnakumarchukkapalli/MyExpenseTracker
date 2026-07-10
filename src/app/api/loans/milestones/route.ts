@@ -10,7 +10,7 @@ export async function GET() {
     .from("loans")
     .select("name, amount, end_date")
     .eq("user_id", user.id)
-    .eq("status", "active")
+    .in("status", ["active", "paused"])
     .not("end_date", "is", null)
     .gte("end_date", today)
     .order("end_date");

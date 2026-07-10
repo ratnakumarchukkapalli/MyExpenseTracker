@@ -13,6 +13,9 @@ interface LoanData {
   category?: string;
   status?: string;
   comments?: string;
+  remind_me?: boolean;
+  outstanding_balance?: number;
+  outstanding_balance_asof?: string;
 }
 
 interface Props {
@@ -31,6 +34,9 @@ function LoanForm({ loan, onSubmit, onCancel }: Props) {
     category: 'LOANS/CC',
     status: 'active',
     comments: '',
+    remind_me: false,
+    outstanding_balance: '',
+    outstanding_balance_asof: '',
   });
 
   const categories = ['LOANS/CC', 'HOME Purpose', 'Personal'];
@@ -46,6 +52,9 @@ function LoanForm({ loan, onSubmit, onCancel }: Props) {
         category: loan.category || 'LOANS/CC',
         status: loan.status || 'active',
         comments: loan.comments || '',
+        remind_me: loan.remind_me ?? false,
+        outstanding_balance: loan.outstanding_balance?.toString() || '',
+        outstanding_balance_asof: loan.outstanding_balance_asof ? loan.outstanding_balance_asof.split('T')[0] : '',
       });
     }
   }, [loan]);
@@ -60,11 +69,17 @@ function LoanForm({ loan, onSubmit, onCancel }: Props) {
       ...formData,
       amount: parseFloat(formData.amount),
       due_day: parseInt(formData.due_day, 10),
+      outstanding_balance: formData.outstanding_balance ? parseFloat(formData.outstanding_balance) : null,
+      outstanding_balance_asof: formData.outstanding_balance_asof || null,
     });
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target;
+    const { name, value, type } = e.target;
+    if (type === 'checkbox') {
+      setFormData(prev => ({ ...prev, [name]: (e.target as HTMLInputElement).checked }));
+      return;
+    }
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
@@ -148,6 +163,36 @@ function LoanForm({ loan, onSubmit, onCancel }: Props) {
             </div>
           </div>
 
+          {/* Outstanding Balance */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2">Outstanding Balance (opt)</label>
+              <div className="relative">
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 font-medium text-sm">₹</span>
+                <input
+                  type="number"
+                  name="outstanding_balance"
+                  value={formData.outstanding_balance}
+                  onChange={handleChange}
+                  placeholder="From latest bank statement"
+                  min="0"
+                  step="0.01"
+                  className="w-full pl-8 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 transition-all text-sm"
+                />
+              </div>
+            </div>
+            <div>
+              <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2">Balance As Of</label>
+              <input
+                type="date"
+                name="outstanding_balance_asof"
+                value={formData.outstanding_balance_asof}
+                onChange={handleChange}
+                className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 transition-all text-sm cursor-pointer"
+              />
+            </div>
+          </div>
+
           {/* Start Date + End Date */}
           <div className="grid grid-cols-2 gap-4">
             <div>
@@ -198,9 +243,22 @@ function LoanForm({ loan, onSubmit, onCancel }: Props) {
                 <option value="active">Active</option>
                 <option value="completed">Completed</option>
                 <option value="paused">Paused</option>
+                <option value="inactive">Inactive</option>
               </select>
             </div>
           </div>
+
+          {/* Reminder toggle */}
+          <label className="flex items-center gap-3 px-1 cursor-pointer">
+            <input
+              type="checkbox"
+              name="remind_me"
+              checked={formData.remind_me}
+              onChange={handleChange}
+              className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+            />
+            <span className="text-sm text-gray-700">Remind me — show due-soon/overdue banner for this EMI</span>
+          </label>
 
           {/* Note */}
           <div>

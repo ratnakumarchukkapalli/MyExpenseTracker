@@ -73,6 +73,9 @@ type Loan = {
   category?: string;
   status: string;
   comments?: string;
+  remind_me?: boolean;
+  outstanding_balance?: number;
+  outstanding_balance_asof?: string;
 };
 
 type MonthlySummary = {
