@@ -38,33 +38,40 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
     nextRenewal = d.toISOString().split("T")[0];
   }
 
-  // 1. Insert payment record
-  // 2. Update subscription status
-  // 3. Create an expense record (so it's deducted from balance)
-  const [payResult, updateResult, expenseRes] = await Promise.all([
+  // 1. Create the expense record first (so it's deducted from balance) — its id
+  //    gets linked into the payment record below, so "Undo Payment" can find and
+  //    remove the exact expense it created instead of relying on manual cleanup.
+  const expenseRes = await supabase
+    .from("expenses")
+    .insert({
+      user_id: user.id,
+      amount: sub.amount,
+      date: paidDate,
+      description: `Subscription: ${sub.name}`,
+      category: "MonthlyBills",
+      note: `Paid via subscription tracker`
+    })
+    .select()
+    .single();
+
+  if (expenseRes.error) return Response.json({ error: expenseRes.error.message }, { status: 500 });
+
+  // 2. Insert payment record (linked to the expense)
+  // 3. Update subscription status
+  const [payResult, updateResult] = await Promise.all([
     supabase
       .from("subscription_payments")
-      .insert({ subscription_id: subId, user_id: user.id, amount: sub.amount, paid_date: paidDate })
+      .insert({ subscription_id: subId, user_id: user.id, amount: sub.amount, paid_date: paidDate, expense_id: expenseRes.data.id })
       .select()
       .single(),
     supabase
       .from("subscriptions")
-      .update({ 
+      .update({
         last_paid_date: paidDate,
-        renewal_date: nextRenewal 
+        renewal_date: nextRenewal
       })
       .eq("id", subId)
       .eq("user_id", user.id),
-    supabase
-      .from("expenses")
-      .insert({
-        user_id: user.id,
-        amount: sub.amount,
-        date: paidDate,
-        description: `Subscription: ${sub.name}`,
-        category: "MonthlyBills",
-        note: `Paid via subscription tracker`
-      })
   ]);
 
   if (payResult.error) return Response.json({ error: payResult.error.message }, { status: 500 });
@@ -92,6 +99,97 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
     paid_date: paidDate,
     next_renewal: nextRenewal
   }, { status: 201 });
+}
+
+// DELETE /api/subscriptions/[id]/pay — undo the most recent payment
+export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { user, supabase, error } = await requireAuth();
+  if (error) return error;
+
+  const { id } = await params;
+  const subId = Number(id);
+
+  const { data: sub } = await supabase
+    .from("subscriptions")
+    .select("billing_type, renewal_date")
+    .eq("id", subId)
+    .eq("user_id", user.id)
+    .single();
+
+  if (!sub) return Response.json({ error: "Not found" }, { status: 404 });
+
+  // Most recent payment is the one to undo; the one before it (if any) is what
+  // last_paid_date should revert to.
+  const { data: payments } = await supabase
+    .from("subscription_payments")
+    .select("id, paid_date, expense_id")
+    .eq("subscription_id", subId)
+    .eq("user_id", user.id)
+    .order("paid_date", { ascending: false })
+    .limit(2);
+
+  if (!payments || payments.length === 0) {
+    return Response.json({ error: "No payment to undo" }, { status: 400 });
+  }
+
+  const [latest, previous] = payments;
+  const restoredLastPaid = previous ? previous.paid_date : null;
+
+  // Reverse the exact +1 cycle that Pay Now applied
+  let restoredRenewal = sub.renewal_date;
+  if (sub.renewal_date) {
+    const d = new Date(sub.renewal_date);
+    if (sub.billing_type === "monthly") {
+      d.setMonth(d.getMonth() - 1);
+    } else {
+      d.setFullYear(d.getFullYear() - 1);
+    }
+    restoredRenewal = d.toISOString().split("T")[0];
+  }
+
+  const tasks: PromiseLike<any>[] = [
+    supabase
+      .from("subscriptions")
+      .update({ last_paid_date: restoredLastPaid, renewal_date: restoredRenewal })
+      .eq("id", subId)
+      .eq("user_id", user.id),
+    supabase
+      .from("subscription_payments")
+      .delete()
+      .eq("id", latest.id)
+      .eq("user_id", user.id),
+  ];
+
+  if (latest.expense_id) {
+    tasks.push(
+      supabase.from("expenses").delete().eq("id", latest.expense_id).eq("user_id", user.id)
+    );
+  }
+
+  const results = await Promise.all(tasks);
+  const dbError = results.find((r) => r?.error)?.error;
+  if (dbError) return Response.json({ error: dbError.message }, { status: 500 });
+
+  // Recalc monthly summary for the month the undone expense fell in
+  if (latest.expense_id) {
+    const paidMonth = new Date(latest.paid_date).getMonth() + 1;
+    const paidYear = new Date(latest.paid_date).getFullYear();
+
+    const updatedSummary = await updateMonthlyExpenseTotal(supabase, user.id, paidMonth, paidYear);
+
+    after(async () => {
+      await cascadeUpdateFutureMonths(supabase, user.id, paidMonth, paidYear, {
+        remaining_amount: Number(updatedSummary?.remaining_amount ?? 0),
+        savings_fd:       Number(updatedSummary?.savings_fd ?? 0),
+        savings_sip:      Number(updatedSummary?.savings_sip ?? 0),
+        savings_shares:   Number(updatedSummary?.savings_shares ?? 0),
+        savings_nps:      Number(updatedSummary?.savings_nps ?? 0),
+        savings_pf:       Number(updatedSummary?.savings_pf ?? 0),
+      });
+    });
+  }
+
+  return Response.json({ last_paid_date: restoredLastPaid, renewal_date: restoredRenewal });
 }
 
 // GET /api/subscriptions/[id]/pay — payment history

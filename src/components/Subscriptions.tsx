@@ -3,7 +3,7 @@
 import React, { useState, useMemo } from 'react';
 import {
   Calendar, DollarSign, AlertCircle, Edit2, Trash2, Plus, CreditCard,
-  CheckCircle, Search, Filter, X, History, ChevronDown, ChevronRight,
+  CheckCircle, Search, Filter, X, History, ChevronDown, ChevronRight, RotateCcw,
 } from 'lucide-react';
 
 interface Subscription {
@@ -23,13 +23,14 @@ interface Props {
   onEdit: (sub: Subscription | null) => void;
   onDelete: (id: number) => void;
   onPay: (sub: Subscription) => void;
+  onUndoPay: (sub: Subscription) => void;
   currentMonth: number;
   currentYear: number;
 }
 
 const CATEGORIES = ['Entertainment', 'Utilities', 'Software', 'Health', 'Finance', 'Shopping', 'Other'];
 
-function Subscriptions({ subscriptions, onAdd, onEdit, onDelete, onPay, currentMonth, currentYear }: Props) {
+function Subscriptions({ subscriptions, onAdd, onEdit, onDelete, onPay, onUndoPay, currentMonth, currentYear }: Props) {
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [showFilters, setShowFilters] = useState(false);
@@ -37,6 +38,7 @@ function Subscriptions({ subscriptions, onAdd, onEdit, onDelete, onPay, currentM
   const [paymentHistory] = useState<Record<number, any[]>>({});
   const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({});
   const [payingId, setPayingId] = useState<number | null>(null);
+  const [undoingId, setUndoingId] = useState<number | null>(null);
 
   const getProjectedRenewalDate = (sub: Subscription) => {
     if (!sub.renewal_date) return null;
@@ -145,6 +147,27 @@ function Subscriptions({ subscriptions, onAdd, onEdit, onDelete, onPay, currentM
     }
   };
 
+  const handleUndoPaid = async (sub: Subscription) => {
+    if (undoingId) return;
+    if (!window.confirm(`Undo the last payment for ${sub.name}? This removes the expense it created and reverts the renewal date.`)) return;
+    setUndoingId(sub.id);
+    try {
+      const res = await fetch(`/api/subscriptions/${sub.id}/pay`, { method: 'DELETE' });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Failed to undo payment');
+      }
+
+      onUndoPay(sub);
+    } catch (error) {
+      console.error('Failed to undo payment:', error);
+      alert(error instanceof Error ? error.message : 'Failed to undo payment');
+    } finally {
+      setUndoingId(null);
+    }
+  };
+
   const toggleSection = (section: string) => {
     setCollapsedSections(prev => ({ ...prev, [section]: !prev[section] }));
   };
@@ -191,8 +214,8 @@ function Subscriptions({ subscriptions, onAdd, onEdit, onDelete, onPay, currentM
           <td className="px-4 py-3">
             <div className="flex items-center justify-end gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
               {!isPaid && (
-                <button 
-                  onClick={() => handleMarkPaid(subscription)} 
+                <button
+                  onClick={() => handleMarkPaid(subscription)}
                   disabled={payingId === subscription.id}
                   className="p-1.5 rounded-lg transition-all cursor-pointer"
                   style={{ color: payingId === subscription.id ? 'var(--ink-faint)' : 'var(--pos)' }}
@@ -202,6 +225,21 @@ function Subscriptions({ subscriptions, onAdd, onEdit, onDelete, onPay, currentM
                     <div className="h-4 w-4 border-2 border-t-transparent rounded-full animate-spin" style={{ borderColor: 'var(--pos)' }} />
                   ) : (
                     <CheckCircle className="h-4 w-4" />
+                  )}
+                </button>
+              )}
+              {isPaid && (
+                <button
+                  onClick={() => handleUndoPaid(subscription)}
+                  disabled={undoingId === subscription.id}
+                  className="p-1.5 rounded-lg transition-all cursor-pointer"
+                  style={{ color: undoingId === subscription.id ? 'var(--ink-faint)' : 'var(--warn)' }}
+                  title="Undo Payment"
+                >
+                  {undoingId === subscription.id ? (
+                    <div className="h-4 w-4 border-2 border-t-transparent rounded-full animate-spin" style={{ borderColor: 'var(--warn)' }} />
+                  ) : (
+                    <RotateCcw className="h-4 w-4" />
                   )}
                 </button>
               )}

@@ -777,6 +777,9 @@ function AppShell({ initialData, serverMonth, serverYear }: AppShellProps) {
                       onPay={() => {
                         triggerRefresh();
                       }}
+                      onUndoPay={() => {
+                        triggerRefresh();
+                      }}
                     />
                   </div>
                 )}
