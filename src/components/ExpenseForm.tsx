@@ -11,6 +11,8 @@ interface ExpenseData {
   amount?: number;
   category?: string;
   note?: string;
+  tag?: string;
+  payment_source?: string;
 }
 
 interface Props {
@@ -26,7 +28,7 @@ const LAST_PAYMENT_SOURCE_KEY = 'met_last_payment_source';
 
 function ExpenseForm({ expense, onSubmit, onCancel, defaultDate }: Props) {
   const lastSource = (typeof window !== 'undefined'
-    ? (localStorage.getItem(LAST_PAYMENT_SOURCE_KEY) as 'bank' | 'sodexo' | null)
+    ? (localStorage.getItem(LAST_PAYMENT_SOURCE_KEY) as 'bank' | 'sodexo' | 'savings' | 'credit_card' | null)
     : null) ?? 'bank';
 
   const [formData, setFormData] = useState({
@@ -35,6 +37,7 @@ function ExpenseForm({ expense, onSubmit, onCancel, defaultDate }: Props) {
     amount: '',
     category: 'Personal',
     note: '',
+    tag: '',
     payment_source: lastSource,
   });
 
@@ -46,7 +49,8 @@ function ExpenseForm({ expense, onSubmit, onCancel, defaultDate }: Props) {
         amount: expense.amount?.toString() || '',
         category: expense.category || 'Personal',
         note: expense.note || '',
-        payment_source: ((expense as any).payment_source || 'bank') as 'bank' | 'sodexo',
+        tag: expense.tag || '',
+        payment_source: (expense.payment_source || 'bank') as 'bank' | 'sodexo' | 'savings' | 'credit_card',
       });
     }
   }, [expense]);
@@ -183,9 +187,21 @@ function ExpenseForm({ expense, onSubmit, onCancel, defaultDate }: Props) {
           {/* Payment Source */}
           <div>
             <label className="block text-[11px] font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--ink-faint)' }}>Paid from</label>
-            <div className="flex gap-2">
-              {(['bank', 'sodexo'] as const).map((src) => {
+            <div className="flex flex-wrap gap-2">
+              {(['bank', 'sodexo', 'savings', 'credit_card'] as const).map((src) => {
                 const active = formData.payment_source === src;
+                const colors: Record<string, string> = {
+                  bank: 'var(--accent)',
+                  sodexo: '#f97316',
+                  savings: '#16a34a',
+                  credit_card: '#4f46e5',
+                };
+                const labels: Record<string, string> = {
+                  bank: 'Bank',
+                  sodexo: 'Sodexo',
+                  savings: 'Savings',
+                  credit_card: 'Credit Card',
+                };
                 return (
                   <button
                     key={src}
@@ -193,16 +209,29 @@ function ExpenseForm({ expense, onSubmit, onCancel, defaultDate }: Props) {
                     onClick={() => setFormData((p) => ({ ...p, payment_source: src }))}
                     className="px-4 py-2 rounded-full text-[11px] font-bold border-2 transition-all cursor-pointer"
                     style={{
-                      backgroundColor: active ? (src === 'sodexo' ? '#f97316' : 'var(--accent)') : 'var(--bg-tint)',
+                      backgroundColor: active ? colors[src] : 'var(--bg-tint)',
                       borderColor: active ? 'transparent' : 'var(--hairline)',
                       color: active ? 'white' : 'var(--ink-muted)',
                     }}
                   >
-                    {src === 'bank' ? 'Bank' : 'Sodexo'}
+                    {labels[src]}
                   </button>
                 );
               })}
             </div>
+          </div>
+
+          {/* Tag */}
+          <div>
+            <label className="block text-[11px] font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--ink-faint)' }}>Tag (optional)</label>
+            <input
+              type="text"
+              value={formData.tag}
+              onChange={(e) => setFormData((p) => ({ ...p, tag: e.target.value }))}
+              placeholder="e.g. Goa Trip"
+              className="w-full px-4 py-2.5 rounded-xl focus:outline-none focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 transition-all text-sm"
+              style={{ background: 'var(--surface-solid)', border: '1px solid var(--hairline)', color: 'var(--ink)' }}
+            />
           </div>
 
           {/* Note */}

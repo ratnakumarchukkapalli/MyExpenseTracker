@@ -19,6 +19,7 @@ interface Expense {
   note?: string;
   is_auto_generated?: number;
   payment_source?: string;
+  tag?: string;
 }
 
 interface Props {
@@ -73,7 +74,8 @@ function ExpenseList({ expenses, onEdit, onDelete, categoryIcons = {}, recurring
       const query = searchQuery.toLowerCase();
       result = result.filter(exp =>
         exp.description.toLowerCase().includes(query) ||
-        exp.category.toLowerCase().includes(query)
+        exp.category.toLowerCase().includes(query) ||
+        (exp.tag ?? '').toLowerCase().includes(query)
       );
     }
     if (categoryFilter !== 'all') {
@@ -402,6 +404,21 @@ function ExpenseList({ expenses, onEdit, onDelete, categoryIcons = {}, recurring
                           {expense.payment_source === 'sodexo' && (
                             <span className="inline-flex px-2 py-0.5 text-[10px] font-bold rounded-full bg-orange-100 text-orange-700">
                               Sodexo
+                            </span>
+                          )}
+                          {expense.payment_source === 'savings' && (
+                            <span className="inline-flex px-2 py-0.5 text-[10px] font-bold rounded-full bg-green-100 text-green-700">
+                              Savings
+                            </span>
+                          )}
+                          {expense.payment_source === 'credit_card' && (
+                            <span className="inline-flex px-2 py-0.5 text-[10px] font-bold rounded-full bg-indigo-100 text-indigo-700">
+                              Credit Card
+                            </span>
+                          )}
+                          {expense.tag && (
+                            <span className="inline-flex px-2 py-0.5 text-[10px] font-bold rounded-full bg-sky-100 text-sky-700">
+                              {expense.tag}
                             </span>
                           )}
                           {expense.description && recurringDescriptions?.has(expense.description.toLowerCase().trim()) && (

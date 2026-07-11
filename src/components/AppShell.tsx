@@ -49,6 +49,8 @@ type Expense = {
   amount: number;
   category: string;
   note?: string;
+  tag?: string;
+  payment_source?: string;
 };
 
 type Subscription = {
@@ -450,7 +452,8 @@ function AppShell({ initialData, serverMonth, serverYear }: AppShellProps) {
         amount: Number(expense.amount),
         category: expense.category,
         note: expense.note ?? '',
-        payment_source: (expense as any).payment_source ?? 'bank',
+        tag: expense.tag ?? null,
+        payment_source: expense.payment_source ?? 'bank',
       }),
     });
     if (!res.ok) {

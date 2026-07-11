@@ -18,7 +18,8 @@ export const ExpenseCreateSchema = z.object({
   source_type: z.enum(["loan", "subscription", "iphone"]).optional().nullable(),
   source_id: z.number().int().positive().optional().nullable(),
   iphone_import_id: z.string().uuid().optional().nullable(),
-  payment_source: z.enum(["bank", "sodexo"]).default("bank").optional(),
+  payment_source: z.enum(["bank", "sodexo", "savings", "credit_card"]).default("bank").optional(),
+  tag: z.string().max(60).trim().optional().nullable(),
 });
 
 export const ExpenseUpdateSchema = ExpenseCreateSchema.partial().required({
