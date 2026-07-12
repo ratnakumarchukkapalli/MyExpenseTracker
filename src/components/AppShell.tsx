@@ -220,6 +220,7 @@ function AppShell({ initialData, serverMonth, serverYear }: AppShellProps) {
   const [prevMonthExpenses, setPrevMonthExpenses] = useState<Expense[]>((initialData?.prevMonthExpenses as Expense[]) ?? []);
   const [yearlyRows, setYearlyRows] = useState<YearlyRow[]>((initialData?.yearlyRows as YearlyRow[]) ?? []);
   const [yearlyCategoryRows, setYearlyCategoryRows] = useState<{ month: number; category: string; total: number }[]>((initialData?.yearlyCategoryRows as { month: number; category: string; total: number }[]) ?? []);
+  const [tagTotals, setTagTotals] = useState<Record<string, number>>((initialData?.tagTotals as Record<string, number>) ?? {});
   const [categoryBudgets, setCategoryBudgets] = useState<CategoryBudgetRow[]>((initialData?.categoryBudgets as CategoryBudgetRow[]) ?? []);
   const [loanMilestones, setLoanMilestones] = useState<LoanMilestone[]>((initialData?.loanMilestones as LoanMilestone[]) ?? []);
   const [loading, setLoading] = useState(!initialData);
@@ -271,6 +272,7 @@ function AppShell({ initialData, serverMonth, serverYear }: AppShellProps) {
         setSubscriptions(data.subscriptions ?? []);
         setYearlyRows(data.yearlyRows ?? []);
         setYearlyCategoryRows((data as any).yearlyCategoryRows ?? []);
+        setTagTotals((data as any).tagTotals ?? {});
         setCategoryBudgets(data.categoryBudgets ?? []);
         setLoanMilestones(data.loanMilestones ?? []);
         if (data.user && !userInfo) setUserInfo(data.user);
@@ -753,6 +755,7 @@ function AppShell({ initialData, serverMonth, serverYear }: AppShellProps) {
                       expenses={expenses}
                       yearlyRows={yearlyRows}
                       yearlyCategoryRows={yearlyCategoryRows}
+                      tagTotals={tagTotals}
                       currentMonth={currentMonth}
                       currentYear={currentYear}
                       privacyMode={privacyMode}
