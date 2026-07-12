@@ -20,7 +20,6 @@ export type BootstrapData = {
     savings: number;
   }[];
   yearlyCategoryRows: { month: number; category: string; total: number }[];
-  tagTotals: Record<string, number>;
   categoryBudgets: unknown[];
   loanMilestones: unknown[];
 };
@@ -81,7 +80,7 @@ export async function fetchBootstrapData(
       .order("month"),
     light ? staticPlaceholder : supabase
       .from("expenses")
-      .select("date, amount, category, tag")
+      .select("date, amount, category")
       .eq("user_id", user.id)
       .gte("date", `${year}-01-01`)
       .lt("date", `${year + 1}-01-01`),
@@ -107,28 +106,21 @@ export async function fetchBootstrapData(
 
   let yearlyRows: BootstrapData["yearlyRows"] = [];
   let yearlyCategoryRows: BootstrapData["yearlyCategoryRows"] = [];
-  let tagTotals: BootstrapData["tagTotals"] = {};
   if (!light) {
     const savingsByMonth: Record<number, number> = {};
     const categoryByMonth: Record<string, Record<string, number>> = {};
-    for (const e of (yearlyExpensesRes.data as { date: string; amount: number; category: string; tag?: string | null }[] | null) ?? []) {
+    for (const e of (yearlyExpensesRes.data as { date: string; amount: number; category: string }[] | null) ?? []) {
       const mo = String(Number((e.date as string).slice(5, 7)));
       if (e.category === "Savings") {
         savingsByMonth[Number(mo)] = (savingsByMonth[Number(mo)] ?? 0) + Number(e.amount);
       }
       if (!categoryByMonth[mo]) categoryByMonth[mo] = {};
       categoryByMonth[mo][e.category] = (categoryByMonth[mo][e.category] ?? 0) + Number(e.amount);
-      if (e.tag) {
-        tagTotals[e.tag] = (tagTotals[e.tag] ?? 0) + Number(e.amount);
-      }
     }
     for (const [mo, cats] of Object.entries(categoryByMonth)) {
       for (const [category, total] of Object.entries(cats)) {
         yearlyCategoryRows.push({ month: Number(mo), category, total: Math.round(total) });
       }
-    }
-    for (const tag of Object.keys(tagTotals)) {
-      tagTotals[tag] = Math.round(tagTotals[tag]);
     }
     yearlyRows = ((yearlySummaryRes.data as any[] | null) ?? []).map((r) => ({
       month: r.month,
@@ -154,7 +146,6 @@ export async function fetchBootstrapData(
     prevMonthExpenses: prevExpensesRes.data ?? [],
     yearlyRows,
     yearlyCategoryRows,
-    tagTotals,
     categoryBudgets: (categoryBudgetsRes.data as unknown[] | null) ?? [],
     loanMilestones: (loanMilestonesRes.data as unknown[] | null) ?? [],
   };

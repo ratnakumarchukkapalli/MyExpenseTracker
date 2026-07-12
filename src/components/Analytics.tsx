@@ -34,7 +34,6 @@ interface Props {
   expenses: Expense[];
   yearlyRows: YearlyRow[];
   yearlyCategoryRows?: CategoryRow[];
-  tagTotals?: Record<string, number>;
   currentMonth: number;
   currentYear: number;
   privacyMode?: boolean;
@@ -43,7 +42,7 @@ interface Props {
 const fmt = (v: number) =>
   v >= 100000 ? `${(v / 100000).toFixed(1)}L` : v >= 1000 ? `₹${Math.round(v / 1000)}K` : `₹${Math.round(v)}`;
 
-function Analytics({ expenses, yearlyRows, yearlyCategoryRows = [], tagTotals = {}, currentMonth, currentYear, privacyMode }: Props) {
+function Analytics({ expenses, yearlyRows, yearlyCategoryRows = [], currentMonth, currentYear, privacyMode }: Props) {
   // Category donut — current month
   const categoryData = useMemo(() => {
     const totals: Record<string, number> = {};
@@ -62,13 +61,16 @@ function Analytics({ expenses, yearlyRows, yearlyCategoryRows = [], tagTotals = 
     return { total: personal, pct: monthTotal > 0 ? (personal / monthTotal) * 100 : 0 };
   }, [categoryData]);
 
-  // Spending by tag (e.g. trips) — aggregated across the whole year so a
-  // multi-month trip still totals correctly under one tag
+  // Spending by tag (e.g. trips) — current month, same scope as the donut above
   const tagRows = useMemo(() => {
-    return Object.entries(tagTotals)
-      .map(([tag, total]) => ({ tag, total }))
+    const totals: Record<string, number> = {};
+    expenses.forEach((e) => {
+      if (e.tag) totals[e.tag] = (totals[e.tag] || 0) + e.amount;
+    });
+    return Object.entries(totals)
+      .map(([tag, total]) => ({ tag, total: Math.round(total) }))
       .sort((a, b) => b.total - a.total);
-  }, [tagTotals]);
+  }, [expenses]);
   const maxTagTotal = tagRows[0]?.total ?? 0;
 
   // 6-month bar chart — past months only (exclude future carry-forward rows)
@@ -140,10 +142,10 @@ function Analytics({ expenses, yearlyRows, yearlyCategoryRows = [], tagTotals = 
 
         {/* Spending by Tag */}
         <div className="pane" style={{ padding: '20px 24px' }}>
-          <div className="eyebrow mb-1">{currentYear}</div>
+          <div className="eyebrow mb-1">This month</div>
           <div className="serif mb-4" style={{ fontSize: 18, color: 'var(--ink)' }}>Spending by Tag</div>
           {tagRows.length === 0 ? (
-            <p style={{ color: 'var(--ink-faint)', fontSize: 13 }}>No tagged expenses yet — add a Tag (e.g. a trip name) when logging an expense to see totals here.</p>
+            <p style={{ color: 'var(--ink-faint)', fontSize: 13 }}>No tagged expenses this month — add a Tag (e.g. a trip name) when logging an expense to see totals here.</p>
           ) : (
             <div className="space-y-3">
               {tagRows.map((r) => (
