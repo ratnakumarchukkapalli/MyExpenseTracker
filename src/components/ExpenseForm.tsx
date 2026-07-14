@@ -75,7 +75,7 @@ function ExpenseForm({ expense, onSubmit, onCancel, defaultDate }: Props) {
   };
 
   return (
-    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-[600] flex items-center justify-center p-4">
       {/* Backdrop */}
       <div 
         className="absolute inset-0 bg-gray-900/40 backdrop-blur-md transition-opacity"
@@ -83,9 +83,9 @@ function ExpenseForm({ expense, onSubmit, onCancel, defaultDate }: Props) {
       />
 
       {/* Light Glass Modal */}
-      <div className="relative z-10 w-full max-w-md rounded-[24px] shadow-[0_32px_80px_rgba(0,0,0,0.12)] overflow-hidden" style={{ background: 'var(--pane-strong)', backdropFilter: 'blur(32px)', border: '1px solid var(--hairline)' }}>
+      <div className="relative z-10 w-full max-w-md rounded-[24px] shadow-[0_32px_80px_rgba(0,0,0,0.12)] overflow-hidden flex flex-col max-h-[90dvh]" style={{ background: 'var(--pane-strong)', backdropFilter: 'blur(32px)', border: '1px solid var(--hairline)' }}>
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-5 border-b" style={{ borderColor: 'var(--hairline)', background: 'var(--accent-bg)' }}>
+        <div className="flex items-center justify-between px-6 py-5 border-b shrink-0" style={{ borderColor: 'var(--hairline)', background: 'var(--accent-bg)' }}>
           <div>
             <div className="text-[10px] font-bold uppercase tracking-[0.12em] mb-1" style={{ color: 'var(--ink-faint)' }}>
               {expense ? 'Edit record' : 'Quick add'}
@@ -103,7 +103,8 @@ function ExpenseForm({ expense, onSubmit, onCancel, defaultDate }: Props) {
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-5">
+        <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
+        <div className="p-6 space-y-5 overflow-y-auto flex-1 min-h-0">
           {/* Description */}
           <div>
             <label className="block text-[11px] font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--ink-faint)' }}>Description</label>
@@ -247,8 +248,10 @@ function ExpenseForm({ expense, onSubmit, onCancel, defaultDate }: Props) {
             />
           </div>
 
+        </div>
+
           {/* Actions */}
-          <div className="flex items-center gap-3 pt-2">
+          <div className="flex items-center gap-3 px-6 py-4 border-t shrink-0" style={{ borderColor: 'var(--hairline)' }}>
             <button
               type="button"
               onClick={onCancel}

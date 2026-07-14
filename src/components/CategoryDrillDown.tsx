@@ -29,7 +29,7 @@ export default function CategoryDrillDown({ isOpen, onClose, category, expenses 
   const catColor = CATEGORY_COLORS[category] || '#6366f1';
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6" onClick={onClose}>
+    <div className="fixed inset-0 z-[600] flex items-center justify-center p-4 sm:p-6" onClick={onClose}>
       {/* Backdrop */}
       <div className="absolute inset-0 bg-black/40 backdrop-blur-md animate-in fade-in duration-300" />
 
