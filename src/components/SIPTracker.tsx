@@ -564,7 +564,7 @@ const LogSIPModal = ({ funds, onLog, onCancel }: LogSIPModalProps) => {
   };
 
   return (
-    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-[600] flex items-center justify-center p-4 animate-in fade-in duration-200">
       {/* Backdrop */}
       <div
         className="absolute inset-0 bg-gray-900/60 backdrop-blur-md transition-opacity cursor-pointer"
@@ -850,7 +850,7 @@ function AddFundModal({ onSubmit, onCancel }: { onSubmit: (data: object) => Prom
   const lbl = 'block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1.5';
 
   return (
-    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-[600] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-gray-900/60 backdrop-blur-md" onClick={onCancel} />
       <div className="relative z-10 w-full max-w-lg bg-white dark:bg-surface-900 rounded-[24px] shadow-xl border border-gray-100 dark:border-surface-700 overflow-hidden flex flex-col max-h-[90vh]">
         <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100 dark:border-surface-700">

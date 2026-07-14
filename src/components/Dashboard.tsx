@@ -1072,7 +1072,7 @@ function FinancialEditModal({
   ];
 
   return (
-    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-[600] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-gray-900/40 backdrop-blur-md" onClick={onClose} />
       <div className="relative z-10 w-full max-w-lg rounded-[24px] shadow-[0_32px_80px_rgba(0,0,0,0.12)] overflow-hidden flex flex-col max-h-[90vh]" style={{ background: 'var(--pane-strong)', backdropFilter: 'blur(32px)', border: '1px solid var(--hairline)' }}>
         <div className="flex items-center justify-between px-6 py-5 border-b" style={{ borderColor: 'var(--hairline)', background: 'var(--accent-bg)' }}>
