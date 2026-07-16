@@ -157,7 +157,10 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     .lt("date", endDate);
 
   const rows = expenseRows ?? [];
-  const total_expenses = rows.reduce((sum, r) => sum + Number(r.amount), 0);
+  // Credit card expenses are deferred (paid off later) — excluded from total_expenses entirely.
+  const total_expenses = rows
+    .filter((r) => r.payment_source !== "credit_card")
+    .reduce((sum, r) => sum + Number(r.amount), 0);
   const sodexo_spent = rows
     .filter((r) => r.payment_source === "sodexo")
     .reduce((sum, r) => sum + Number(r.amount), 0);

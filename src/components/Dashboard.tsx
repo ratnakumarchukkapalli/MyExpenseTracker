@@ -329,11 +329,15 @@ function Dashboard({ expenses, subscriptions, monthlySummary, currentMonth, curr
     });
   }, [yearlySavings]);
 
+  // Credit card spend is deferred (paid off later) — it doesn't count as a
+  // real expense yet, so it's excluded from totals, budgets, and the spend ring.
   const categoryTotals = useMemo(() => {
-    return expenses.reduce<Record<string, number>>((acc, expense) => {
-      acc[expense.category] = (acc[expense.category] || 0) + Number(expense.amount || 0);
-      return acc;
-    }, {});
+    return expenses
+      .filter((expense) => expense.payment_source !== 'credit_card')
+      .reduce<Record<string, number>>((acc, expense) => {
+        acc[expense.category] = (acc[expense.category] || 0) + Number(expense.amount || 0);
+        return acc;
+      }, {});
   }, [expenses]);
 
   const totalSavings = categoryTotals.Savings || 0;

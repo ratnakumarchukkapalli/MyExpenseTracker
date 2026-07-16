@@ -32,6 +32,7 @@ const Subscriptions = dynamic(() => import('./Subscriptions'));
 const SubscriptionForm = dynamic(() => import('./SubscriptionForm'));
 const Loans = dynamic(() => import('./Loans'));
 const LoanForm = dynamic(() => import('./LoanForm'));
+const CreditCards = dynamic(() => import('./CreditCards'));
 const Insurance = dynamic(() => import('./Insurance'));
 const MonthlyReport = dynamic(() => import('./MonthlyReport'));
 const Analytics = dynamic(() => import('./Analytics'));
@@ -51,6 +52,14 @@ type Expense = {
   note?: string;
   tag?: string;
   payment_source?: string;
+  credit_card_id?: number | null;
+};
+
+type CreditCard = {
+  id: number;
+  name: string;
+  credit_limit?: number | null;
+  current_balance: number;
 };
 
 type Subscription = {
@@ -222,6 +231,7 @@ function AppShell({ initialData, serverMonth, serverYear }: AppShellProps) {
   const [yearlyCategoryRows, setYearlyCategoryRows] = useState<{ month: number; category: string; total: number }[]>((initialData?.yearlyCategoryRows as { month: number; category: string; total: number }[]) ?? []);
   const [categoryBudgets, setCategoryBudgets] = useState<CategoryBudgetRow[]>((initialData?.categoryBudgets as CategoryBudgetRow[]) ?? []);
   const [loanMilestones, setLoanMilestones] = useState<LoanMilestone[]>((initialData?.loanMilestones as LoanMilestone[]) ?? []);
+  const [creditCards, setCreditCards] = useState<CreditCard[]>((initialData?.creditCards as CreditCard[]) ?? []);
   const [loading, setLoading] = useState(!initialData);
   const [refreshKey, setRefreshKey] = useState(0);
   const [stockRefreshTick, setStockRefreshTick] = useState(0);
@@ -273,6 +283,7 @@ function AppShell({ initialData, serverMonth, serverYear }: AppShellProps) {
         setYearlyCategoryRows((data as any).yearlyCategoryRows ?? []);
         setCategoryBudgets(data.categoryBudgets ?? []);
         setLoanMilestones(data.loanMilestones ?? []);
+        setCreditCards(data.creditCards ?? []);
         if (data.user && !userInfo) setUserInfo(data.user);
       }
     } catch (error) {
@@ -404,11 +415,19 @@ function AppShell({ initialData, serverMonth, serverYear }: AppShellProps) {
     setExpenses(prev => [optimisticExpense, ...prev]);
     if (monthlySummary) {
       const amount = Number(payload.amount);
+      // Credit card expenses are deferred — they don't touch total_expenses or the bank balance
+      const isCreditCard = payload.payment_source === 'credit_card';
       setMonthlySummary({
         ...monthlySummary,
-        total_expenses: Number(monthlySummary.total_expenses || 0) + amount,
-        remaining_amount: Number(monthlySummary.remaining_amount || 0) - amount,
-        cash_equivalents: Number(monthlySummary.cash_equivalents || 0) - amount,
+        total_expenses: isCreditCard
+          ? Number(monthlySummary.total_expenses || 0)
+          : Number(monthlySummary.total_expenses || 0) + amount,
+        remaining_amount: isCreditCard
+          ? Number(monthlySummary.remaining_amount || 0)
+          : Number(monthlySummary.remaining_amount || 0) - amount,
+        cash_equivalents: isCreditCard
+          ? Number(monthlySummary.cash_equivalents || 0)
+          : Number(monthlySummary.cash_equivalents || 0) - amount,
       });
     }
 
@@ -454,6 +473,7 @@ function AppShell({ initialData, serverMonth, serverYear }: AppShellProps) {
         note: expense.note ?? '',
         tag: expense.tag ?? null,
         payment_source: expense.payment_source ?? 'bank',
+        credit_card_id: expense.credit_card_id ?? null,
       }),
     });
     if (!res.ok) {
@@ -474,13 +494,20 @@ function AppShell({ initialData, serverMonth, serverYear }: AppShellProps) {
 
     if (monthlySummary && expenseToDelete) {
       const amount = Number(expenseToDelete.amount);
-      const newTotal = (Number(monthlySummary.total_expenses || 0)) - amount;
-      const newRemaining = Number(monthlySummary.remaining_amount || 0) + amount;
+      const isCreditCard = expenseToDelete.payment_source === 'credit_card';
+      const newTotal = isCreditCard
+        ? Number(monthlySummary.total_expenses || 0)
+        : Number(monthlySummary.total_expenses || 0) - amount;
+      const newRemaining = isCreditCard
+        ? Number(monthlySummary.remaining_amount || 0)
+        : Number(monthlySummary.remaining_amount || 0) + amount;
       setMonthlySummary({
         ...monthlySummary,
         total_expenses: newTotal,
         remaining_amount: newRemaining,
-        cash_equivalents: (Number(monthlySummary.cash_equivalents || 0)) + amount
+        cash_equivalents: isCreditCard
+          ? Number(monthlySummary.cash_equivalents || 0)
+          : (Number(monthlySummary.cash_equivalents || 0)) + amount
       });
     }
 
@@ -805,6 +832,9 @@ function AppShell({ initialData, serverMonth, serverYear }: AppShellProps) {
                         triggerRefresh();
                       }}
                     />
+                    <div className="mt-6">
+                      <CreditCards cards={creditCards} onChange={triggerRefresh} />
+                    </div>
                   </div>
                 )}
 
@@ -822,6 +852,7 @@ function AppShell({ initialData, serverMonth, serverYear }: AppShellProps) {
       {showExpenseForm && (
         <ExpenseForm
           expense={editingExpense}
+          creditCards={creditCards}
           defaultDate={!editingExpense ? (() => {
             const today = new Date();
             const isCurrentMonth = currentMonth === today.getMonth() + 1 && currentYear === today.getFullYear();

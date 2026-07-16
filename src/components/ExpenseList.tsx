@@ -406,11 +406,6 @@ function ExpenseList({ expenses, onEdit, onDelete, categoryIcons = {}, recurring
                               Sodexo
                             </span>
                           )}
-                          {expense.payment_source === 'savings' && (
-                            <span className="inline-flex px-2 py-0.5 text-[10px] font-bold rounded-full bg-green-100 text-green-700">
-                              Savings
-                            </span>
-                          )}
                           {expense.payment_source === 'credit_card' && (
                             <span className="inline-flex px-2 py-0.5 text-[10px] font-bold rounded-full bg-indigo-100 text-indigo-700">
                               Credit Card

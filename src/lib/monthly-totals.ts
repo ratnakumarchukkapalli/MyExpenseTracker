@@ -2,7 +2,9 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 /**
  * Recalculates total_expenses, sodexo_spent, and remaining_amount for a month.
- * remaining_amount only deducts bank-paid expenses (sodexo expenses never touched the bank).
+ * Credit card expenses are deferred (paid off later) — they're excluded from
+ * total_expenses entirely, so they never touch the bank or count against the budget.
+ * remaining_amount only deducts bank-paid expenses (sodexo never touched the bank).
  */
 export async function updateMonthlyExpenseTotal(
   supabase: SupabaseClient,
@@ -33,7 +35,9 @@ export async function updateMonthlyExpenseTotal(
   ]);
 
   const rows = expenseSumResult.data ?? [];
-  const total_expenses = rows.reduce((sum, row) => sum + Number(row.amount), 0);
+  const total_expenses = rows
+    .filter((row) => row.payment_source !== "credit_card")
+    .reduce((sum, row) => sum + Number(row.amount), 0);
   const sodexo_spent = rows
     .filter((row) => row.payment_source === "sodexo")
     .reduce((sum, row) => sum + Number(row.amount), 0);

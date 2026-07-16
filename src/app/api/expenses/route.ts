@@ -1,6 +1,7 @@
 import { requireAuthFast } from "@/lib/auth-guard";
 import { ExpenseCreateSchema } from "@/lib/schemas/expense";
 import { updateMonthlyExpenseTotal, cascadeUpdateFutureMonths } from "@/lib/monthly-totals";
+import { adjustCreditCardBalance } from "@/lib/credit-cards";
 import { after } from "next/server";
 import { NextRequest } from "next/server";
 
@@ -60,6 +61,10 @@ export async function POST(request: NextRequest) {
 
   if (insertRes.error) return Response.json({ error: insertRes.error.message }, { status: 500 });
   const data = insertRes.data;
+
+  if (parsed.data.payment_source === "credit_card" && parsed.data.credit_card_id) {
+    await adjustCreditCardBalance(supabase, user.id, parsed.data.credit_card_id, parsed.data.amount);
+  }
 
   const updatedSummary = await updateMonthlyExpenseTotal(supabase, user.id, m, y);
 

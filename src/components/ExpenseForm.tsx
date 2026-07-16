@@ -13,6 +13,12 @@ interface ExpenseData {
   note?: string;
   tag?: string;
   payment_source?: string;
+  credit_card_id?: number | null;
+}
+
+interface CreditCardOption {
+  id: number;
+  name: string;
 }
 
 interface Props {
@@ -20,15 +26,16 @@ interface Props {
   onSubmit: (data: any) => void;
   onCancel: () => void;
   defaultDate?: string;
+  creditCards?: CreditCardOption[];
 }
 
 
 
 const LAST_PAYMENT_SOURCE_KEY = 'met_last_payment_source';
 
-function ExpenseForm({ expense, onSubmit, onCancel, defaultDate }: Props) {
+function ExpenseForm({ expense, onSubmit, onCancel, defaultDate, creditCards = [] }: Props) {
   const lastSource = (typeof window !== 'undefined'
-    ? (localStorage.getItem(LAST_PAYMENT_SOURCE_KEY) as 'bank' | 'sodexo' | 'savings' | 'credit_card' | null)
+    ? (localStorage.getItem(LAST_PAYMENT_SOURCE_KEY) as 'bank' | 'sodexo' | 'credit_card' | null)
     : null) ?? 'bank';
 
   const [formData, setFormData] = useState({
@@ -39,6 +46,7 @@ function ExpenseForm({ expense, onSubmit, onCancel, defaultDate }: Props) {
     note: '',
     tag: '',
     payment_source: lastSource,
+    credit_card_id: '' as string,
   });
 
   useEffect(() => {
@@ -50,7 +58,8 @@ function ExpenseForm({ expense, onSubmit, onCancel, defaultDate }: Props) {
         category: expense.category || 'Personal',
         note: expense.note || '',
         tag: expense.tag || '',
-        payment_source: (expense.payment_source || 'bank') as 'bank' | 'sodexo' | 'savings' | 'credit_card',
+        payment_source: (expense.payment_source || 'bank') as 'bank' | 'sodexo' | 'credit_card',
+        credit_card_id: expense.credit_card_id ? String(expense.credit_card_id) : '',
       });
     }
   }, [expense]);
@@ -63,12 +72,22 @@ function ExpenseForm({ expense, onSubmit, onCancel, defaultDate }: Props) {
       if (!formData.description.trim() || !formData.amount) alert('Please enter a description and amount');
       return;
     }
+    if (formData.payment_source === 'credit_card' && creditCards.length > 0 && !formData.credit_card_id) {
+      alert('Please select which card this was charged to');
+      return;
+    }
     setIsSubmitting(true);
     try {
       if (!expense) {
         localStorage.setItem(LAST_PAYMENT_SOURCE_KEY, formData.payment_source);
       }
-      await onSubmit({ ...formData, amount: parseFloat(formData.amount) });
+      await onSubmit({
+        ...formData,
+        amount: parseFloat(formData.amount),
+        credit_card_id: formData.payment_source === 'credit_card' && formData.credit_card_id
+          ? Number(formData.credit_card_id)
+          : null,
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -189,18 +208,16 @@ function ExpenseForm({ expense, onSubmit, onCancel, defaultDate }: Props) {
           <div>
             <label className="block text-[11px] font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--ink-faint)' }}>Paid from</label>
             <div className="flex flex-wrap gap-2">
-              {(['bank', 'sodexo', 'savings', 'credit_card'] as const).map((src) => {
+              {(['bank', 'sodexo', 'credit_card'] as const).map((src) => {
                 const active = formData.payment_source === src;
                 const colors: Record<string, string> = {
                   bank: 'var(--accent)',
                   sodexo: '#f97316',
-                  savings: '#16a34a',
                   credit_card: '#4f46e5',
                 };
                 const labels: Record<string, string> = {
                   bank: 'Bank',
                   sodexo: 'Sodexo',
-                  savings: 'Savings',
                   credit_card: 'Credit Card',
                 };
                 return (
@@ -220,6 +237,20 @@ function ExpenseForm({ expense, onSubmit, onCancel, defaultDate }: Props) {
                 );
               })}
             </div>
+            {formData.payment_source === 'credit_card' && creditCards.length > 0 && (
+              <select
+                value={formData.credit_card_id}
+                onChange={(e) => setFormData((p) => ({ ...p, credit_card_id: e.target.value }))}
+                required
+                className="w-full mt-2 px-4 py-2.5 rounded-xl text-sm outline-none cursor-pointer"
+                style={{ background: 'var(--surface-solid)', border: '1px solid var(--hairline)', color: 'var(--ink)' }}
+              >
+                <option value="">Which card?</option>
+                {creditCards.map((c) => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </select>
+            )}
           </div>
 
           {/* Tag */}
