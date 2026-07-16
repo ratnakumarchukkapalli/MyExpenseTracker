@@ -1,6 +1,6 @@
 import { requireAuth, requireAuthFast } from "@/lib/auth-guard";
 import { MonthlySummaryUpdateSchema } from "@/lib/schemas/monthly-summary";
-import { cascadeUpdateFutureMonths } from "@/lib/monthly-totals";
+import { cascadeUpdateFutureMonths, resolveOpeningBalance } from "@/lib/monthly-totals";
 import { after } from "next/server";
 import { NextRequest } from "next/server";
 
@@ -29,7 +29,18 @@ export async function GET(_req: NextRequest, { params }: RouteParams) {
 
   const row = rowResult.data;
   const prev = prevResult.data;
-  const expectedOpening = Number(prev?.remaining_amount ?? 0);
+  // If prevMonth is the real current calendar month, this prefers the live
+  // bank-account total — otherwise a month opened for the first time right
+  // after "now" would seed its Carryover from the stale computed ledger value
+  // instead of actual bank balances (cascadeUpdateFutureMonths can't help here
+  // since this row doesn't exist yet for it to update).
+  const expectedOpening = await resolveOpeningBalance(
+    supabase,
+    user.id,
+    prevMonth,
+    prevYear,
+    Number(prev?.remaining_amount ?? 0)
+  );
 
   // If record exists, check if opening balance or investment snapshots are stale.
   // Only auto-sync carry-forward rows (no salary/expense data recorded yet).
@@ -92,12 +103,12 @@ export async function GET(_req: NextRequest, { params }: RouteParams) {
     month: m,
     year: y,
     salary: 0,
-    previous_month_remaining: Number(prev?.remaining_amount ?? 0),
+    previous_month_remaining: expectedOpening,
     total_expenses: 0,
     sodexo_spent: 0,
     sodexo_credit: 0,
     sodexo_balance: Math.max(0, Number(prev?.sodexo_balance ?? 0) - Number(prev?.sodexo_spent ?? 0)),
-    remaining_amount: Number(prev?.remaining_amount ?? 0),
+    remaining_amount: expectedOpening,
     interest_income: 0,
     savings_fd: Number(prev?.savings_fd ?? 0),
     savings_sip: Number(prev?.savings_sip ?? 0),
@@ -105,7 +116,7 @@ export async function GET(_req: NextRequest, { params }: RouteParams) {
     savings_nps: Number(prev?.savings_nps ?? 0),
     savings_pf: Number(prev?.savings_pf ?? 0),
     cash_equivalents:
-      Number(prev?.remaining_amount ?? 0) +
+      expectedOpening +
       Number(prev?.savings_fd ?? 0) +
       Number(prev?.savings_sip ?? 0) +
       Number(prev?.savings_shares ?? 0),
@@ -149,12 +160,21 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       ? `${d.year + 1}-01-01`
       : `${d.year}-${String(d.month + 1).padStart(2, "0")}-01`;
 
-  const { data: expenseRows } = await supabase
-    .from("expenses")
-    .select("amount, payment_source")
-    .eq("user_id", user.id)
-    .gte("date", startDate)
-    .lt("date", endDate);
+  const [{ data: expenseRows }, { data: existingRow }] = await Promise.all([
+    supabase
+      .from("expenses")
+      .select("amount, payment_source")
+      .eq("user_id", user.id)
+      .gte("date", startDate)
+      .lt("date", endDate),
+    supabase
+      .from("monthly_summary")
+      .select("id")
+      .eq("user_id", user.id)
+      .eq("month", d.month)
+      .eq("year", d.year)
+      .maybeSingle(),
+  ]);
 
   const rows = expenseRows ?? [];
   // Credit card expenses are deferred (paid off later) — excluded from total_expenses entirely.
@@ -164,10 +184,37 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   const sodexo_spent = rows
     .filter((r) => r.payment_source === "sodexo")
     .reduce((sum, r) => sum + Number(r.amount), 0);
+
+  // First time this month's row is being created, the client's "Opening Cash"
+  // field had no existing row to read a real value from, so it's whatever the
+  // form defaulted to (0) — resolve the actual carry-forward server-side instead
+  // of trusting that blank default. Once the row exists, respect explicit edits.
+  let previous_month_remaining = d.previous_month_remaining;
+  if (!existingRow) {
+    const prevMonth = d.month === 1 ? 12 : d.month - 1;
+    const prevYear = d.month === 1 ? d.year - 1 : d.year;
+    const { data: prevRow } = await supabase
+      .from("monthly_summary")
+      .select("remaining_amount")
+      .eq("user_id", user.id)
+      .eq("month", prevMonth)
+      .eq("year", prevYear)
+      .maybeSingle();
+    if (prevRow) {
+      previous_month_remaining = await resolveOpeningBalance(
+        supabase,
+        user.id,
+        prevMonth,
+        prevYear,
+        Number(prevRow.remaining_amount ?? 0)
+      );
+    }
+  }
+
   // Sodexo-tagged expenses come from the Sodexo card, not the bank
   const bank_expenses = total_expenses - sodexo_spent;
   const remaining_amount =
-    d.previous_month_remaining + d.salary + d.interest_income - bank_expenses;
+    previous_month_remaining + d.salary + d.interest_income - bank_expenses;
   const cash_equivalents =
     remaining_amount + d.savings_fd + d.savings_sip + d.savings_shares;
 
@@ -176,7 +223,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     month: d.month,
     year: d.year,
     salary: d.salary,
-    previous_month_remaining: d.previous_month_remaining,
+    previous_month_remaining,
     interest_income: d.interest_income,
     total_expenses,
     sodexo_spent,

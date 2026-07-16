@@ -851,7 +851,7 @@ function AppShell({ initialData, serverMonth, serverYear }: AppShellProps) {
                       }}
                     />
                     <div className="mt-6">
-                      <CreditCards cards={creditCards} onChange={triggerRefresh} />
+                      <CreditCards cards={creditCards} bankAccounts={bankAccounts} onChange={triggerRefresh} />
                     </div>
                   </div>
                 )}

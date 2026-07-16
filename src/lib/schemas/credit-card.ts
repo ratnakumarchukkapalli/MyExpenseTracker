@@ -10,6 +10,7 @@ export const CreditCardUpdateSchema = CreditCardSchema.partial();
 
 export const CreditCardPaySchema = z.object({
   amount: z.number().positive(),
+  bank_account_id: z.number().int().positive().nullable().optional(),
 });
 
 export type CreditCardInput = z.infer<typeof CreditCardSchema>;

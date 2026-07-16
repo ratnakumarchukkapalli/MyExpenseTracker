@@ -1,6 +1,7 @@
 import { requireAuth } from "@/lib/auth-guard";
 import { CreditCardPaySchema } from "@/lib/schemas/credit-card";
 import { updateMonthlyExpenseTotal, cascadeUpdateFutureMonths } from "@/lib/monthly-totals";
+import { adjustBankAccountBalance } from "@/lib/bank-accounts";
 import { after, NextRequest } from "next/server";
 
 // POST /api/credit-cards/[id]/pay — pay down the card from the bank, log the expense
@@ -42,9 +43,14 @@ export async function POST(
     category: "LOANS/CC",
     note: "Paid via credit card tracker",
     payment_source: "bank",
+    bank_account_id: parsed.data.bank_account_id ?? null,
   });
 
   if (insertError) return Response.json({ error: insertError.message }, { status: 500 });
+
+  if (parsed.data.bank_account_id) {
+    await adjustBankAccountBalance(supabase, user.id, parsed.data.bank_account_id, -amount);
+  }
 
   const newBalance = Math.max(0, Number(card.current_balance) - amount);
   const { error: cardUpdateError } = await supabase

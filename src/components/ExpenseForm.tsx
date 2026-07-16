@@ -81,7 +81,7 @@ function ExpenseForm({ expense, onSubmit, onCancel, defaultDate, creditCards = [
       if (!formData.description.trim() || !formData.amount) alert('Please enter a description and amount');
       return;
     }
-    if (formData.payment_source === 'credit_card' && creditCards.length > 0 && !formData.credit_card_id) {
+    if (!expense && formData.payment_source === 'credit_card' && creditCards.length > 0 && !formData.credit_card_id) {
       alert('Please select which card this was charged to');
       return;
     }

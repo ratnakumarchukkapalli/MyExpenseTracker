@@ -10,16 +10,23 @@ export interface CreditCardData {
   current_balance: number;
 }
 
+interface BankAccountOption {
+  id: number;
+  name: string;
+}
+
 interface Props {
   cards: CreditCardData[];
+  bankAccounts?: BankAccountOption[];
   onChange: () => void;
 }
 
-function CreditCards({ cards, onChange }: Props) {
+function CreditCards({ cards, bankAccounts = [], onChange }: Props) {
   const [showForm, setShowForm] = useState(false);
   const [editingCard, setEditingCard] = useState<CreditCardData | null>(null);
   const [payingCard, setPayingCard] = useState<CreditCardData | null>(null);
   const [payAmount, setPayAmount] = useState('');
+  const [payAccountId, setPayAccountId] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   const handleDelete = async (card: CreditCardData) => {
@@ -35,12 +42,16 @@ function CreditCards({ cards, onChange }: Props) {
       alert('Enter a valid amount');
       return;
     }
+    if (bankAccounts.length > 0 && !payAccountId) {
+      alert('Please select which account this payment came from');
+      return;
+    }
     setSubmitting(true);
     try {
       const res = await fetch(`/api/credit-cards/${payingCard.id}/pay`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ amount }),
+        body: JSON.stringify({ amount, bank_account_id: payAccountId ? Number(payAccountId) : null }),
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
@@ -48,6 +59,7 @@ function CreditCards({ cards, onChange }: Props) {
       }
       setPayingCard(null);
       setPayAmount('');
+      setPayAccountId('');
       onChange();
     } catch (error) {
       alert(error instanceof Error ? error.message : 'Failed to record payment');
@@ -137,7 +149,7 @@ function CreditCards({ cards, onChange }: Props) {
                 )}
 
                 <button
-                  onClick={() => { setPayingCard(card); setPayAmount(''); }}
+                  onClick={() => { setPayingCard(card); setPayAmount(''); setPayAccountId(''); }}
                   disabled={card.current_balance <= 0}
                   className="w-full py-2 rounded-xl font-bold text-sm cursor-pointer disabled:cursor-not-allowed disabled:opacity-40"
                   style={{ background: 'var(--pos-bg)', color: 'var(--pos)' }}
@@ -185,6 +197,20 @@ function CreditCards({ cards, onChange }: Props) {
                 style={{ background: 'var(--bg-tint)', border: '1px solid var(--hairline)', color: 'var(--ink)' }}
               />
             </div>
+            {bankAccounts.length > 0 && (
+              <select
+                value={payAccountId}
+                onChange={(e) => setPayAccountId(e.target.value)}
+                required
+                className="w-full mb-4 px-4 py-2.5 rounded-xl text-sm outline-none cursor-pointer"
+                style={{ background: 'var(--bg-tint)', border: '1px solid var(--hairline)', color: 'var(--ink)' }}
+              >
+                <option value="">Paying from which account?</option>
+                {bankAccounts.map((a) => (
+                  <option key={a.id} value={a.id}>{a.name}</option>
+                ))}
+              </select>
+            )}
             <div className="flex gap-3">
               <button
                 onClick={() => setPayAmount(String(payingCard.current_balance))}

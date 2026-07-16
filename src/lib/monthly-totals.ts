@@ -43,7 +43,30 @@ export async function updateMonthlyExpenseTotal(
     .reduce((sum, row) => sum + Number(row.amount), 0);
   const existing = existingResult.data;
   const salary = Number(existing?.salary ?? 0);
-  const previous_month_remaining = Number(existing?.previous_month_remaining ?? 0);
+  // A brand-new row (no `existing`) has no previous_month_remaining of its own yet —
+  // seed it from the prior month's closing balance (or the live bank total, if the
+  // prior month is the real current month) instead of defaulting to 0. This is the
+  // actual mechanism that creates a month's row in practice (the first expense
+  // logged against it), so this is where carry-forward has to happen correctly.
+  let previous_month_remaining = Number(existing?.previous_month_remaining ?? 0);
+  if (!existing) {
+    const prevMonth = month === 1 ? 12 : month - 1;
+    const prevYear = month === 1 ? year - 1 : year;
+    const { data: prevRow } = await supabase
+      .from("monthly_summary")
+      .select("remaining_amount")
+      .eq("user_id", userId)
+      .eq("month", prevMonth)
+      .eq("year", prevYear)
+      .maybeSingle();
+    previous_month_remaining = await resolveOpeningBalance(
+      supabase,
+      userId,
+      prevMonth,
+      prevYear,
+      Number(prevRow?.remaining_amount ?? 0)
+    );
+  }
   const interest_income = Number(existing?.interest_income ?? 0);
   const savings_fd = Number(existing?.savings_fd ?? 0);
   const savings_sip = Number(existing?.savings_sip ?? 0);
@@ -82,6 +105,7 @@ export async function updateMonthlyExpenseTotal(
         year,
         total_expenses,
         sodexo_spent,
+        previous_month_remaining,
         remaining_amount,
         cash_equivalents,
       })
@@ -91,6 +115,35 @@ export async function updateMonthlyExpenseTotal(
   }
 
   return updatedRow;
+}
+
+/**
+ * If `month`/`year` is the real current calendar month, prefer the live
+ * bank-account total over `fallback` — so any month opened right after "now"
+ * (whether via cascade or lazy carry-forward creation) tracks actual bank
+ * balances instead of the salary-minus-expenses ledger. Otherwise returns
+ * `fallback` unchanged (past/future months keep their own stored snapshot).
+ */
+export async function resolveOpeningBalance(
+  supabase: SupabaseClient,
+  userId: string,
+  month: number,
+  year: number,
+  fallback: number
+): Promise<number> {
+  const now = new Date();
+  const isRealCurrentMonth = month === now.getMonth() + 1 && year === now.getFullYear();
+  if (!isRealCurrentMonth) return fallback;
+
+  const { data: accounts } = await supabase
+    .from("bank_accounts")
+    .select("current_balance")
+    .eq("user_id", userId);
+
+  if (accounts && accounts.length > 0) {
+    return accounts.reduce((sum, a) => sum + Number(a.current_balance || 0), 0);
+  }
+  return fallback;
 }
 
 /**
@@ -131,21 +184,13 @@ export async function cascadeUpdateFutureMonths(
 
   if (futureRows.length === 0) return;
 
-  // If cascading from the real current calendar month, prefer the live bank-account
-  // total over the computed remaining_amount, so future months' opening balance
-  // tracks actual bank balances instead of drifting from the salary-minus-expenses ledger.
-  const now = new Date();
-  const isRealCurrentMonth = startMonth === now.getMonth() + 1 && startYear === now.getFullYear();
-  let openingRemainingAmount = sourceValues.remaining_amount;
-  if (isRealCurrentMonth) {
-    const { data: accounts } = await supabase
-      .from("bank_accounts")
-      .select("current_balance")
-      .eq("user_id", userId);
-    if (accounts && accounts.length > 0) {
-      openingRemainingAmount = accounts.reduce((sum, a) => sum + Number(a.current_balance || 0), 0);
-    }
-  }
+  const openingRemainingAmount = await resolveOpeningBalance(
+    supabase,
+    userId,
+    startMonth,
+    startYear,
+    sourceValues.remaining_amount
+  );
 
   const updates = [];
   let currentOpeningBalance = openingRemainingAmount;

@@ -1,7 +1,7 @@
 import { requireAuth } from "@/lib/auth-guard";
 import { BankAccountTransferSchema } from "@/lib/schemas/bank-account";
-import { adjustBankAccountBalance } from "@/lib/bank-accounts";
-import { NextRequest } from "next/server";
+import { adjustBankAccountBalance, resyncCurrentMonthCascade } from "@/lib/bank-accounts";
+import { after, NextRequest } from "next/server";
 
 // POST /api/bank-accounts/transfer — move money between two of the user's own
 // accounts. Not an expense: total Liquid Cash is unchanged, only the split moves.
@@ -30,6 +30,8 @@ export async function POST(request: NextRequest) {
     adjustBankAccountBalance(supabase, user.id, from_account_id, -amount),
     adjustBankAccountBalance(supabase, user.id, to_account_id, amount),
   ]);
+
+  after(() => resyncCurrentMonthCascade(supabase, user.id));
 
   return Response.json({ success: true }, { status: 201 });
 }

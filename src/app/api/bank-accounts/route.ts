@@ -1,6 +1,7 @@
 import { requireAuth, requireAuthFast } from "@/lib/auth-guard";
 import { BankAccountSchema } from "@/lib/schemas/bank-account";
-import { NextRequest } from "next/server";
+import { resyncCurrentMonthCascade } from "@/lib/bank-accounts";
+import { after, NextRequest } from "next/server";
 
 // GET /api/bank-accounts
 export async function GET() {
@@ -37,5 +38,8 @@ export async function POST(request: NextRequest) {
     .single();
 
   if (dbError) return Response.json({ error: dbError.message }, { status: 500 });
+
+  after(() => resyncCurrentMonthCascade(supabase, user.id));
+
   return Response.json(data, { status: 201 });
 }

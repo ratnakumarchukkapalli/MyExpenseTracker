@@ -145,6 +145,15 @@ const FundCard = ({ fund, onDelete, onRefreshNav, isCurrentMonth }: FundCardProp
       const navMap = await res.json();
       const entry = navMap[fund.scheme_code];
       if (entry) {
+        // AMFI publishes once daily (usually evening IST) — if it hasn't published
+        // a NAV newer than what we already have, writing it anyway would stamp
+        // prev_nav === current_nav (a false ₹0 day change) and lose the real
+        // previous-day NAV. Skip the write instead of corrupting it.
+        if (fund.last_nav_update && entry.date <= fund.last_nav_update) {
+          alert("AMFI hasn't published a newer NAV yet — try again after market close.");
+          setRefreshing(false);
+          return;
+        }
         const updateRes = await fetch(`/api/sip/funds/${fund.id}/nav`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
