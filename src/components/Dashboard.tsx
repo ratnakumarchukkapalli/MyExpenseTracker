@@ -153,6 +153,7 @@ function Dashboard({ expenses, subscriptions, monthlySummary, currentMonth, curr
   const [showBudgetSettings, setShowBudgetSettings] = useState(false);
   const [showEditFinancials, setShowEditFinancials] = useState(false);
   const [editingBankAccount, setEditingBankAccount] = useState<BankAccount | 'new' | null>(null);
+  const [showTransferForm, setShowTransferForm] = useState(false);
   const [savingFinancials, setSavingFinancials] = useState(false);
   const [liveWealth, setLiveWealth] = useState<{ sip: number; stocks: number; total: number } | null>(null);
   const [previousMonthExpenses, setPreviousMonthExpenses] = useState<Expense[]>(prevMonthExpenses ?? []);
@@ -655,13 +656,24 @@ function Dashboard({ expenses, subscriptions, monthlySummary, currentMonth, curr
               <div className="eyebrow mb-1">Where your money sits</div>
               <div className="serif mb-4" style={{ fontSize: 18, color: 'var(--ink)' }}>Bank Accounts</div>
             </div>
-            <button
-              onClick={() => setEditingBankAccount('new')}
-              className="cursor-pointer"
-              style={{ fontSize: 12, fontWeight: 600, color: 'var(--accent)', background: 'none', border: 'none' }}
-            >
-              + Add account
-            </button>
+            <div style={{ display: 'flex', gap: 16 }}>
+              {bankAccounts.length > 1 && (
+                <button
+                  onClick={() => setShowTransferForm(true)}
+                  className="cursor-pointer"
+                  style={{ fontSize: 12, fontWeight: 600, color: 'var(--accent)', background: 'none', border: 'none' }}
+                >
+                  ⇄ Transfer
+                </button>
+              )}
+              <button
+                onClick={() => setEditingBankAccount('new')}
+                className="cursor-pointer"
+                style={{ fontSize: 12, fontWeight: 600, color: 'var(--accent)', background: 'none', border: 'none' }}
+              >
+                + Add account
+              </button>
+            </div>
           </div>
           {bankAccounts.length === 0 ? (
             <p style={{ fontSize: 13, color: 'var(--ink-faint)' }}>No bank accounts added yet.</p>
@@ -688,6 +700,14 @@ function Dashboard({ expenses, subscriptions, monthlySummary, currentMonth, curr
             </>
           )}
         </div>
+      )}
+
+      {showTransferForm && (
+        <TransferForm
+          accounts={bankAccounts ?? []}
+          onCancel={() => setShowTransferForm(false)}
+          onSaved={() => { setShowTransferForm(false); onBankAccountsChange?.(); }}
+        />
       )}
 
       {editingBankAccount && (
@@ -1321,6 +1341,146 @@ function BankAccountForm({ account, onCancel, onSaved }: BankAccountFormProps) {
             >
               <Save size={16} />
               {submitting ? 'Saving…' : 'Save'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+interface TransferFormProps {
+  accounts: BankAccount[];
+  onCancel: () => void;
+  onSaved: () => void;
+}
+
+const LAST_TRANSFER_KEY = 'met_last_transfer';
+
+function TransferForm({ accounts, onCancel, onSaved }: TransferFormProps) {
+  const remembered = (() => {
+    if (typeof window === 'undefined') return null;
+    try {
+      const raw = localStorage.getItem(LAST_TRANSFER_KEY);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw) as { fromId: string; toId: string; amount: string };
+      // Only reuse it if both accounts still exist
+      const ids = new Set(accounts.map((a) => String(a.id)));
+      if (ids.has(parsed.fromId) && ids.has(parsed.toId)) return parsed;
+    } catch { /* ignore malformed/legacy value */ }
+    return null;
+  })();
+
+  const [fromId, setFromId] = useState(remembered?.fromId ?? accounts[0]?.id?.toString() ?? '');
+  const [toId, setToId] = useState(remembered?.toId ?? accounts[1]?.id?.toString() ?? '');
+  const [amount, setAmount] = useState(remembered?.amount ?? '');
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!fromId || !toId || fromId === toId) {
+      alert('Pick two different accounts');
+      return;
+    }
+    const parsedAmount = parseFloat(amount);
+    if (!parsedAmount || parsedAmount <= 0) {
+      alert('Enter a valid amount');
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const res = await fetch('/api/bank-accounts/transfer', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          from_account_id: Number(fromId),
+          to_account_id: Number(toId),
+          amount: parsedAmount,
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error?.formErrors?.[0] || err.error || 'Failed to record transfer');
+      }
+      // Remember this transfer so next month's recurring move (e.g. funding a
+      // home loan EMI account) is pre-filled instead of re-entered from scratch.
+      localStorage.setItem(LAST_TRANSFER_KEY, JSON.stringify({ fromId, toId, amount }));
+      onSaved();
+    } catch (error) {
+      alert(error instanceof Error ? error.message : 'Failed to record transfer');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-[600] flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => !submitting && onCancel()} />
+      <div className="relative z-10 w-full max-w-sm pane-strong p-6 shadow-2xl border border-[var(--hairline)]">
+        <div className="flex items-center justify-between mb-5">
+          <h3 className="text-lg font-bold" style={{ color: 'var(--ink)' }}>Transfer Between Accounts</h3>
+          <button onClick={() => !submitting && onCancel()} className="cursor-pointer" style={{ color: 'var(--ink-faint)' }}>
+            <X size={18} />
+          </button>
+        </div>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-[11px] font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--ink-faint)' }}>From</label>
+            <select
+              value={fromId}
+              onChange={(e) => setFromId(e.target.value)}
+              required
+              className="w-full px-4 py-2.5 rounded-xl text-sm outline-none cursor-pointer"
+              style={{ background: 'var(--bg-tint)', border: '1px solid var(--hairline)', color: 'var(--ink)' }}
+            >
+              {accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="block text-[11px] font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--ink-faint)' }}>To</label>
+            <select
+              value={toId}
+              onChange={(e) => setToId(e.target.value)}
+              required
+              className="w-full px-4 py-2.5 rounded-xl text-sm outline-none cursor-pointer"
+              style={{ background: 'var(--bg-tint)', border: '1px solid var(--hairline)', color: 'var(--ink)' }}
+            >
+              {accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="block text-[11px] font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--ink-faint)' }}>Amount</label>
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              autoFocus
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              placeholder="₹"
+              className="w-full px-4 py-2.5 rounded-xl text-sm outline-none"
+              style={{ background: 'var(--bg-tint)', border: '1px solid var(--hairline)', color: 'var(--ink)' }}
+            />
+          </div>
+          <p style={{ fontSize: 11, color: 'var(--ink-faint)' }}>
+            This just moves money between your own accounts — it isn&apos;t an expense and won&apos;t change your total Liquid Cash.
+          </p>
+          <div className="flex gap-3 pt-2">
+            <button
+              type="button"
+              onClick={onCancel}
+              className="flex-1 py-2.5 rounded-xl font-bold text-sm cursor-pointer"
+              style={{ background: 'var(--bg-tint)', border: '1px solid var(--hairline)', color: 'var(--ink-soft)' }}
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={submitting}
+              className="flex-1 py-2.5 rounded-xl font-bold text-sm cursor-pointer disabled:opacity-50"
+              style={{ background: 'var(--accent)', color: 'white' }}
+            >
+              {submitting ? 'Transferring…' : 'Transfer'}
             </button>
           </div>
         </form>
