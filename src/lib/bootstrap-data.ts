@@ -23,6 +23,7 @@ export type BootstrapData = {
   categoryBudgets: unknown[];
   loanMilestones: unknown[];
   creditCards: unknown[];
+  bankAccounts: unknown[];
 };
 
 export async function fetchBootstrapData(
@@ -52,6 +53,7 @@ export async function fetchBootstrapData(
     categoryBudgetsRes,
     loanMilestonesRes,
     creditCardsRes,
+    bankAccountsRes,
   ] = await Promise.all([
     supabase
       .from("expenses")
@@ -97,6 +99,11 @@ export async function fetchBootstrapData(
       .order("end_date"),
     light ? staticPlaceholder : supabase
       .from("credit_cards")
+      .select("*")
+      .eq("user_id", user.id)
+      .order("name"),
+    light ? staticPlaceholder : supabase
+      .from("bank_accounts")
       .select("*")
       .eq("user_id", user.id)
       .order("name"),
@@ -156,5 +163,6 @@ export async function fetchBootstrapData(
     categoryBudgets: (categoryBudgetsRes.data as unknown[] | null) ?? [],
     loanMilestones: (loanMilestonesRes.data as unknown[] | null) ?? [],
     creditCards: (creditCardsRes.data as unknown[] | null) ?? [],
+    bankAccounts: (bankAccountsRes.data as unknown[] | null) ?? [],
   };
 }

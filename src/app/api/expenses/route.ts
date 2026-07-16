@@ -2,6 +2,7 @@ import { requireAuthFast } from "@/lib/auth-guard";
 import { ExpenseCreateSchema } from "@/lib/schemas/expense";
 import { updateMonthlyExpenseTotal, cascadeUpdateFutureMonths } from "@/lib/monthly-totals";
 import { adjustCreditCardBalance } from "@/lib/credit-cards";
+import { adjustBankAccountBalance } from "@/lib/bank-accounts";
 import { after } from "next/server";
 import { NextRequest } from "next/server";
 
@@ -64,6 +65,9 @@ export async function POST(request: NextRequest) {
 
   if (parsed.data.payment_source === "credit_card" && parsed.data.credit_card_id) {
     await adjustCreditCardBalance(supabase, user.id, parsed.data.credit_card_id, parsed.data.amount);
+  }
+  if ((parsed.data.payment_source ?? "bank") === "bank" && parsed.data.bank_account_id) {
+    await adjustBankAccountBalance(supabase, user.id, parsed.data.bank_account_id, -parsed.data.amount);
   }
 
   const updatedSummary = await updateMonthlyExpenseTotal(supabase, user.id, m, y);

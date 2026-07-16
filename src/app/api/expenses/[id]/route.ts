@@ -2,6 +2,7 @@ import { requireAuthFast } from "@/lib/auth-guard";
 import { ExpenseUpdateSchema } from "@/lib/schemas/expense";
 import { updateMonthlyExpenseTotal, cascadeUpdateFutureMonths } from "@/lib/monthly-totals";
 import { adjustCreditCardBalance } from "@/lib/credit-cards";
+import { adjustBankAccountBalance } from "@/lib/bank-accounts";
 import { after } from "next/server";
 import { NextRequest } from "next/server";
 
@@ -23,11 +24,11 @@ export async function PUT(
     return Response.json({ error: parsed.error.flatten() }, { status: 400 });
   }
 
-  // Fetch old date + card charge info to know which month(s) to recalculate
-  // and how to reconcile credit card balances
+  // Fetch old date + card/account charge info to know which month(s) to recalculate
+  // and how to reconcile credit card / bank account balances
   const { data: old } = await supabase
     .from("expenses")
-    .select("date, amount, payment_source, credit_card_id")
+    .select("date, amount, payment_source, credit_card_id, bank_account_id")
     .eq("id", expenseId)
     .eq("user_id", user.id)
     .single();
@@ -50,6 +51,16 @@ export async function PUT(
   }
   if (newCardId) {
     await adjustCreditCardBalance(supabase, user.id, newCardId, parsed.data.amount);
+  }
+
+  // Reconcile bank account balances: reverse the old debit, apply the new one
+  const oldAccountId = (old.payment_source ?? "bank") === "bank" ? old.bank_account_id : null;
+  const newAccountId = (parsed.data.payment_source ?? "bank") === "bank" ? parsed.data.bank_account_id : null;
+  if (oldAccountId) {
+    await adjustBankAccountBalance(supabase, user.id, oldAccountId, Number(old.amount));
+  }
+  if (newAccountId) {
+    await adjustBankAccountBalance(supabase, user.id, newAccountId, -parsed.data.amount);
   }
 
   // Recalculate monthly totals for both old and new month (if different)
@@ -104,13 +115,13 @@ export async function DELETE(
   const expenseId = Number(id);
   if (!expenseId) return Response.json({ error: "Invalid id" }, { status: 400 });
 
-  // Delete and return date/amount/card info in a single query (Round-trip 1)
+  // Delete and return date/amount/card/account info in a single query (Round-trip 1)
   const { data: deleted, error: dbError } = await supabase
     .from("expenses")
     .delete()
     .eq("id", expenseId)
     .eq("user_id", user.id)
-    .select("date, amount, payment_source, credit_card_id")
+    .select("date, amount, payment_source, credit_card_id, bank_account_id")
     .single();
 
   if (dbError) return Response.json({ error: dbError.message }, { status: 500 });
@@ -118,6 +129,9 @@ export async function DELETE(
 
   if (deleted.payment_source === "credit_card" && deleted.credit_card_id) {
     await adjustCreditCardBalance(supabase, user.id, deleted.credit_card_id, -Number(deleted.amount));
+  }
+  if ((deleted.payment_source ?? "bank") === "bank" && deleted.bank_account_id) {
+    await adjustBankAccountBalance(supabase, user.id, deleted.bank_account_id, Number(deleted.amount));
   }
 
   const expenseDate = new Date(deleted.date);

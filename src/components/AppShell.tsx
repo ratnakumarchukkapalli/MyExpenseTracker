@@ -53,12 +53,19 @@ type Expense = {
   tag?: string;
   payment_source?: string;
   credit_card_id?: number | null;
+  bank_account_id?: number | null;
 };
 
 type CreditCard = {
   id: number;
   name: string;
   credit_limit?: number | null;
+  current_balance: number;
+};
+
+type BankAccount = {
+  id: number;
+  name: string;
   current_balance: number;
 };
 
@@ -232,6 +239,7 @@ function AppShell({ initialData, serverMonth, serverYear }: AppShellProps) {
   const [categoryBudgets, setCategoryBudgets] = useState<CategoryBudgetRow[]>((initialData?.categoryBudgets as CategoryBudgetRow[]) ?? []);
   const [loanMilestones, setLoanMilestones] = useState<LoanMilestone[]>((initialData?.loanMilestones as LoanMilestone[]) ?? []);
   const [creditCards, setCreditCards] = useState<CreditCard[]>((initialData?.creditCards as CreditCard[]) ?? []);
+  const [bankAccounts, setBankAccounts] = useState<BankAccount[]>((initialData?.bankAccounts as BankAccount[]) ?? []);
   const [loading, setLoading] = useState(!initialData);
   const [refreshKey, setRefreshKey] = useState(0);
   const [stockRefreshTick, setStockRefreshTick] = useState(0);
@@ -284,6 +292,7 @@ function AppShell({ initialData, serverMonth, serverYear }: AppShellProps) {
         setCategoryBudgets(data.categoryBudgets ?? []);
         setLoanMilestones(data.loanMilestones ?? []);
         setCreditCards(data.creditCards ?? []);
+        setBankAccounts(data.bankAccounts ?? []);
         if (data.user && !userInfo) setUserInfo(data.user);
       }
     } catch (error) {
@@ -457,6 +466,10 @@ function AppShell({ initialData, serverMonth, serverYear }: AppShellProps) {
     if (result.summary) {
       setMonthlySummary(prev => prev ? { ...prev, ...result.summary as MonthlySummary } : result.summary as MonthlySummary);
     }
+    // Refresh card/account balances if this expense was charged to one
+    if (payload.payment_source === 'credit_card' || (payload as { bank_account_id?: number | null }).bank_account_id) {
+      triggerRefresh();
+    }
   };
 
   const handleExpenseUpdate = async (expense: Expense) => {
@@ -474,6 +487,7 @@ function AppShell({ initialData, serverMonth, serverYear }: AppShellProps) {
         tag: expense.tag ?? null,
         payment_source: expense.payment_source ?? 'bank',
         credit_card_id: expense.credit_card_id ?? null,
+        bank_account_id: expense.bank_account_id ?? null,
       }),
     });
     if (!res.ok) {
@@ -736,6 +750,8 @@ function AppShell({ initialData, serverMonth, serverYear }: AppShellProps) {
                     yearlyRows={yearlyRows}
                     initialCategoryBudgets={categoryBudgets}
                     initialLoanMilestones={loanMilestones}
+                    bankAccounts={bankAccounts}
+                    onBankAccountsChange={triggerRefresh}
                     stockRefreshTick={stockRefreshTick}
                     privacyMode={privacyMode}
                     onFinancialsUpdate={async (data) => {
@@ -853,6 +869,7 @@ function AppShell({ initialData, serverMonth, serverYear }: AppShellProps) {
         <ExpenseForm
           expense={editingExpense}
           creditCards={creditCards}
+          bankAccounts={bankAccounts}
           defaultDate={!editingExpense ? (() => {
             const today = new Date();
             const isCurrentMonth = currentMonth === today.getMonth() + 1 && currentYear === today.getFullYear();

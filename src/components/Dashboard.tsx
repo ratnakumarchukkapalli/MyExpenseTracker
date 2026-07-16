@@ -98,9 +98,17 @@ type Props = {
   yearlyRows: YearlyRow[];
   initialCategoryBudgets: Array<{ category: string; budget_type: string; budget_value: number }>;
   initialLoanMilestones: LoanMilestone[];
+  bankAccounts?: BankAccount[];
+  onBankAccountsChange?: () => void;
   stockRefreshTick?: number;
   privacyMode?: boolean;
   onFinancialsUpdate?: (data: FinancialFields) => Promise<void>;
+};
+
+type BankAccount = {
+  id: number;
+  name: string;
+  current_balance: number;
 };
 
 type BudgetMap = Record<string, { budget_type: string; budget_value: number }>;
@@ -125,7 +133,7 @@ function formatCurrency(amount: number) {
 
 const PRIVACY_MASK = '₹ ••••';
 
-function Dashboard({ expenses, subscriptions, monthlySummary, currentMonth, currentYear, prevMonthExpenses, yearlyRows, initialCategoryBudgets, initialLoanMilestones, stockRefreshTick, privacyMode, onFinancialsUpdate }: Props) {
+function Dashboard({ expenses, subscriptions, monthlySummary, currentMonth, currentYear, prevMonthExpenses, yearlyRows, initialCategoryBudgets, initialLoanMilestones, bankAccounts, onBankAccountsChange, stockRefreshTick, privacyMode, onFinancialsUpdate }: Props) {
   const [prevMonthCategoryTotals, setPrevMonthCategoryTotals] = useState<Record<string, number>>(() =>
     (prevMonthExpenses ?? []).reduce((acc: Record<string, number>, e) => {
       acc[e.category] = (acc[e.category] || 0) + Number(e.amount || 0);
@@ -144,6 +152,7 @@ function Dashboard({ expenses, subscriptions, monthlySummary, currentMonth, curr
   const [dashMounted, setDashMounted] = useState(false);
   const [showBudgetSettings, setShowBudgetSettings] = useState(false);
   const [showEditFinancials, setShowEditFinancials] = useState(false);
+  const [editingBankAccount, setEditingBankAccount] = useState<BankAccount | 'new' | null>(null);
   const [savingFinancials, setSavingFinancials] = useState(false);
   const [liveWealth, setLiveWealth] = useState<{ sip: number; stocks: number; total: number } | null>(null);
   const [previousMonthExpenses, setPreviousMonthExpenses] = useState<Expense[]>(prevMonthExpenses ?? []);
@@ -634,6 +643,55 @@ function Dashboard({ expenses, subscriptions, monthlySummary, currentMonth, curr
         </div>
       </div>
 
+      {bankAccounts && (
+        <div className="pane mb-8" style={{ padding: '20px 24px' }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
+            <div>
+              <div className="eyebrow mb-1">Where your money sits</div>
+              <div className="serif mb-4" style={{ fontSize: 18, color: 'var(--ink)' }}>Bank Accounts</div>
+            </div>
+            <button
+              onClick={() => setEditingBankAccount('new')}
+              className="cursor-pointer"
+              style={{ fontSize: 12, fontWeight: 600, color: 'var(--accent)', background: 'none', border: 'none' }}
+            >
+              + Add account
+            </button>
+          </div>
+          {bankAccounts.length === 0 ? (
+            <p style={{ fontSize: 13, color: 'var(--ink-faint)' }}>No bank accounts added yet.</p>
+          ) : (
+            <>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                {bankAccounts.map((account) => (
+                  <button
+                    key={account.id}
+                    onClick={() => setEditingBankAccount(account)}
+                    className="cursor-pointer text-left"
+                    style={{ padding: '14px 16px', borderRadius: 14, background: 'var(--bg-tint)', border: '1px solid var(--hairline)' }}
+                  >
+                    <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--ink-muted)' }}>{account.name}</div>
+                    <div className="serif dash-stat-value" style={{ fontSize: 22, marginTop: 4, color: 'var(--ink)', fontVariantNumeric: 'tabular-nums' }}>
+                      {privacyMode ? PRIVACY_MASK : formatCurrency(account.current_balance)}
+                    </div>
+                  </button>
+                ))}
+              </div>
+              <p style={{ fontSize: 11, color: 'var(--ink-faint)', marginTop: 12 }}>
+                Updates automatically as you log bank expenses against an account — click a tile to correct drift from your real statement.
+              </p>
+            </>
+          )}
+        </div>
+      )}
+
+      {editingBankAccount && (
+        <BankAccountForm
+          account={editingBankAccount === 'new' ? null : editingBankAccount}
+          onCancel={() => setEditingBankAccount(null)}
+          onSaved={() => { setEditingBankAccount(null); onBankAccountsChange?.(); }}
+        />
+      )}
 
       <div style={{ marginBottom: 32 }}>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 16 }}>
@@ -1154,6 +1212,113 @@ function FinancialEditModal({
             </button>
           </div>
         </div>
+      </div>
+    </div>
+  );
+}
+
+interface BankAccountFormProps {
+  account?: BankAccount | null;
+  onCancel: () => void;
+  onSaved: () => void;
+}
+
+function BankAccountForm({ account, onCancel, onSaved }: BankAccountFormProps) {
+  const [name, setName] = useState(account?.name ?? '');
+  const [currentBalance, setCurrentBalance] = useState(account?.current_balance?.toString() ?? '');
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name.trim()) {
+      alert('Account name is required');
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const payload = {
+        name: name.trim(),
+        current_balance: currentBalance ? parseFloat(currentBalance) : 0,
+      };
+      const res = account
+        ? await fetch(`/api/bank-accounts/${account.id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+          })
+        : await fetch('/api/bank-accounts', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+          });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error?.formErrors?.[0] || err.error || 'Failed to save account');
+      }
+      onSaved();
+    } catch (error) {
+      alert(error instanceof Error ? error.message : 'Failed to save account');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => !submitting && onCancel()} />
+      <div className="relative z-10 w-full max-w-sm pane-strong p-6 shadow-2xl border border-[var(--hairline)]">
+        <div className="flex items-center justify-between mb-5">
+          <h3 className="text-lg font-bold" style={{ color: 'var(--ink)' }}>{account ? 'Edit Account' : 'Add Bank Account'}</h3>
+          <button onClick={() => !submitting && onCancel()} className="cursor-pointer" style={{ color: 'var(--ink-faint)' }}>
+            <X size={18} />
+          </button>
+        </div>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-[11px] font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--ink-faint)' }}>Account Name</label>
+            <input
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="e.g., SBI, Kotak, ICICI"
+              autoFocus
+              required
+              className="w-full px-4 py-2.5 rounded-xl text-sm outline-none"
+              style={{ background: 'var(--bg-tint)', border: '1px solid var(--hairline)', color: 'var(--ink)' }}
+            />
+          </div>
+          <div>
+            <label className="block text-[11px] font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--ink-faint)' }}>Current Balance</label>
+            <input
+              type="number"
+              step="0.01"
+              value={currentBalance}
+              onChange={(e) => setCurrentBalance(e.target.value)}
+              placeholder="₹"
+              className="w-full px-4 py-2.5 rounded-xl text-sm outline-none"
+              style={{ background: 'var(--bg-tint)', border: '1px solid var(--hairline)', color: 'var(--ink)' }}
+            />
+          </div>
+          <div className="flex gap-3 pt-2">
+            <button
+              type="button"
+              onClick={onCancel}
+              className="flex-1 py-2.5 rounded-xl font-bold text-sm cursor-pointer"
+              style={{ background: 'var(--bg-tint)', border: '1px solid var(--hairline)', color: 'var(--ink-soft)' }}
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={submitting}
+              className="flex-1 py-2.5 rounded-xl font-bold text-sm cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2"
+              style={{ background: 'var(--accent)', color: 'white' }}
+            >
+              <Save size={16} />
+              {submitting ? 'Saving…' : 'Save'}
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );

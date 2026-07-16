@@ -20,6 +20,7 @@ export const ExpenseCreateSchema = z.object({
   iphone_import_id: z.string().uuid().optional().nullable(),
   payment_source: z.enum(["bank", "sodexo", "credit_card"]).default("bank").optional(),
   credit_card_id: z.number().int().positive().optional().nullable(),
+  bank_account_id: z.number().int().positive().optional().nullable(),
   tag: z.string().max(60).trim().optional().nullable(),
 });
 

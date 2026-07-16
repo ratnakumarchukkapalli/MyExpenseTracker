@@ -14,9 +14,15 @@ interface ExpenseData {
   tag?: string;
   payment_source?: string;
   credit_card_id?: number | null;
+  bank_account_id?: number | null;
 }
 
 interface CreditCardOption {
+  id: number;
+  name: string;
+}
+
+interface BankAccountOption {
   id: number;
   name: string;
 }
@@ -27,13 +33,14 @@ interface Props {
   onCancel: () => void;
   defaultDate?: string;
   creditCards?: CreditCardOption[];
+  bankAccounts?: BankAccountOption[];
 }
 
 
 
 const LAST_PAYMENT_SOURCE_KEY = 'met_last_payment_source';
 
-function ExpenseForm({ expense, onSubmit, onCancel, defaultDate, creditCards = [] }: Props) {
+function ExpenseForm({ expense, onSubmit, onCancel, defaultDate, creditCards = [], bankAccounts = [] }: Props) {
   const lastSource = (typeof window !== 'undefined'
     ? (localStorage.getItem(LAST_PAYMENT_SOURCE_KEY) as 'bank' | 'sodexo' | 'credit_card' | null)
     : null) ?? 'bank';
@@ -47,6 +54,7 @@ function ExpenseForm({ expense, onSubmit, onCancel, defaultDate, creditCards = [
     tag: '',
     payment_source: lastSource,
     credit_card_id: '' as string,
+    bank_account_id: '' as string,
   });
 
   useEffect(() => {
@@ -60,6 +68,7 @@ function ExpenseForm({ expense, onSubmit, onCancel, defaultDate, creditCards = [
         tag: expense.tag || '',
         payment_source: (expense.payment_source || 'bank') as 'bank' | 'sodexo' | 'credit_card',
         credit_card_id: expense.credit_card_id ? String(expense.credit_card_id) : '',
+        bank_account_id: expense.bank_account_id ? String(expense.bank_account_id) : '',
       });
     }
   }, [expense]);
@@ -76,6 +85,10 @@ function ExpenseForm({ expense, onSubmit, onCancel, defaultDate, creditCards = [
       alert('Please select which card this was charged to');
       return;
     }
+    if (formData.payment_source === 'bank' && bankAccounts.length > 0 && !formData.bank_account_id) {
+      alert('Please select which account this was paid from');
+      return;
+    }
     setIsSubmitting(true);
     try {
       if (!expense) {
@@ -86,6 +99,9 @@ function ExpenseForm({ expense, onSubmit, onCancel, defaultDate, creditCards = [
         amount: parseFloat(formData.amount),
         credit_card_id: formData.payment_source === 'credit_card' && formData.credit_card_id
           ? Number(formData.credit_card_id)
+          : null,
+        bank_account_id: formData.payment_source === 'bank' && formData.bank_account_id
+          ? Number(formData.bank_account_id)
           : null,
       });
     } finally {
@@ -248,6 +264,20 @@ function ExpenseForm({ expense, onSubmit, onCancel, defaultDate, creditCards = [
                 <option value="">Which card?</option>
                 {creditCards.map((c) => (
                   <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </select>
+            )}
+            {formData.payment_source === 'bank' && bankAccounts.length > 0 && (
+              <select
+                value={formData.bank_account_id}
+                onChange={(e) => setFormData((p) => ({ ...p, bank_account_id: e.target.value }))}
+                required
+                className="w-full mt-2 px-4 py-2.5 rounded-xl text-sm outline-none cursor-pointer"
+                style={{ background: 'var(--surface-solid)', border: '1px solid var(--hairline)', color: 'var(--ink)' }}
+              >
+                <option value="">Which account?</option>
+                {bankAccounts.map((a) => (
+                  <option key={a.id} value={a.id}>{a.name}</option>
                 ))}
               </select>
             )}
