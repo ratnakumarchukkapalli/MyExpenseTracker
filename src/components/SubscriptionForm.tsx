@@ -12,17 +12,24 @@ interface SubscriptionData {
   comments?: string;
   status?: string;
   category?: string;
+  bank_account_id?: number | null;
+}
+
+interface BankAccountOption {
+  id: number;
+  name: string;
 }
 
 interface Props {
   subscription?: SubscriptionData | null;
   onSubmit: (data: any) => void;
   onCancel: () => void;
+  bankAccounts?: BankAccountOption[];
 }
 
 const CATEGORIES = ['Entertainment', 'Utilities', 'Software', 'Health', 'Finance', 'Shopping', 'Other'];
 
-function SubscriptionForm({ subscription, onSubmit, onCancel }: Props) {
+function SubscriptionForm({ subscription, onSubmit, onCancel, bankAccounts = [] }: Props) {
   const [formData, setFormData] = useState({
     name: '',
     billing_type: 'yearly',
@@ -31,6 +38,7 @@ function SubscriptionForm({ subscription, onSubmit, onCancel }: Props) {
     comments: '',
     status: 'active',
     category: 'Other',
+    bank_account_id: '' as string,
   });
 
   useEffect(() => {
@@ -43,6 +51,7 @@ function SubscriptionForm({ subscription, onSubmit, onCancel }: Props) {
         comments: subscription.comments || '',
         status: subscription.status || 'active',
         category: subscription.category || 'Other',
+        bank_account_id: subscription.bank_account_id ? String(subscription.bank_account_id) : '',
       });
     }
   }, [subscription]);
@@ -55,7 +64,12 @@ function SubscriptionForm({ subscription, onSubmit, onCancel }: Props) {
     }
     const amount = parseFloat(formData.amount);
     const yearly_cost = formData.billing_type === 'monthly' ? amount * 12 : amount;
-    onSubmit({ ...formData, amount, yearly_cost });
+    onSubmit({
+      ...formData,
+      amount,
+      yearly_cost,
+      bank_account_id: formData.bank_account_id ? Number(formData.bank_account_id) : null,
+    });
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
@@ -193,6 +207,24 @@ function SubscriptionForm({ subscription, onSubmit, onCancel }: Props) {
               })}
             </div>
           </div>
+
+          {/* Default bank account */}
+          {bankAccounts.length > 0 && (
+            <div>
+              <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2">Paid From (default account)</label>
+              <select
+                name="bank_account_id"
+                value={formData.bank_account_id}
+                onChange={handleChange}
+                className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 transition-all text-sm"
+              >
+                <option value="">No default (won&apos;t debit a specific account)</option>
+                {bankAccounts.map((a) => (
+                  <option key={a.id} value={a.id}>{a.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
 
           {/* Note */}
           <div>

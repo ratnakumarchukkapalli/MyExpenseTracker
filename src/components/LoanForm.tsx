@@ -16,15 +16,22 @@ interface LoanData {
   remind_me?: boolean;
   outstanding_balance?: number;
   outstanding_balance_asof?: string;
+  bank_account_id?: number | null;
+}
+
+interface BankAccountOption {
+  id: number;
+  name: string;
 }
 
 interface Props {
   loan?: LoanData | null;
   onSubmit: (data: any) => void;
   onCancel: () => void;
+  bankAccounts?: BankAccountOption[];
 }
 
-function LoanForm({ loan, onSubmit, onCancel }: Props) {
+function LoanForm({ loan, onSubmit, onCancel, bankAccounts = [] }: Props) {
   const [formData, setFormData] = useState({
     name: '',
     amount: '',
@@ -37,6 +44,7 @@ function LoanForm({ loan, onSubmit, onCancel }: Props) {
     remind_me: false,
     outstanding_balance: '',
     outstanding_balance_asof: '',
+    bank_account_id: '' as string,
   });
 
   const categories = ['LOANS/CC', 'HOME Purpose', 'Personal'];
@@ -55,6 +63,7 @@ function LoanForm({ loan, onSubmit, onCancel }: Props) {
         remind_me: loan.remind_me ?? false,
         outstanding_balance: loan.outstanding_balance?.toString() || '',
         outstanding_balance_asof: loan.outstanding_balance_asof ? loan.outstanding_balance_asof.split('T')[0] : '',
+        bank_account_id: loan.bank_account_id ? String(loan.bank_account_id) : '',
       });
     }
   }, [loan]);
@@ -69,6 +78,7 @@ function LoanForm({ loan, onSubmit, onCancel }: Props) {
       ...formData,
       amount: parseFloat(formData.amount),
       due_day: parseInt(formData.due_day, 10),
+      bank_account_id: formData.bank_account_id ? Number(formData.bank_account_id) : null,
       outstanding_balance: formData.outstanding_balance ? parseFloat(formData.outstanding_balance) : null,
       outstanding_balance_asof: formData.outstanding_balance_asof || null,
     });
@@ -192,6 +202,24 @@ function LoanForm({ loan, onSubmit, onCancel }: Props) {
               />
             </div>
           </div>
+
+          {/* Default bank account */}
+          {bankAccounts.length > 0 && (
+            <div>
+              <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2">Paid From (default account)</label>
+              <select
+                name="bank_account_id"
+                value={formData.bank_account_id}
+                onChange={handleChange}
+                className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 transition-all text-sm cursor-pointer"
+              >
+                <option value="">No default (won&apos;t debit a specific account)</option>
+                {bankAccounts.map((a) => (
+                  <option key={a.id} value={a.id}>{a.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
 
           {/* Start Date + End Date */}
           <div className="grid grid-cols-2 gap-4">

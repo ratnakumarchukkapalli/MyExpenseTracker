@@ -10,6 +10,7 @@ export const SubscriptionSchema = z.object({
   comments: z.string().max(500).nullable().optional(),
   category: z.string().default("Other"),
   last_paid_date: z.string().nullable().optional(),
+  bank_account_id: z.number().int().positive().nullable().optional(),
 });
 
 export type SubscriptionInput = z.infer<typeof SubscriptionSchema>;

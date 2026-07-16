@@ -79,6 +79,7 @@ type Subscription = {
   status?: string;
   last_paid_date?: string;
   comments?: string;
+  bank_account_id?: number | null;
 };
 
 type Loan = {
@@ -94,6 +95,7 @@ type Loan = {
   remind_me?: boolean;
   outstanding_balance?: number;
   outstanding_balance_asof?: string;
+  bank_account_id?: number | null;
 };
 
 type MonthlySummary = {
@@ -893,6 +895,7 @@ function AppShell({ initialData, serverMonth, serverYear }: AppShellProps) {
       {showSubscriptionForm && (
         <SubscriptionForm
           subscription={editingSubscription}
+          bankAccounts={bankAccounts}
           onSubmit={(payload) => {
             if (editingSubscription?.id) {
               void handleSubscriptionUpdate({ ...editingSubscription, ...payload, amount: Number(payload.amount) });
@@ -910,6 +913,7 @@ function AppShell({ initialData, serverMonth, serverYear }: AppShellProps) {
       {showLoanForm && (
         <LoanForm
           loan={editingLoan}
+          bankAccounts={bankAccounts}
           onSubmit={(payload) => {
             if (editingLoan?.id) {
               void handleLoanUpdate({ ...editingLoan, ...payload, amount: Number(payload.amount), due_day: Number(payload.due_day) });

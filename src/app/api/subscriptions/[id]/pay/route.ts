@@ -1,5 +1,6 @@
 import { requireAuth } from "@/lib/auth-guard";
 import { updateMonthlyExpenseTotal, cascadeUpdateFutureMonths } from "@/lib/monthly-totals";
+import { adjustBankAccountBalance } from "@/lib/bank-accounts";
 import { after, NextRequest } from "next/server";
 
 // POST /api/subscriptions/[id]/pay
@@ -12,7 +13,7 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
 
   const { data: sub } = await supabase
     .from("subscriptions")
-    .select("amount, billing_type, renewal_date, name, category, last_paid_date")
+    .select("amount, billing_type, renewal_date, name, category, last_paid_date, bank_account_id")
     .eq("id", subId)
     .eq("user_id", user.id)
     .single();
@@ -49,12 +50,18 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
       date: paidDate,
       description: `Subscription: ${sub.name}`,
       category: "MonthlyBills",
-      note: `Paid via subscription tracker`
+      note: `Paid via subscription tracker`,
+      payment_source: "bank",
+      bank_account_id: sub.bank_account_id ?? null,
     })
     .select()
     .single();
 
   if (expenseRes.error) return Response.json({ error: expenseRes.error.message }, { status: 500 });
+
+  if (sub.bank_account_id) {
+    await adjustBankAccountBalance(supabase, user.id, sub.bank_account_id, -Number(sub.amount));
+  }
 
   // 2. Insert payment record (linked to the expense)
   // 3. Update subscription status
@@ -135,6 +142,18 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   const [latest, previous] = payments;
   const restoredLastPaid = previous ? previous.paid_date : null;
 
+  // Fetch the linked expense before deleting it, so its bank account charge can be reversed
+  let expenseToReverse: { amount: number; payment_source: string | null; bank_account_id: number | null } | null = null;
+  if (latest.expense_id) {
+    const { data } = await supabase
+      .from("expenses")
+      .select("amount, payment_source, bank_account_id")
+      .eq("id", latest.expense_id)
+      .eq("user_id", user.id)
+      .maybeSingle();
+    expenseToReverse = data;
+  }
+
   // Reverse the exact +1 cycle that Pay Now applied
   let restoredRenewal = sub.renewal_date;
   if (sub.renewal_date) {
@@ -169,6 +188,10 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   const results = await Promise.all(tasks);
   const dbError = results.find((r) => r?.error)?.error;
   if (dbError) return Response.json({ error: dbError.message }, { status: 500 });
+
+  if (expenseToReverse?.payment_source === "bank" && expenseToReverse.bank_account_id) {
+    await adjustBankAccountBalance(supabase, user.id, expenseToReverse.bank_account_id, Number(expenseToReverse.amount));
+  }
 
   // Recalc monthly summary for the month the undone expense fell in
   if (latest.expense_id) {

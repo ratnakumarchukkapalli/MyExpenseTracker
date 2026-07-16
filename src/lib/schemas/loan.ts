@@ -12,6 +12,7 @@ export const LoanSchema = z.object({
   remind_me: z.boolean().default(false),
   outstanding_balance: z.number().nonnegative().nullable().optional(),
   outstanding_balance_asof: z.string().nullable().optional(),
+  bank_account_id: z.number().int().positive().nullable().optional(),
 });
 
 export type LoanInput = z.infer<typeof LoanSchema>;

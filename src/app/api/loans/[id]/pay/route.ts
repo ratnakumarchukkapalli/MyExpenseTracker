@@ -1,5 +1,6 @@
 import { requireAuth } from "@/lib/auth-guard";
 import { updateMonthlyExpenseTotal, cascadeUpdateFutureMonths } from "@/lib/monthly-totals";
+import { adjustBankAccountBalance } from "@/lib/bank-accounts";
 import { after, NextRequest } from "next/server";
 
 // POST /api/loans/[id]/pay — record this month's EMI as an expense
@@ -12,7 +13,7 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
 
   const { data: loan } = await supabase
     .from("loans")
-    .select("name, amount, status")
+    .select("name, amount, status, bank_account_id")
     .eq("id", loanId)
     .eq("user_id", user.id)
     .single();
@@ -50,9 +51,15 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
     description,
     category: "LOANS/CC",
     note: "Paid via loan tracker",
+    payment_source: "bank",
+    bank_account_id: loan.bank_account_id ?? null,
   });
 
   if (insertError) return Response.json({ error: insertError.message }, { status: 500 });
+
+  if (loan.bank_account_id) {
+    await adjustBankAccountBalance(supabase, user.id, loan.bank_account_id, -Number(loan.amount));
+  }
 
   // Update monthly summary so the cash balance reflects this expense
   const updatedSummary = await updateMonthlyExpenseTotal(supabase, user.id, paidMonth, paidYear);
