@@ -355,7 +355,6 @@ function Dashboard({ expenses, subscriptions, monthlySummary, currentMonth, curr
     .reduce((sum, [, amount]) => sum + amount, 0);
   const totalExpenses = totalExpensesOnly + totalSavings;
 
-  const currentCash = getCurrentRemaining(monthlySummary);
   const currentFD = Number(monthlySummary?.savings_fd || 0);
   const currentSIP = Number(monthlySummary?.savings_sip || 0);
   const currentShares = Number(monthlySummary?.savings_shares || 0);
@@ -364,14 +363,18 @@ function Dashboard({ expenses, subscriptions, monthlySummary, currentMonth, curr
   const livePortfolio = liveWealth?.total ?? null;
   const dbPortfolio = currentSIP + currentShares;
 
-  // Use live prices only for current month; past months use stored monthly snapshot
+  // Use live values only for current month; past months use stored monthly snapshot
   const isCurrentMonth = currentMonth === new Date().getMonth() + 1 && currentYear === new Date().getFullYear();
   const portfolioTotal = (isCurrentMonth && livePortfolio !== null) ? livePortfolio : dbPortfolio;
   const displaySIP = (isCurrentMonth && liveWealth) ? liveWealth.sip : currentSIP;
   const displayShares = (isCurrentMonth && liveWealth) ? liveWealth.stocks : currentShares;
 
-  // BANK BALANCE definition: For the UI, we'll show "Liquid Cash" as the bank balance.
-  // We'll treat FD as a separate asset to avoid "duplication" confusion.
+  // BANK BALANCE definition: "Liquid Cash Available" = live sum of tracked bank
+  // accounts for the current month (matches the SIP/stock snapshot pattern above);
+  // past months keep the stored remaining_amount snapshot for historical accuracy.
+  const liveBankCashTotal = (bankAccounts ?? []).reduce((sum, a) => sum + Number(a.current_balance || 0), 0);
+  const hasBankAccounts = (bankAccounts ?? []).length > 0;
+  const currentCash = (isCurrentMonth && hasBankAccounts) ? liveBankCashTotal : getCurrentRemaining(monthlySummary);
   const calculateBankBalance = () => currentCash;
 
   const calculateCashEquivalents = () => {
@@ -570,7 +573,9 @@ function Dashboard({ expenses, subscriptions, monthlySummary, currentMonth, curr
 
         <div className="pane stat-bar">
           <div className="stat-bar-row">
-            <div className="eyebrow" style={{ color: 'var(--ink-soft)' }}>Cash balance</div>
+            <div className="eyebrow" style={{ color: 'var(--ink-soft)' }}>
+              {isCurrentMonth && hasBankAccounts ? 'Liquid Cash Available' : 'Cash balance'}
+            </div>
             <div className="serif dash-stat-value" style={{ fontSize: 26, marginTop: 4, color: 'var(--ink)' }}>
               {privacyMode ? PRIVACY_MASK : formatCurrency(currentCash)}
             </div>
