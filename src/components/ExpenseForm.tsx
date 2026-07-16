@@ -85,7 +85,7 @@ function ExpenseForm({ expense, onSubmit, onCancel, defaultDate, creditCards = [
       alert('Please select which card this was charged to');
       return;
     }
-    if (formData.payment_source === 'bank' && bankAccounts.length > 0 && !formData.bank_account_id) {
+    if (!expense && formData.payment_source === 'bank' && bankAccounts.length > 0 && !formData.bank_account_id) {
       alert('Please select which account this was paid from');
       return;
     }

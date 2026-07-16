@@ -943,6 +943,8 @@ const SIPTracker = ({ currentMonth, currentYear, onPortfolioUpdate, frozenSip }:
   const [showAddFund, setShowAddFund] = useState(false);
   const [importing, setImporting] = useState(false);
   const [autoRefreshing, setAutoRefreshing] = useState(false);
+  const fundsRef = useRef<SipFund[]>(funds);
+  useEffect(() => { fundsRef.current = funds; }, [funds]);
 
   const holdingsFileRef = useRef<HTMLInputElement>(null);
   const capitalGainsFileRef = useRef<HTMLInputElement>(null);
@@ -976,37 +978,51 @@ const SIPTracker = ({ currentMonth, currentYear, onPortfolioUpdate, frozenSip }:
     const codes = fundsToRefresh
       .map(f => f.scheme_code)
       .filter(Boolean) as string[];
-    
+
     if (codes.length === 0) return;
-    
+
     setAutoRefreshing(true);
     try {
       const navMap = await fetchAmfiNavMap(codes);
       const updates = [];
-      
+      const todayStr = new Date().toISOString().split('T')[0];
+      // Only "caught up" once every fund's latest AMFI date is actually today —
+      // AMFI publishes once daily (usually evening IST), so a fetch before that
+      // just returns yesterday's NAV again. Writing that as if it were new would
+      // stamp prev_nav === current_nav (a false ₹0 day change) and corrupt the
+      // real previous-day NAV. Skip the write and keep retrying instead.
+      let allCaughtUpToday = true;
+
       for (const fund of fundsToRefresh) {
         if (!fund.scheme_code) continue;
         const entry = navMap[fund.scheme_code];
-        if (entry) {
-          // Update fund NAV
-          updates.push(fetch(`/api/sip/funds/${fund.id}/nav`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ currentNav: entry.nav, lastNavUpdate: entry.date }),
-          }));
-          
-          // Update NAV history
-          updates.push(fetch('/api/sip/nav-history', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              schemeCode: fund.scheme_code,
-              navData: [{ date: entry.date, nav: String(entry.nav) }],
-            }),
-          }));
+        if (!entry) { allCaughtUpToday = false; continue; }
+
+        if (fund.last_nav_update && entry.date <= fund.last_nav_update) {
+          if (entry.date !== todayStr) allCaughtUpToday = false;
+          continue;
         }
+
+        // Update fund NAV
+        updates.push(fetch(`/api/sip/funds/${fund.id}/nav`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ currentNav: entry.nav, lastNavUpdate: entry.date }),
+        }));
+
+        // Update NAV history
+        updates.push(fetch('/api/sip/nav-history', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            schemeCode: fund.scheme_code,
+            navData: [{ date: entry.date, nav: String(entry.nav) }],
+          }),
+        }));
+
+        if (entry.date !== todayStr) allCaughtUpToday = false;
       }
-      
+
       if (updates.length > 0) {
         await Promise.all(updates);
         // Reload funds to reflect new NAVs
@@ -1017,8 +1033,12 @@ const SIPTracker = ({ currentMonth, currentYear, onPortfolioUpdate, frozenSip }:
         }
         if (onPortfolioUpdate) onPortfolioUpdate();
       }
-      
-      localStorage.setItem('lastSipRefreshDate', new Date().toDateString());
+
+      if (allCaughtUpToday) {
+        localStorage.setItem('lastSipRefreshDate', new Date().toDateString());
+      } else {
+        localStorage.removeItem('lastSipRefreshDate');
+      }
     } catch (e) {
       console.error('Auto-refresh failed:', e);
     } finally {
@@ -1038,6 +1058,21 @@ const SIPTracker = ({ currentMonth, currentYear, onPortfolioUpdate, frozenSip }:
       }
     });
   }, [loadFunds, autoRefreshAllNavs, isCurrentMonth]);
+
+  // Keep retrying through the day (AMFI usually publishes evening IST) without
+  // requiring a manual refresh click or a full page reload — checks hourly and
+  // is a no-op once autoRefreshAllNavs has actually caught today's NAV.
+  useEffect(() => {
+    if (!isCurrentMonth) return;
+    const interval = setInterval(() => {
+      const lastRefresh = localStorage.getItem('lastSipRefreshDate');
+      const today = new Date().toDateString();
+      if (lastRefresh !== today) {
+        void autoRefreshAllNavs(fundsRef.current);
+      }
+    }, 3600000);
+    return () => clearInterval(interval);
+  }, [isCurrentMonth, autoRefreshAllNavs]);
 
   const handleImportHoldings = () => holdingsFileRef.current?.click();
 

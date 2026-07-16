@@ -131,8 +131,24 @@ export async function cascadeUpdateFutureMonths(
 
   if (futureRows.length === 0) return;
 
+  // If cascading from the real current calendar month, prefer the live bank-account
+  // total over the computed remaining_amount, so future months' opening balance
+  // tracks actual bank balances instead of drifting from the salary-minus-expenses ledger.
+  const now = new Date();
+  const isRealCurrentMonth = startMonth === now.getMonth() + 1 && startYear === now.getFullYear();
+  let openingRemainingAmount = sourceValues.remaining_amount;
+  if (isRealCurrentMonth) {
+    const { data: accounts } = await supabase
+      .from("bank_accounts")
+      .select("current_balance")
+      .eq("user_id", userId);
+    if (accounts && accounts.length > 0) {
+      openingRemainingAmount = accounts.reduce((sum, a) => sum + Number(a.current_balance || 0), 0);
+    }
+  }
+
   const updates = [];
-  let currentOpeningBalance = sourceValues.remaining_amount;
+  let currentOpeningBalance = openingRemainingAmount;
   
   // Track carry-forward values for investments
   let currentFD = sourceValues.savings_fd;
