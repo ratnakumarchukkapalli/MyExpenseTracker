@@ -197,10 +197,10 @@ export async function cascadeUpdateFutureMonths(
 
   // When resolveOpeningBalance substituted the live bank-account total (i.e.
   // this cascade's start is the real current month), that total already
-  // includes every row whose salary has been credited to a bank account
-  // (adjustBankAccountBalance runs regardless of which month it's for — see
-  // the salary-sync in monthly-summary POST). Adding `row.salary` again for
-  // those rows would double-count it. This only applies while the running
+  // reflects every bank_accounts.current_balance mutation applied so far —
+  // synced salary credits and bank-attributed expense debits alike — no
+  // matter which month they were dated in. Re-adding/re-subtracting those
+  // per-row would double-count them. This only applies while the running
   // opening balance still traces back to that live substitution; it isn't
   // relevant when the cascade starts from a plain ledger value.
   const openingIsLiveBankTotal = isRealCurrentMonth(startMonth, startYear);
@@ -228,11 +228,24 @@ export async function cascadeUpdateFutureMonths(
 
     const salaryAlreadyInOpeningBalance = openingIsLiveBankTotal && Boolean(row.salary_bank_synced);
 
+    // Bank-attributed expenses debit bank_accounts.current_balance the
+    // instant they're created (see adjustBankAccountBalance in the expenses/
+    // subscriptions/loans routes) — regardless of which month they're dated
+    // in, unlike salary this has no "unsynced" state to track, it's always
+    // immediate. So whenever the opening balance came from the live-bank
+    // substitution, that portion is already baked in; only the sodexo-paid
+    // slice (which never touches bank_accounts) still needs subtracting from
+    // the projection. Otherwise (plain ledger chain), subtract the full
+    // total as before.
+    const expensesToSubtract = openingIsLiveBankTotal
+      ? Number(row.sodexo_spent ?? 0)
+      : Number(row.total_expenses);
+
     const nextRemaining =
       currentOpeningBalance +
       (salaryAlreadyInOpeningBalance ? 0 : Number(row.salary)) +
       Number(row.interest_income) -
-      Number(row.total_expenses);
+      expensesToSubtract;
 
     const update: any = {
       ...row,
