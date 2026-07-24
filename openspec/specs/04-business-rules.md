@@ -60,6 +60,8 @@ This runs for whatever month/year is being saved — not gated to the real calen
 
 The guard: `monthly_summary.salary_bank_synced` (boolean) is set whenever a row is saved with a salary account configured. In `cascadeUpdateFutureMonths`, if the cascade's opening balance came from the live-bank substitution (`isRealCurrentMonth(startMonth, startYear)`), any row with `salary_bank_synced = true` has its `salary` excluded from that row's `nextRemaining` calculation — it's already baked into the running balance. Rows reached via a cascade that did *not* substitute the live bank total (i.e. started from a plain ledger value) always add `salary` normally, since nothing bank-related was mixed in.
 
+**The same problem exists for bank-attributed expenses, without needing a synced flag.** Every bank-sourced expense (`payment_source: "bank"` with a `bank_account_id`) calls `adjustBankAccountBalance` immediately on creation, no matter which month it's dated in — there's no "unsynced" window like salary has, since expenses don't require a separate designation step. So when the cascade's opening balance came from the live-bank substitution, `bank_expenses` (`total_expenses - sodexo_spent`) for every row is *unconditionally* already baked in; only `sodexo_spent` (which never touches `bank_accounts`, tracked separately via `sodexo_balance`) still needs subtracting from the projection. When the cascade did not substitute the live total, the full `total_expenses` is subtracted as before.
+
 Code location: `src/app/api/monthly-summary/[month]/[year]/route.ts`, `src/lib/bank-accounts.ts` (`adjustBankAccountBalance`), `src/lib/monthly-totals.ts` (`isRealCurrentMonth`, `cascadeUpdateFutureMonths`).
 
 ## Chain Reaction (Multi-Month Cascade)
