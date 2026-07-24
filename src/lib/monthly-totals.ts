@@ -117,6 +117,11 @@ export async function updateMonthlyExpenseTotal(
   return updatedRow;
 }
 
+export function isRealCurrentMonth(month: number, year: number): boolean {
+  const now = new Date();
+  return month === now.getMonth() + 1 && year === now.getFullYear();
+}
+
 /**
  * If `month`/`year` is the real current calendar month, prefer the live
  * bank-account total over `fallback` — so any month opened right after "now"
@@ -131,9 +136,7 @@ export async function resolveOpeningBalance(
   year: number,
   fallback: number
 ): Promise<number> {
-  const now = new Date();
-  const isRealCurrentMonth = month === now.getMonth() + 1 && year === now.getFullYear();
-  if (!isRealCurrentMonth) return fallback;
+  if (!isRealCurrentMonth(month, year)) return fallback;
 
   const { data: accounts } = await supabase
     .from("bank_accounts")
@@ -192,6 +195,16 @@ export async function cascadeUpdateFutureMonths(
     sourceValues.remaining_amount
   );
 
+  // When resolveOpeningBalance substituted the live bank-account total (i.e.
+  // this cascade's start is the real current month), that total already
+  // includes every row whose salary has been credited to a bank account
+  // (adjustBankAccountBalance runs regardless of which month it's for — see
+  // the salary-sync in monthly-summary POST). Adding `row.salary` again for
+  // those rows would double-count it. This only applies while the running
+  // opening balance still traces back to that live substitution; it isn't
+  // relevant when the cascade starts from a plain ledger value.
+  const openingIsLiveBankTotal = isRealCurrentMonth(startMonth, startYear);
+
   const updates = [];
   let currentOpeningBalance = openingRemainingAmount;
   
@@ -213,9 +226,11 @@ export async function cascadeUpdateFutureMonths(
     // it's a carry-forward candidate for investment values too.
     const isCarryForwardMonth = Number(row.salary) === 0 && Number(row.total_expenses) === 0;
 
+    const salaryAlreadyInOpeningBalance = openingIsLiveBankTotal && Boolean(row.salary_bank_synced);
+
     const nextRemaining =
       currentOpeningBalance +
-      Number(row.salary) +
+      (salaryAlreadyInOpeningBalance ? 0 : Number(row.salary)) +
       Number(row.interest_income) -
       Number(row.total_expenses);
 

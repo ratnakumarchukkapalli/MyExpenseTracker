@@ -56,7 +56,11 @@ When `POST /api/monthly-summary/[month]/[year]` saves a `salary` value, it:
 
 This runs for whatever month/year is being saved — not gated to the real calendar-current month — since `bank_accounts.current_balance` represents a live, real-world balance the user is directly reconciling, independent of which budget-period tab they're editing (see 25th-salary-workflow below).
 
-Code location: `src/app/api/monthly-summary/[month]/[year]/route.ts`, `src/lib/bank-accounts.ts` (`adjustBankAccountBalance`).
+**Interaction with the live-bank opening-balance substitution (CRITICAL):** because salary can be synced to the bank for a month that is still in the future relative to today (e.g. entering next month's salary a day early), `bank_accounts.current_balance` can already include a future month's salary before that month becomes the real current month. `resolveOpeningBalance` substitutes this same live bank total as the opening balance whenever a cascade starts at the real current month. Without a guard, `cascadeUpdateFutureMonths` would then add that future month's `salary` a second time on top of the substituted total.
+
+The guard: `monthly_summary.salary_bank_synced` (boolean) is set whenever a row is saved with a salary account configured. In `cascadeUpdateFutureMonths`, if the cascade's opening balance came from the live-bank substitution (`isRealCurrentMonth(startMonth, startYear)`), any row with `salary_bank_synced = true` has its `salary` excluded from that row's `nextRemaining` calculation — it's already baked into the running balance. Rows reached via a cascade that did *not* substitute the live bank total (i.e. started from a plain ledger value) always add `salary` normally, since nothing bank-related was mixed in.
+
+Code location: `src/app/api/monthly-summary/[month]/[year]/route.ts`, `src/lib/bank-accounts.ts` (`adjustBankAccountBalance`), `src/lib/monthly-totals.ts` (`isRealCurrentMonth`, `cascadeUpdateFutureMonths`).
 
 ## Chain Reaction (Multi-Month Cascade)
 When saving a monthly summary or adding/deleting an expense, the app triggers a cascade update:

@@ -4,7 +4,7 @@ import { adjustBankAccountBalance } from "@/lib/bank-accounts";
 import { after, NextRequest } from "next/server";
 
 // POST /api/subscriptions/[id]/pay
-export async function POST(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { user, supabase, error } = await requireAuth();
   if (error) return error;
 
@@ -20,7 +20,23 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
 
   if (!sub) return Response.json({ error: "Not found" }, { status: 404 });
 
-  const paidDate = new Date().toISOString().split("T")[0];
+  // Mirrors ExpenseForm's defaultDate rule: if the caller is viewing a month
+  // other than the real current one (e.g. paying a subscription during the
+  // salary-transition week while already on next month's tab), file it under
+  // that viewed month instead of literal "today" — otherwise it silently
+  // lands in the wrong month's spend.
+  const body = await req.json().catch(() => null);
+  const viewedMonth = Number(body?.month);
+  const viewedYear = Number(body?.year);
+  const today = new Date();
+  const hasViewedMonth = Number.isInteger(viewedMonth) && Number.isInteger(viewedYear);
+  const isViewingRealCurrentMonth =
+    viewedMonth === today.getMonth() + 1 && viewedYear === today.getFullYear();
+
+  const paidDate =
+    hasViewedMonth && !isViewingRealCurrentMonth
+      ? `${viewedYear}-${String(viewedMonth).padStart(2, "0")}-01`
+      : today.toISOString().split("T")[0];
 
   // Prevent duplicate payments on the same day
   if (sub.last_paid_date === paidDate) {

@@ -161,7 +161,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       ? `${d.year + 1}-01-01`
       : `${d.year}-${String(d.month + 1).padStart(2, "0")}-01`;
 
-  const [{ data: expenseRows }, { data: existingRow }] = await Promise.all([
+  const [{ data: expenseRows }, { data: existingRow }, { data: salaryAccount }] = await Promise.all([
     supabase
       .from("expenses")
       .select("amount, payment_source")
@@ -174,6 +174,12 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       .eq("user_id", user.id)
       .eq("month", d.month)
       .eq("year", d.year)
+      .maybeSingle(),
+    supabase
+      .from("bank_accounts")
+      .select("id")
+      .eq("user_id", user.id)
+      .eq("is_salary_account", true)
       .maybeSingle(),
   ]);
 
@@ -237,6 +243,11 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     savings_nps: d.savings_nps,
     savings_pf: d.savings_pf,
     cash_equivalents,
+    // True whenever a salary account is configured — this row's salary is (or
+    // is about to be) folded into that account's live balance, so the cascade
+    // must not add it again on top of the live-bank-substituted opening
+    // balance. See cascadeUpdateFutureMonths's `salaryAlreadyInOpeningBalance`.
+    salary_bank_synced: Boolean(salaryAccount),
     updated_at: new Date().toISOString(),
   };
 
@@ -251,17 +262,8 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   // in the actual bank balance instead of requiring a manual, error-prone
   // duplicate entry on the account itself.
   const salaryDelta = d.salary - Number(existingRow?.salary ?? 0);
-  if (salaryDelta !== 0) {
-    const { data: salaryAccount } = await supabase
-      .from("bank_accounts")
-      .select("id")
-      .eq("user_id", user.id)
-      .eq("is_salary_account", true)
-      .maybeSingle();
-
-    if (salaryAccount) {
-      await adjustBankAccountBalance(supabase, user.id, salaryAccount.id, salaryDelta);
-    }
+  if (salaryAccount && salaryDelta !== 0) {
+    await adjustBankAccountBalance(supabase, user.id, salaryAccount.id, salaryDelta);
   }
 
   // Chain Reaction: Update all future months' opening balances and investment snapshots

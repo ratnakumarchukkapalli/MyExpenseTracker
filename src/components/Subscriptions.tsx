@@ -130,7 +130,7 @@ function Subscriptions({ subscriptions, onAdd, onEdit, onDelete, onPay, onUndoPa
       const res = await fetch(`/api/subscriptions/${sub.id}/pay`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ amount: sub.amount }),
+        body: JSON.stringify({ amount: sub.amount, month: currentMonth, year: currentYear }),
       });
       
       if (!res.ok) {
