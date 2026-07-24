@@ -67,6 +67,7 @@ type BankAccount = {
   id: number;
   name: string;
   current_balance: number;
+  is_salary_account?: boolean;
 };
 
 type Subscription = {

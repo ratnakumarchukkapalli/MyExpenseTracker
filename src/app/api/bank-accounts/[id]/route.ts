@@ -15,6 +15,15 @@ export async function PUT(request: NextRequest, { params }: P) {
   if (!parsed.success)
     return Response.json({ error: parsed.error.flatten() }, { status: 400 });
 
+  if (parsed.data.is_salary_account) {
+    await supabase
+      .from("bank_accounts")
+      .update({ is_salary_account: false })
+      .eq("user_id", user.id)
+      .eq("is_salary_account", true)
+      .neq("id", Number(id));
+  }
+
   const { error: dbError } = await supabase
     .from("bank_accounts")
     .update({ ...parsed.data, updated_at: new Date().toISOString() })
