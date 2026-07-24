@@ -3,6 +3,7 @@ import { z } from "zod";
 export const BankAccountSchema = z.object({
   name: z.string().min(1).max(200),
   current_balance: z.number().default(0),
+  is_salary_account: z.boolean().default(false),
 });
 
 export const BankAccountUpdateSchema = BankAccountSchema.partial();

@@ -31,6 +31,14 @@ export async function POST(request: NextRequest) {
   if (!parsed.success)
     return Response.json({ error: parsed.error.flatten() }, { status: 400 });
 
+  if (parsed.data.is_salary_account) {
+    await supabase
+      .from("bank_accounts")
+      .update({ is_salary_account: false })
+      .eq("user_id", user.id)
+      .eq("is_salary_account", true);
+  }
+
   const { data, error: dbError } = await supabase
     .from("bank_accounts")
     .insert({ ...parsed.data, user_id: user.id })

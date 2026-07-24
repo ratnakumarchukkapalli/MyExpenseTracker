@@ -1,6 +1,7 @@
 import { requireAuth, requireAuthFast } from "@/lib/auth-guard";
 import { MonthlySummaryUpdateSchema } from "@/lib/schemas/monthly-summary";
 import { cascadeUpdateFutureMonths, resolveOpeningBalance } from "@/lib/monthly-totals";
+import { adjustBankAccountBalance } from "@/lib/bank-accounts";
 import { after } from "next/server";
 import { NextRequest } from "next/server";
 
@@ -169,7 +170,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       .lt("date", endDate),
     supabase
       .from("monthly_summary")
-      .select("id")
+      .select("id, salary")
       .eq("user_id", user.id)
       .eq("month", d.month)
       .eq("year", d.year)
@@ -244,6 +245,24 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     .upsert(upsertData, { onConflict: "user_id,month,year" });
 
   if (dbError) return Response.json({ error: dbError.message }, { status: 500 });
+
+  // Salary sync: credit/debit the designated salary account by the change in
+  // this month's salary, so entering (or correcting) a salary here reflects
+  // in the actual bank balance instead of requiring a manual, error-prone
+  // duplicate entry on the account itself.
+  const salaryDelta = d.salary - Number(existingRow?.salary ?? 0);
+  if (salaryDelta !== 0) {
+    const { data: salaryAccount } = await supabase
+      .from("bank_accounts")
+      .select("id")
+      .eq("user_id", user.id)
+      .eq("is_salary_account", true)
+      .maybeSingle();
+
+    if (salaryAccount) {
+      await adjustBankAccountBalance(supabase, user.id, salaryAccount.id, salaryDelta);
+    }
+  }
 
   // Chain Reaction: Update all future months' opening balances and investment snapshots
   after(async () => {

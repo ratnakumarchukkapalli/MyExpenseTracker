@@ -45,6 +45,19 @@ When a month has no data yet (no row in monthly_summary), the GET API:
 
 Carry-forward rows have `salary=0` and `total_expenses=0`. They are the only rows the auto-sync may overwrite.
 
+## Salary Account Sync
+One `bank_accounts` row per user may be flagged `is_salary_account = true` (UI: "Salary account" checkbox in the bank account form; enforced unique per user via a partial unique index).
+
+When `POST /api/monthly-summary/[month]/[year]` saves a `salary` value, it:
+1. Computes `salaryDelta = newSalary - previouslyStoredSalary` for that specific month/year row.
+2. If a salary account is set and `salaryDelta !== 0`, calls `adjustBankAccountBalance` to apply the delta directly to that account's `current_balance`.
+
+**Why delta, not the raw amount:** applying the raw salary value every save would double-count on re-saves/edits of an already-recorded month. Applying the delta makes editing a previously-entered salary (e.g. fixing a typo) correctly adjust the account by only the difference, and setting salary back to 0 correctly reverses the credit.
+
+This runs for whatever month/year is being saved — not gated to the real calendar-current month — since `bank_accounts.current_balance` represents a live, real-world balance the user is directly reconciling, independent of which budget-period tab they're editing (see 25th-salary-workflow below).
+
+Code location: `src/app/api/monthly-summary/[month]/[year]/route.ts`, `src/lib/bank-accounts.ts` (`adjustBankAccountBalance`).
+
 ## Chain Reaction (Multi-Month Cascade)
 When saving a monthly summary or adding/deleting an expense, the app triggers a cascade update:
 1. **Current Month**: Recalculated and saved synchronously for immediate consistency.

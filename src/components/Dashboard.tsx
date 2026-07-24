@@ -109,6 +109,7 @@ type BankAccount = {
   id: number;
   name: string;
   current_balance: number;
+  is_salary_account?: boolean;
 };
 
 type BudgetMap = Record<string, { budget_type: string; budget_value: number }>;
@@ -687,7 +688,14 @@ function Dashboard({ expenses, subscriptions, monthlySummary, currentMonth, curr
                     className="cursor-pointer text-left"
                     style={{ padding: '14px 16px', borderRadius: 14, background: 'var(--bg-tint)', border: '1px solid var(--hairline)' }}
                   >
-                    <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--ink-muted)' }}>{account.name}</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--ink-muted)' }}>{account.name}</div>
+                      {account.is_salary_account && (
+                        <span style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--accent)', background: 'var(--accent-bg)', padding: '2px 6px', borderRadius: 999 }}>
+                          Salary
+                        </span>
+                      )}
+                    </div>
                     <div className="serif dash-stat-value" style={{ fontSize: 22, marginTop: 4, color: 'var(--ink)', fontVariantNumeric: 'tabular-nums' }}>
                       {privacyMode ? PRIVACY_MASK : formatCurrency(account.current_balance)}
                     </div>
@@ -695,7 +703,7 @@ function Dashboard({ expenses, subscriptions, monthlySummary, currentMonth, curr
                 ))}
               </div>
               <p style={{ fontSize: 11, color: 'var(--ink-faint)', marginTop: 12 }}>
-                Updates automatically as you log bank expenses against an account — click a tile to correct drift from your real statement.
+                Updates automatically as you log bank expenses against an account, and as you save Monthly Salary against the salary account — click a tile to correct drift from your real statement.
               </p>
             </>
           )}
@@ -1251,6 +1259,7 @@ interface BankAccountFormProps {
 function BankAccountForm({ account, onCancel, onSaved }: BankAccountFormProps) {
   const [name, setName] = useState(account?.name ?? '');
   const [currentBalance, setCurrentBalance] = useState(account?.current_balance?.toString() ?? '');
+  const [isSalaryAccount, setIsSalaryAccount] = useState(account?.is_salary_account ?? false);
   const [submitting, setSubmitting] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -1264,6 +1273,7 @@ function BankAccountForm({ account, onCancel, onSaved }: BankAccountFormProps) {
       const payload = {
         name: name.trim(),
         current_balance: currentBalance ? parseFloat(currentBalance) : 0,
+        is_salary_account: isSalaryAccount,
       };
       const res = account
         ? await fetch(`/api/bank-accounts/${account.id}`, {
@@ -1324,6 +1334,17 @@ function BankAccountForm({ account, onCancel, onSaved }: BankAccountFormProps) {
               style={{ background: 'var(--bg-tint)', border: '1px solid var(--hairline)', color: 'var(--ink)' }}
             />
           </div>
+          <label className="flex items-start gap-2.5 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={isSalaryAccount}
+              onChange={(e) => setIsSalaryAccount(e.target.checked)}
+              className="mt-0.5"
+            />
+            <span style={{ fontSize: 12, color: 'var(--ink-soft)' }}>
+              Salary account — saving Monthly Salary in Financials auto-adjusts this account&apos;s balance by the change. Only one account can be marked.
+            </span>
+          </label>
           <div className="flex gap-3 pt-2">
             <button
               type="button"
