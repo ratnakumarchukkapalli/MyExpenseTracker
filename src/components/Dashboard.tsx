@@ -99,6 +99,7 @@ type Props = {
   initialCategoryBudgets: Array<{ category: string; budget_type: string; budget_value: number }>;
   initialLoanMilestones: LoanMilestone[];
   bankAccounts?: BankAccount[];
+  activeBudgetMonth?: { month: number; year: number } | null;
   onBankAccountsChange?: () => void;
   stockRefreshTick?: number;
   privacyMode?: boolean;
@@ -134,7 +135,7 @@ function formatCurrency(amount: number) {
 
 const PRIVACY_MASK = '₹ ••••';
 
-function Dashboard({ expenses, subscriptions, monthlySummary, currentMonth, currentYear, prevMonthExpenses, yearlyRows, initialCategoryBudgets, initialLoanMilestones, bankAccounts, onBankAccountsChange, stockRefreshTick, privacyMode, onFinancialsUpdate }: Props) {
+function Dashboard({ expenses, subscriptions, monthlySummary, currentMonth, currentYear, prevMonthExpenses, yearlyRows, initialCategoryBudgets, initialLoanMilestones, bankAccounts, activeBudgetMonth, onBankAccountsChange, stockRefreshTick, privacyMode, onFinancialsUpdate }: Props) {
   const [prevMonthCategoryTotals, setPrevMonthCategoryTotals] = useState<Record<string, number>>(() =>
     (prevMonthExpenses ?? []).reduce((acc: Record<string, number>, e) => {
       acc[e.category] = (acc[e.category] || 0) + Number(e.amount || 0);
@@ -372,11 +373,18 @@ function Dashboard({ expenses, subscriptions, monthlySummary, currentMonth, curr
   const displayShares = (isCurrentMonth && liveWealth) ? liveWealth.stocks : currentShares;
 
   // BANK BALANCE definition: "Liquid Cash Available" = live sum of tracked bank
-  // accounts for the current month (matches the SIP/stock snapshot pattern above);
-  // past months keep the stored remaining_amount snapshot for historical accuracy.
+  // accounts, but ONLY for the active budget month (the latest month with a
+  // salary recorded). Every other month keeps its own stored remaining_amount
+  // snapshot — otherwise crediting next month's salary into a bank account
+  // would retroactively inflate the month just closed, and month-over-month
+  // cash movement would read as zero. Deliberately not the calendar month:
+  // salary can land either side of the month boundary.
   const liveBankCashTotal = (bankAccounts ?? []).reduce((sum, a) => sum + Number(a.current_balance || 0), 0);
   const hasBankAccounts = (bankAccounts ?? []).length > 0;
-  const currentCash = (isCurrentMonth && hasBankAccounts) ? liveBankCashTotal : getCurrentRemaining(monthlySummary);
+  const isActiveBudgetMonth = activeBudgetMonth
+    ? currentMonth === activeBudgetMonth.month && currentYear === activeBudgetMonth.year
+    : isCurrentMonth;
+  const currentCash = (isActiveBudgetMonth && hasBankAccounts) ? liveBankCashTotal : getCurrentRemaining(monthlySummary);
   const calculateBankBalance = () => currentCash;
 
   const calculateCashEquivalents = () => {
@@ -576,7 +584,7 @@ function Dashboard({ expenses, subscriptions, monthlySummary, currentMonth, curr
         <div className="pane stat-bar">
           <div className="stat-bar-row">
             <div className="eyebrow" style={{ color: 'var(--ink-soft)' }}>
-              {isCurrentMonth && hasBankAccounts ? 'Liquid Cash Available' : 'Cash balance'}
+              {isActiveBudgetMonth && hasBankAccounts ? 'Liquid Cash Available' : 'Cash balance'}
             </div>
             <div className="serif dash-stat-value" style={{ fontSize: 26, marginTop: 4, color: 'var(--ink)' }}>
               {privacyMode ? PRIVACY_MASK : formatCurrency(currentCash)}

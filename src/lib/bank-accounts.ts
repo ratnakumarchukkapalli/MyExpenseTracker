@@ -1,5 +1,9 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { updateMonthlyExpenseTotal, cascadeUpdateFutureMonths } from "./monthly-totals";
+import {
+  updateMonthlyExpenseTotal,
+  cascadeUpdateFutureMonths,
+  getActiveBudgetMonth,
+} from "./monthly-totals";
 
 /**
  * Adjusts a bank account's running balance by `delta` (negative for a
@@ -32,16 +36,14 @@ export async function adjustBankAccountBalance(
 }
 
 /**
- * Re-runs the current month's cascade so a bank-account change that isn't
+ * Re-runs the active budget month's cascade so a bank-account change that isn't
  * itself an expense (manual balance edit, create, delete, transfer) still
  * propagates into future months' Carryover — cascadeUpdateFutureMonths
- * substitutes the live bank-account sum whenever it's cascading from the
- * real current calendar month, so this just needs to trigger from "today".
+ * substitutes the live bank-account sum whenever it's cascading from the active
+ * budget month, which is the only month that owns those live balances.
  */
 export async function resyncCurrentMonthCascade(supabase: SupabaseClient, userId: string) {
-  const now = new Date();
-  const month = now.getMonth() + 1;
-  const year = now.getFullYear();
+  const { month, year } = await getActiveBudgetMonth(supabase, userId);
   const updatedSummary = await updateMonthlyExpenseTotal(supabase, userId, month, year);
   await cascadeUpdateFutureMonths(supabase, userId, month, year, {
     remaining_amount: Number(updatedSummary?.remaining_amount ?? 0),

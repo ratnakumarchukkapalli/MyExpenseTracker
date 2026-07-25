@@ -243,6 +243,9 @@ function AppShell({ initialData, serverMonth, serverYear }: AppShellProps) {
   const [loanMilestones, setLoanMilestones] = useState<LoanMilestone[]>((initialData?.loanMilestones as LoanMilestone[]) ?? []);
   const [creditCards, setCreditCards] = useState<CreditCard[]>((initialData?.creditCards as CreditCard[]) ?? []);
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>((initialData?.bankAccounts as BankAccount[]) ?? []);
+  const [activeBudgetMonth, setActiveBudgetMonth] = useState<{ month: number; year: number } | null>(
+    initialData?.activeBudgetMonth ?? null
+  );
   const [loading, setLoading] = useState(!initialData);
   const [refreshKey, setRefreshKey] = useState(0);
   const [stockRefreshTick, setStockRefreshTick] = useState(0);
@@ -288,6 +291,9 @@ function AppShell({ initialData, serverMonth, serverYear }: AppShellProps) {
       setExpenses(data.expenses ?? []);
       setMonthlySummary(data.summary ?? null);
       setPrevMonthExpenses(data.prevMonthExpenses ?? []);
+      // Sent on light fetches too — month navigation has to re-evaluate which
+      // month owns the live bank balances.
+      if (data.activeBudgetMonth) setActiveBudgetMonth(data.activeBudgetMonth);
       if (!light) {
         setSubscriptions(data.subscriptions ?? []);
         setYearlyRows(data.yearlyRows ?? []);
@@ -754,6 +760,7 @@ function AppShell({ initialData, serverMonth, serverYear }: AppShellProps) {
                     initialCategoryBudgets={categoryBudgets}
                     initialLoanMilestones={loanMilestones}
                     bankAccounts={bankAccounts}
+                    activeBudgetMonth={activeBudgetMonth}
                     onBankAccountsChange={triggerRefresh}
                     stockRefreshTick={stockRefreshTick}
                     privacyMode={privacyMode}

@@ -1,6 +1,7 @@
 import type { SupabaseClient, User } from "@supabase/supabase-js";
 import { after } from "next/server";
 import { advanceSubscriptionsLocally, persistSubscriptionAdvances } from "./subscriptions";
+import { getActiveBudgetMonth } from "./monthly-totals";
 
 export type BootstrapData = {
   expenses: unknown[];
@@ -24,6 +25,10 @@ export type BootstrapData = {
   loanMilestones: unknown[];
   creditCards: unknown[];
   bankAccounts: unknown[];
+  // The one month that owns the live bank balances — see getActiveBudgetMonth.
+  // Always sent, including on light month-navigation fetches, since every month
+  // switch needs to know whether the month being viewed is the active one.
+  activeBudgetMonth: { month: number; year: number };
 };
 
 export async function fetchBootstrapData(
@@ -54,6 +59,7 @@ export async function fetchBootstrapData(
     loanMilestonesRes,
     creditCardsRes,
     bankAccountsRes,
+    activeBudgetMonth,
   ] = await Promise.all([
     supabase
       .from("expenses")
@@ -107,6 +113,7 @@ export async function fetchBootstrapData(
       .select("*")
       .eq("user_id", user.id)
       .order("name"),
+    getActiveBudgetMonth(supabase, user.id),
   ]);
 
   let subscriptions: unknown[] = [];
@@ -164,5 +171,6 @@ export async function fetchBootstrapData(
     loanMilestones: (loanMilestonesRes.data as unknown[] | null) ?? [],
     creditCards: (creditCardsRes.data as unknown[] | null) ?? [],
     bankAccounts: (bankAccountsRes.data as unknown[] | null) ?? [],
+    activeBudgetMonth,
   };
 }

@@ -117,17 +117,55 @@ export async function updateMonthlyExpenseTotal(
   return updatedRow;
 }
 
-export function isRealCurrentMonth(month: number, year: number): boolean {
+/**
+ * The month that currently owns the live bank balances = the latest month with
+ * a salary recorded. Bank accounts hold one running "as of now" total with no
+ * month dimension, so exactly one month may claim it; every other month keeps
+ * its own stored snapshot.
+ *
+ * Deliberately NOT the calendar month: salary lands on the 24th, 26th, or a
+ * shifted working day, so a date cutover mis-attributes it (crediting August's
+ * salary on Jul 24 made July's cash balance jump by August's salary). Recording
+ * the salary against a month is the unambiguous signal that the month is open.
+ *
+ * Falls back to the calendar month when no salary exists anywhere (fresh DB).
+ */
+export async function getActiveBudgetMonth(
+  supabase: SupabaseClient,
+  userId: string
+): Promise<{ month: number; year: number }> {
+  const { data } = await supabase
+    .from("monthly_summary")
+    .select("month, year")
+    .eq("user_id", userId)
+    .gt("salary", 0)
+    .order("year", { ascending: false })
+    .order("month", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (data) return { month: Number(data.month), year: Number(data.year) };
+
   const now = new Date();
-  return month === now.getMonth() + 1 && year === now.getFullYear();
+  return { month: now.getMonth() + 1, year: now.getFullYear() };
+}
+
+export async function isActiveBudgetMonth(
+  supabase: SupabaseClient,
+  userId: string,
+  month: number,
+  year: number
+): Promise<boolean> {
+  const active = await getActiveBudgetMonth(supabase, userId);
+  return month === active.month && year === active.year;
 }
 
 /**
- * If `month`/`year` is the real current calendar month, prefer the live
- * bank-account total over `fallback` — so any month opened right after "now"
- * (whether via cascade or lazy carry-forward creation) tracks actual bank
- * balances instead of the salary-minus-expenses ledger. Otherwise returns
- * `fallback` unchanged (past/future months keep their own stored snapshot).
+ * If `month`/`year` is the active budget month, prefer the live bank-account
+ * total over `fallback` — the active month's closing cash IS the bank total, so
+ * the next month opens on it. Otherwise returns `fallback` unchanged: a closed
+ * month's balance must stay frozen at its own salary-minus-expenses ledger, or
+ * month-over-month cash movement is unmeasurable.
  */
 export async function resolveOpeningBalance(
   supabase: SupabaseClient,
@@ -136,7 +174,7 @@ export async function resolveOpeningBalance(
   year: number,
   fallback: number
 ): Promise<number> {
-  if (!isRealCurrentMonth(month, year)) return fallback;
+  if (!(await isActiveBudgetMonth(supabase, userId, month, year))) return fallback;
 
   const { data: accounts } = await supabase
     .from("bank_accounts")
@@ -196,14 +234,19 @@ export async function cascadeUpdateFutureMonths(
   );
 
   // When resolveOpeningBalance substituted the live bank-account total (i.e.
-  // this cascade's start is the real current month), that total already
+  // this cascade's start is the active budget month), that total already
   // reflects every bank_accounts.current_balance mutation applied so far —
   // synced salary credits and bank-attributed expense debits alike — no
   // matter which month they were dated in. Re-adding/re-subtracting those
   // per-row would double-count them. This only applies while the running
   // opening balance still traces back to that live substitution; it isn't
   // relevant when the cascade starts from a plain ledger value.
-  const openingIsLiveBankTotal = isRealCurrentMonth(startMonth, startYear);
+  const openingIsLiveBankTotal = await isActiveBudgetMonth(
+    supabase,
+    userId,
+    startMonth,
+    startYear
+  );
 
   const updates = [];
   let currentOpeningBalance = openingRemainingAmount;
