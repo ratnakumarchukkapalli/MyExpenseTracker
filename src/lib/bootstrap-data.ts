@@ -25,6 +25,10 @@ export type BootstrapData = {
   loanMilestones: unknown[];
   creditCards: unknown[];
   bankAccounts: unknown[];
+  // Per-account balances as they stood at the end of the viewed month. Empty for
+  // the active month (its tiles show live balances) and for months that closed
+  // before snapshots existed.
+  bankAccountBalances: { bank_account_id: number; balance: number }[];
   // The one month that owns the live bank balances — see getActiveBudgetMonth.
   // Always sent, including on light month-navigation fetches, since every month
   // switch needs to know whether the month being viewed is the active one.
@@ -60,6 +64,7 @@ export async function fetchBootstrapData(
     creditCardsRes,
     bankAccountsRes,
     activeBudgetMonth,
+    bankAccountBalancesRes,
   ] = await Promise.all([
     supabase
       .from("expenses")
@@ -114,6 +119,13 @@ export async function fetchBootstrapData(
       .eq("user_id", user.id)
       .order("name"),
     getActiveBudgetMonth(supabase, user.id),
+    // Month-specific, so fetched on light navigation too
+    supabase
+      .from("bank_account_balances")
+      .select("bank_account_id, balance")
+      .eq("user_id", user.id)
+      .eq("month", month)
+      .eq("year", year),
   ]);
 
   let subscriptions: unknown[] = [];
@@ -172,5 +184,7 @@ export async function fetchBootstrapData(
     creditCards: (creditCardsRes.data as unknown[] | null) ?? [],
     bankAccounts: (bankAccountsRes.data as unknown[] | null) ?? [],
     activeBudgetMonth,
+    bankAccountBalances:
+      (bankAccountBalancesRes.data as BootstrapData["bankAccountBalances"] | null) ?? [],
   };
 }

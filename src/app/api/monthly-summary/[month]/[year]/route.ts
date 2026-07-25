@@ -1,7 +1,11 @@
 import { requireAuth, requireAuthFast } from "@/lib/auth-guard";
 import { MonthlySummaryUpdateSchema } from "@/lib/schemas/monthly-summary";
-import { cascadeUpdateFutureMonths, resolveOpeningBalance } from "@/lib/monthly-totals";
-import { adjustBankAccountBalance } from "@/lib/bank-accounts";
+import {
+  cascadeUpdateFutureMonths,
+  resolveOpeningBalance,
+  getActiveBudgetMonth,
+} from "@/lib/monthly-totals";
+import { adjustBankAccountBalance, snapshotBankBalancesForMonth } from "@/lib/bank-accounts";
 import { after } from "next/server";
 import { NextRequest } from "next/server";
 
@@ -161,6 +165,10 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       ? `${d.year + 1}-01-01`
       : `${d.year}-${String(d.month + 1).padStart(2, "0")}-01`;
 
+  // Resolved before the upsert: writing a salary here can itself advance the
+  // active budget month, and we need to know which month is being displaced.
+  const priorActiveMonth = await getActiveBudgetMonth(supabase, user.id);
+
   const [{ data: expenseRows }, { data: existingRow }, { data: salaryAccount }] = await Promise.all([
     supabase
       .from("expenses")
@@ -256,6 +264,24 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     .upsert(upsertData, { onConflict: "user_id,month,year" });
 
   if (dbError) return Response.json({ error: dbError.message }, { status: 500 });
+
+  // Recording a salary against a later month hands the live bank balances over
+  // to it, closing the month that held them. Capture the outgoing month's
+  // per-account split first — it must happen BEFORE the salary sync below
+  // credits the account, or the snapshot absorbs money the closed month never
+  // held. bank_accounts keeps no history, so this is the only chance to record it.
+  const advancesActiveMonth =
+    d.salary > 0 &&
+    (d.year > priorActiveMonth.year ||
+      (d.year === priorActiveMonth.year && d.month > priorActiveMonth.month));
+  if (advancesActiveMonth) {
+    await snapshotBankBalancesForMonth(
+      supabase,
+      user.id,
+      priorActiveMonth.month,
+      priorActiveMonth.year
+    );
+  }
 
   // Salary sync: credit/debit the designated salary account by the change in
   // this month's salary, so entering (or correcting) a salary here reflects

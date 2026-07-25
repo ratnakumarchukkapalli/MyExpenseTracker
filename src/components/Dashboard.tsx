@@ -100,6 +100,7 @@ type Props = {
   initialLoanMilestones: LoanMilestone[];
   bankAccounts?: BankAccount[];
   activeBudgetMonth?: { month: number; year: number } | null;
+  bankAccountBalances?: { bank_account_id: number; balance: number }[];
   onBankAccountsChange?: () => void;
   stockRefreshTick?: number;
   privacyMode?: boolean;
@@ -135,7 +136,7 @@ function formatCurrency(amount: number) {
 
 const PRIVACY_MASK = '₹ ••••';
 
-function Dashboard({ expenses, subscriptions, monthlySummary, currentMonth, currentYear, prevMonthExpenses, yearlyRows, initialCategoryBudgets, initialLoanMilestones, bankAccounts, activeBudgetMonth, onBankAccountsChange, stockRefreshTick, privacyMode, onFinancialsUpdate }: Props) {
+function Dashboard({ expenses, subscriptions, monthlySummary, currentMonth, currentYear, prevMonthExpenses, yearlyRows, initialCategoryBudgets, initialLoanMilestones, bankAccounts, activeBudgetMonth, bankAccountBalances, onBankAccountsChange, stockRefreshTick, privacyMode, onFinancialsUpdate }: Props) {
   const [prevMonthCategoryTotals, setPrevMonthCategoryTotals] = useState<Record<string, number>>(() =>
     (prevMonthExpenses ?? []).reduce((acc: Record<string, number>, e) => {
       acc[e.category] = (acc[e.category] || 0) + Number(e.amount || 0);
@@ -385,6 +386,19 @@ function Dashboard({ expenses, subscriptions, monthlySummary, currentMonth, curr
     ? currentMonth === activeBudgetMonth.month && currentYear === activeBudgetMonth.year
     : isCurrentMonth;
   const currentCash = (isActiveBudgetMonth && hasBankAccounts) ? liveBankCashTotal : getCurrentRemaining(monthlySummary);
+
+  // A closed month renders its own end-of-month split from bank_account_balances.
+  // account.current_balance is always "right now", so showing it on a past month
+  // would contradict that month's frozen cash balance — the tiles would sum to
+  // today's total under a historical headline.
+  const snapshotByAccount = new Map(
+    (bankAccountBalances ?? []).map((r) => [r.bank_account_id, Number(r.balance)])
+  );
+  const showSnapshotBalances = !isActiveBudgetMonth && snapshotByAccount.size > 0;
+  const balanceForAccount = (account: BankAccount) =>
+    showSnapshotBalances
+      ? snapshotByAccount.get(account.id) ?? Number(account.current_balance)
+      : Number(account.current_balance);
   const calculateBankBalance = () => currentCash;
 
   const calculateCashEquivalents = () => {
@@ -666,7 +680,8 @@ function Dashboard({ expenses, subscriptions, monthlySummary, currentMonth, curr
               <div className="serif mb-4" style={{ fontSize: 18, color: 'var(--ink)' }}>Bank Accounts</div>
             </div>
             <div style={{ display: 'flex', gap: 16 }}>
-              {bankAccounts.length > 1 && (
+              {/* Both act on today's balances, so they don't belong on a closed month */}
+              {!showSnapshotBalances && bankAccounts.length > 1 && (
                 <button
                   onClick={() => setShowTransferForm(true)}
                   className="cursor-pointer"
@@ -675,13 +690,15 @@ function Dashboard({ expenses, subscriptions, monthlySummary, currentMonth, curr
                   ⇄ Transfer
                 </button>
               )}
-              <button
-                onClick={() => setEditingBankAccount('new')}
-                className="cursor-pointer"
-                style={{ fontSize: 12, fontWeight: 600, color: 'var(--accent)', background: 'none', border: 'none' }}
-              >
-                + Add account
-              </button>
+              {!showSnapshotBalances && (
+                <button
+                  onClick={() => setEditingBankAccount('new')}
+                  className="cursor-pointer"
+                  style={{ fontSize: 12, fontWeight: 600, color: 'var(--accent)', background: 'none', border: 'none' }}
+                >
+                  + Add account
+                </button>
+              )}
             </div>
           </div>
           {bankAccounts.length === 0 ? (
@@ -692,8 +709,11 @@ function Dashboard({ expenses, subscriptions, monthlySummary, currentMonth, curr
                 {bankAccounts.map((account) => (
                   <button
                     key={account.id}
-                    onClick={() => setEditingBankAccount(account)}
-                    className="cursor-pointer text-left"
+                    // Editing writes today's balance, so it's meaningless on a
+                    // closed month — the tile is read-only history there.
+                    onClick={showSnapshotBalances ? undefined : () => setEditingBankAccount(account)}
+                    disabled={showSnapshotBalances}
+                    className={showSnapshotBalances ? 'text-left' : 'cursor-pointer text-left'}
                     style={{ padding: '14px 16px', borderRadius: 14, background: 'var(--bg-tint)', border: '1px solid var(--hairline)' }}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -705,13 +725,17 @@ function Dashboard({ expenses, subscriptions, monthlySummary, currentMonth, curr
                       )}
                     </div>
                     <div className="serif dash-stat-value" style={{ fontSize: 22, marginTop: 4, color: 'var(--ink)', fontVariantNumeric: 'tabular-nums' }}>
-                      {privacyMode ? PRIVACY_MASK : formatCurrency(account.current_balance)}
+                      {privacyMode ? PRIVACY_MASK : formatCurrency(balanceForAccount(account))}
                     </div>
                   </button>
                 ))}
               </div>
               <p style={{ fontSize: 11, color: 'var(--ink-faint)', marginTop: 12 }}>
-                Updates automatically as you log bank expenses against an account, and as you save Monthly Salary against the salary account — click a tile to correct drift from your real statement.
+                {showSnapshotBalances
+                  ? `Balances as they stood at the end of ${monthName} ${currentYear}. Switch to the current month to edit.`
+                  : isActiveBudgetMonth
+                    ? 'Updates automatically as you log bank expenses against an account, and as you save Monthly Salary against the salary account — click a tile to correct drift from your real statement.'
+                    : `Live balances as of today — ${monthName} ${currentYear} closed before per-month balances were recorded, so its own split isn't available.`}
               </p>
             </>
           )}
