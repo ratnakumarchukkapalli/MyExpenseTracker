@@ -12,8 +12,7 @@ import {
   X,
   Calendar,
   Landmark,
-  Shield,
-  FileText
+  Shield
 } from 'lucide-react';
 
 interface MobileNavProps {
@@ -37,8 +36,6 @@ const MobileNav: React.FC<MobileNavProps> = ({ currentView, onViewChange, onQuic
     { id: 'subscriptions', label: 'Subscriptions', icon: Calendar },
     { id: 'loans', label: 'Loans & EMIs', icon: Landmark },
     { id: 'insurance', label: 'Insurance', icon: Shield },
-    { id: 'reports', label: 'Reports', icon: FileText },
-    { id: 'projection', label: 'Projection', icon: TrendingUp },
   ];
 
   return (
