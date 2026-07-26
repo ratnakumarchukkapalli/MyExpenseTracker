@@ -1,18 +1,18 @@
 'use client';
 
 import React, { useState } from 'react';
-import { 
-  LayoutDashboard, 
-  Receipt, 
-  Plus, 
-  TrendingUp, 
-  BarChart2, 
+import {
+  LayoutDashboard,
+  Receipt,
+  Plus,
+  TrendingUp,
+  BarChart2,
+  PieChart,
   MoreHorizontal,
   X,
   Calendar,
   Landmark,
-  Shield,
-  FileText
+  Shield
 } from 'lucide-react';
 
 interface MobileNavProps {
@@ -32,11 +32,10 @@ const MobileNav: React.FC<MobileNavProps> = ({ currentView, onViewChange, onQuic
   ];
 
   const moreItems = [
+    { id: 'analytics', label: 'Analytics', icon: PieChart },
     { id: 'subscriptions', label: 'Subscriptions', icon: Calendar },
     { id: 'loans', label: 'Loans & EMIs', icon: Landmark },
     { id: 'insurance', label: 'Insurance', icon: Shield },
-    { id: 'reports', label: 'Reports', icon: FileText },
-    { id: 'projection', label: 'Projection', icon: TrendingUp },
   ];
 
   return (
