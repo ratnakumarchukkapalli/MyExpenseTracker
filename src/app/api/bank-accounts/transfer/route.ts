@@ -1,7 +1,24 @@
-import { requireAuth } from "@/lib/auth-guard";
+import { requireAuth, requireAuthFast } from "@/lib/auth-guard";
 import { BankAccountTransferSchema } from "@/lib/schemas/bank-account";
 import { adjustBankAccountBalance, resyncCurrentMonthCascade } from "@/lib/bank-accounts";
 import { after, NextRequest } from "next/server";
+
+// GET /api/bank-accounts/transfer — recent non-reverted transfers, for the Undo list
+export async function GET() {
+  const { user, supabase, error } = await requireAuthFast();
+  if (error) return error;
+
+  const { data, error: dbError } = await supabase
+    .from("bank_transfers")
+    .select("id, from_account_id, to_account_id, amount, created_at")
+    .eq("user_id", user.id)
+    .is("reverted_at", null)
+    .order("created_at", { ascending: false })
+    .limit(5);
+
+  if (dbError) return Response.json({ error: dbError.message }, { status: 500 });
+  return Response.json(data ?? []);
+}
 
 // POST /api/bank-accounts/transfer — move money between two of the user's own
 // accounts. Not an expense: total Liquid Cash is unchanged, only the split moves.
@@ -31,7 +48,14 @@ export async function POST(request: NextRequest) {
     adjustBankAccountBalance(supabase, user.id, to_account_id, amount),
   ]);
 
+  const { data: transfer, error: insertError } = await supabase
+    .from("bank_transfers")
+    .insert({ user_id: user.id, from_account_id, to_account_id, amount })
+    .select("id")
+    .single();
+  if (insertError) return Response.json({ error: insertError.message }, { status: 500 });
+
   after(() => resyncCurrentMonthCascade(supabase, user.id));
 
-  return Response.json({ success: true }, { status: 201 });
+  return Response.json({ success: true, id: transfer.id }, { status: 201 });
 }

@@ -1458,7 +1458,49 @@ interface TransferFormProps {
 
 const LAST_TRANSFER_KEY = 'met_last_transfer';
 
+type RecentTransfer = {
+  id: number;
+  from_account_id: number;
+  to_account_id: number;
+  amount: number;
+  created_at: string;
+};
+
 function TransferForm({ accounts, onCancel, onSaved }: TransferFormProps) {
+  const [recentTransfers, setRecentTransfers] = useState<RecentTransfer[]>([]);
+  const [undoingId, setUndoingId] = useState<number | null>(null);
+
+  const loadRecentTransfers = async () => {
+    try {
+      const res = await fetch('/api/bank-accounts/transfer');
+      setRecentTransfers(res.ok ? await res.json() : []);
+    } catch {
+      setRecentTransfers([]);
+    }
+  };
+
+  useEffect(() => { void loadRecentTransfers(); }, []);
+
+  const accountName = (id: number) => accounts.find((a) => a.id === id)?.name ?? `#${id}`;
+
+  const handleUndo = async (transferId: number) => {
+    if (!window.confirm('Undo this transfer? This reverses the balance move on both accounts.')) return;
+    setUndoingId(transferId);
+    try {
+      const res = await fetch(`/api/bank-accounts/transfer/${transferId}`, { method: 'DELETE' });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Failed to undo transfer');
+      }
+      await loadRecentTransfers();
+      onSaved();
+    } catch (error) {
+      alert(error instanceof Error ? error.message : 'Failed to undo transfer');
+    } finally {
+      setUndoingId(null);
+    }
+  };
+
   const remembered = (() => {
     if (typeof window === 'undefined') return null;
     try {
@@ -1585,6 +1627,31 @@ function TransferForm({ accounts, onCancel, onSaved }: TransferFormProps) {
             </button>
           </div>
         </form>
+
+        {recentTransfers.length > 0 && (
+          <div className="mt-5 pt-5" style={{ borderTop: '1px solid var(--hairline)' }}>
+            <p className="text-[11px] font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--ink-faint)' }}>Recent transfers</p>
+            <div className="space-y-2">
+              {recentTransfers.map((t) => (
+                <div key={t.id} className="flex items-center justify-between rounded-xl px-3 py-2" style={{ background: 'var(--bg-tint)', border: '1px solid var(--hairline)' }}>
+                  <div className="text-xs" style={{ color: 'var(--ink-soft)' }}>
+                    ₹{Number(t.amount).toLocaleString('en-IN')}: {accountName(t.from_account_id)} → {accountName(t.to_account_id)}
+                    <span style={{ color: 'var(--ink-faint)' }}> · {new Date(t.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleUndo(t.id)}
+                    disabled={undoingId === t.id}
+                    className="text-xs font-bold cursor-pointer disabled:opacity-50"
+                    style={{ color: 'var(--neg)' }}
+                  >
+                    {undoingId === t.id ? 'Undoing…' : 'Undo'}
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

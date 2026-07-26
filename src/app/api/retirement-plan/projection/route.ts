@@ -1,4 +1,5 @@
 import { requireAuthFast } from "@/lib/auth-guard";
+import { getActiveBudgetMonth } from "@/lib/monthly-totals";
 import { RETIREMENT_DEFAULTS, projectRetirement } from "@/lib/retirement";
 
 // GET /api/retirement-plan/projection
@@ -57,14 +58,24 @@ export async function GET() {
     const sorted = [...recentSalary].sort((a, b) => (a.year - b.year) || (a.month - b.month));
     const earliest = sorted[0];
     const startDate = `${earliest.year}-${String(earliest.month).padStart(2, "0")}-01`;
-    const todayStr = new Date().toISOString().slice(0, 10);
+
+    // Expenses can legitimately be dated in the active budget month even when
+    // that's ahead of the real calendar month (25th-salary workflow — e.g.
+    // paying a bill "today" during the salary-transition week files it under
+    // next month's date). Bounding by literal calendar "today" would silently
+    // exclude those, understating the trailing average right after paying
+    // real bills. Bound by the end of the active budget month instead.
+    const { month: activeMonth, year: activeYear } = await getActiveBudgetMonth(supabase, user.id);
+    const upperBoundExclusive = activeMonth === 12
+      ? `${activeYear + 1}-01-01`
+      : `${activeYear}-${String(activeMonth + 1).padStart(2, "0")}-01`;
 
     const { data: expenseRows } = await supabase
       .from("expenses")
       .select("amount, category")
       .eq("user_id", user.id)
       .gte("date", startDate)
-      .lt("date", todayStr);
+      .lt("date", upperBoundExclusive);
 
     const nonSavingsTotal = (expenseRows ?? [])
       .filter((e) => e.category !== "Savings")
