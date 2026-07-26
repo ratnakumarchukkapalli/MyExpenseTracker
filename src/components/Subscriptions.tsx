@@ -70,7 +70,7 @@ function Subscriptions({ subscriptions, onAdd, onEdit, onDelete, onPay, onUndoPa
 
   const formatDate = (dateString?: string | null) => {
     if (!dateString) return '-';
-    return new Date(dateString).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' });
+    return new Date(dateString).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
   };
 
   const getDaysUntilRenewal = (dateString?: string | null) => {

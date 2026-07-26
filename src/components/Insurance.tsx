@@ -63,7 +63,7 @@ const EMPTY_FORM = {
 
 // ── PolicyCard ─────────────────────────────────────────────────────────────
 
-function PolicyCard({ policy, onEdit, onDelete, onMarkPaid }: any) {
+function PolicyCard({ policy, onEdit, onDelete, onMarkPaid, payingId }: any) {
   const [showNotes, setShowNotes] = useState(false);
   const days = getDaysUntil(policy.next_due_date);
   const cfg = TYPE_CONFIG[policy.type] || TYPE_CONFIG.Life;
@@ -105,8 +105,14 @@ function PolicyCard({ policy, onEdit, onDelete, onMarkPaid }: any) {
         <div className="flex items-center gap-1.5 flex-shrink-0">
           <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${cfg.color}`}>{cfg.label}</span>
           {days !== null && days <= 30 && policy.premium_mode !== 'single' && (
-            <button onClick={() => onMarkPaid(policy.id)} title="Mark as paid" className="p-1.5 rounded-lg transition-colors" style={{ color: 'var(--pos)' }}>
-              <Check className="h-3.5 w-3.5" />
+            <button
+              onClick={() => onMarkPaid(policy.id)}
+              disabled={payingId === policy.id}
+              title="Mark as paid"
+              className="p-1.5 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-wait"
+              style={{ color: 'var(--pos)' }}
+            >
+              <Check className={`h-3.5 w-3.5 ${payingId === policy.id ? 'animate-pulse' : ''}`} />
             </button>
           )}
           <button onClick={() => onEdit(policy)} className="p-1.5 rounded-lg transition-colors" style={{ color: 'var(--ink-faint)' }}>
@@ -342,7 +348,7 @@ function PolicyForm({ policy, onSubmit, onCancel, defaultOwner }: any) {
 }
 // ── PoliciesView ───────────────────────────────────────────────────────────
 
-function PoliciesView({ policies, onEdit, onDelete, onMarkPaid }: any) {
+function PoliciesView({ policies, onEdit, onDelete, onMarkPaid, payingId }: any) {
   const grouped = TYPE_ORDER.reduce((acc: Record<string, any[]>, type) => {
     acc[type] = policies.filter((p: any) => p.type === type);
     return acc;
@@ -374,7 +380,7 @@ function PoliciesView({ policies, onEdit, onDelete, onMarkPaid }: any) {
             </div>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               {list.map((policy: any) => (
-                <PolicyCard key={policy.id} policy={policy} onEdit={onEdit} onDelete={onDelete} onMarkPaid={onMarkPaid} />
+                <PolicyCard key={policy.id} policy={policy} onEdit={onEdit} onDelete={onDelete} onMarkPaid={onMarkPaid} payingId={payingId} />
               ))}
             </div>
           </div>
@@ -392,6 +398,7 @@ const Insurance = () => {
   const [showForm, setShowForm] = useState(false);
   const [editingPolicy, setEditingPolicy] = useState<any>(null);
   const [activeTab, setActiveTab] = useState<'self' | 'family'>('self');
+  const [payingId, setPayingId] = useState<number | null>(null);
 
   useEffect(() => { loadPolicies(); }, []);
 
@@ -439,6 +446,8 @@ const Insurance = () => {
   };
 
   const handleMarkPaid = async (id: number) => {
+    if (payingId) return;
+    setPayingId(id);
     try {
       const res = await fetch(`/api/insurance/${id}/pay`, { method: 'POST' });
       const result = await res.json();
@@ -446,6 +455,8 @@ const Insurance = () => {
       alert(`Payment recorded. Next due: ${result.newDueDate}`);
     } catch (err: any) {
       alert('Failed to mark as paid: ' + err.message);
+    } finally {
+      setPayingId(null);
     }
   };
 
@@ -456,6 +467,18 @@ const Insurance = () => {
   const totalAnnualPremium = tabPolicies.reduce((sum, p) => sum + annualPremium(p), 0);
   const totalSumInsured    = tabPolicies.reduce((sum, p) => sum + (p.sum_insured || 0), 0);
   const nomineeWarnings    = tabPolicies.filter(hasNomineeIssue);
+
+  // Payable (renewable) policies across both tabs — 'single' premium_mode has no
+  // recurring due date, so it's excluded same as the card's own mark-paid button.
+  const payablePolicies = policies.filter(p => p.status === 'active' && p.premium_mode !== 'single');
+  const overduePolicies = payablePolicies.filter(p => {
+    const d = getDaysUntil(p.next_due_date);
+    return d !== null && d < 0;
+  });
+  const dueSoonPolicies = payablePolicies.filter(p => {
+    const d = getDaysUntil(p.next_due_date);
+    return d !== null && d >= 0 && d <= 30;
+  });
 
   if (loading) {
     return (
@@ -526,6 +549,69 @@ const Insurance = () => {
 
   return (
     <div className="space-y-6">
+      {overduePolicies.length > 0 && (
+        <div className="bg-red-50 border border-red-200 rounded-2xl p-4">
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="h-5 w-5 text-red-600 mt-0.5" />
+            <div className="flex-1">
+              <h3 className="font-bold text-red-900">{overduePolicies.length} Premium{overduePolicies.length > 1 ? 's' : ''} Overdue</h3>
+              <div className="flex flex-wrap gap-2 mt-2">
+                {overduePolicies.map(policy => (
+                  <div key={policy.id} className="flex items-center gap-2 bg-white rounded-lg px-3 py-1.5 border border-red-200">
+                    <span className="text-sm font-medium">{policy.name}</span>
+                    <span className="text-xs text-red-700">due {formatDateLocal(policy.next_due_date)}</span>
+                    <button
+                      onClick={() => handleMarkPaid(policy.id)}
+                      disabled={payingId === policy.id}
+                      className={`text-xs px-3 py-1 rounded-full font-bold transition-all cursor-pointer ${
+                        payingId === policy.id
+                          ? 'bg-gray-400 text-white cursor-wait'
+                          : 'bg-red-600 text-white hover:bg-red-700 active:scale-95 shadow-sm'
+                      }`}
+                    >
+                      {payingId === policy.id ? 'Processing...' : 'Pay Now'}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {dueSoonPolicies.length > 0 && (
+        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4">
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="h-5 w-5 text-amber-600 mt-0.5" />
+            <div className="flex-1">
+              <h3 className="font-bold text-amber-900">{dueSoonPolicies.length} Premium{dueSoonPolicies.length > 1 ? 's' : ''} Due Soon</h3>
+              <div className="flex flex-wrap gap-2 mt-2">
+                {dueSoonPolicies.map(policy => {
+                  const daysUntil = getDaysUntil(policy.next_due_date);
+                  return (
+                    <div key={policy.id} className="flex items-center gap-2 bg-white rounded-lg px-3 py-1.5 border border-amber-200">
+                      <span className="text-sm font-medium">{policy.name}</span>
+                      <span className="text-xs text-amber-700">{daysUntil === 0 ? 'due today' : `in ${daysUntil}d`}</span>
+                      <button
+                        onClick={() => handleMarkPaid(policy.id)}
+                        disabled={payingId === policy.id}
+                        className={`text-xs px-3 py-1 rounded-full font-bold transition-all cursor-pointer ${
+                          payingId === policy.id
+                            ? 'bg-gray-400 text-white cursor-wait'
+                            : 'bg-amber-600 text-white hover:bg-amber-700 active:scale-95 shadow-sm'
+                        }`}
+                      >
+                        {payingId === policy.id ? 'Processing...' : 'Pay Now'}
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {nomineeWarnings.length > 0 && (
         <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-start gap-3">
           <AlertTriangle className="h-5 w-5 text-amber-500 flex-shrink-0 mt-0.5" />
@@ -602,6 +688,7 @@ const Insurance = () => {
         onEdit={(p: any) => { setEditingPolicy(p); setShowForm(true); }}
         onDelete={handleDelete}
         onMarkPaid={handleMarkPaid}
+        payingId={payingId}
       />
 
       {showForm && (

@@ -12,6 +12,7 @@ import {
   CheckCircle,
 } from 'lucide-react';
 import { formatCurrency } from '@/lib/formatters';
+import { computeDelta, fetchWealthDeltas, type WealthDeltasResponse } from '@/lib/wealth-delta';
 
 // ── Types ─────────────────────────────────────────────────────────────────
 
@@ -952,6 +953,7 @@ const SIPTracker = ({ currentMonth, currentYear, onPortfolioUpdate, frozenSip }:
   const [showAddFund, setShowAddFund] = useState(false);
   const [importing, setImporting] = useState(false);
   const [autoRefreshing, setAutoRefreshing] = useState(false);
+  const [wealthDeltas, setWealthDeltas] = useState<WealthDeltasResponse | null>(null);
   const fundsRef = useRef<SipFund[]>(funds);
   useEffect(() => { fundsRef.current = funds; }, [funds]);
 
@@ -1067,6 +1069,11 @@ const SIPTracker = ({ currentMonth, currentYear, onPortfolioUpdate, frozenSip }:
       }
     });
   }, [loadFunds, autoRefreshAllNavs, isCurrentMonth]);
+
+  useEffect(() => {
+    if (!currentMonth || !currentYear) return;
+    fetchWealthDeltas(currentMonth, currentYear).then(setWealthDeltas);
+  }, [currentMonth, currentYear]);
 
   // Keep retrying through the day (AMFI usually publishes evening IST) without
   // requiring a manual refresh click or a full page reload — checks hourly and
@@ -1186,6 +1193,8 @@ const SIPTracker = ({ currentMonth, currentYear, onPortfolioUpdate, frozenSip }:
   const totalGain = totalCurrent - totalInvested;
   const totalGainPct = totalInvested > 0 ? (totalGain / totalInvested) * 100 : 0;
   const monthlySIP = activeFunds.reduce((s, f) => s + (f.sip_amount ?? 0), 0);
+  const sipMoM = computeDelta(totalCurrent, wealthDeltas?.sip.prevMonth);
+  const sipYoY = computeDelta(totalCurrent, wealthDeltas?.sip.prevYear);
 
   // Day-change is inherently a "today" concept — meaningless for a past month.
   const dayChangeFunds = isCurrentMonth
@@ -1345,13 +1354,13 @@ const SIPTracker = ({ currentMonth, currentYear, onPortfolioUpdate, frozenSip }:
       {funds.length > 0 && (
         <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
           {[
-            { label: 'Total Invested', value: formatCurrency(totalInvested), sub: `${funds.length} holdings` },
-            { label: 'Current Value', value: totalCurrent > 0 ? formatCurrency(parseFloat(totalCurrent.toFixed(2))) : '—', sub: isCurrentMonth ? 'All holdings' : 'Frozen · month-end' },
+            { label: 'Total Invested', value: formatCurrency(totalInvested), sub: `${funds.length} holdings`, mom: undefined, yoy: undefined },
+            { label: 'Current Value', value: totalCurrent > 0 ? formatCurrency(parseFloat(totalCurrent.toFixed(2))) : '—', sub: isCurrentMonth ? 'All holdings' : 'Frozen · month-end', mom: sipMoM, yoy: sipYoY },
             { label: 'P & L', value: totalCurrent > 0 ? `${totalGain >= 0 ? '+' : ''}${formatCurrency(parseFloat(Math.abs(totalGain).toFixed(2)))}` : '—',
-              sub: totalGainPct !== 0 ? `${totalGainPct.toFixed(1)}%` : '' },
-            { label: 'Monthly SIP', value: formatCurrency(monthlySIP), sub: `${activeFunds.length} active funds` },
-            { label: 'Funds', value: String(activeFunds.length), sub: `+ ${histFunds.length} historical` },
-          ].map(({ label, value, sub }) => (
+              sub: totalGainPct !== 0 ? `${totalGainPct.toFixed(1)}%` : '', mom: undefined, yoy: undefined },
+            { label: 'Monthly SIP', value: formatCurrency(monthlySIP), sub: `${activeFunds.length} active funds`, mom: undefined, yoy: undefined },
+            { label: 'Funds', value: String(activeFunds.length), sub: `+ ${histFunds.length} historical`, mom: undefined, yoy: undefined },
+          ].map(({ label, value, sub, mom, yoy }) => (
             <div key={label}
               className="rounded-2xl border p-4"
               style={{ background: 'var(--pane)', borderColor: 'var(--hairline)' }}
@@ -1359,6 +1368,20 @@ const SIPTracker = ({ currentMonth, currentYear, onPortfolioUpdate, frozenSip }:
               <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--ink-muted)' }}>{label}</p>
               <p className="text-xl font-bold mt-1 num" style={{ color: 'var(--ink)' }}>{value}</p>
               {sub && <p className="text-xs mt-0.5" style={{ color: 'var(--ink-faint)' }}>{sub}</p>}
+              {(mom || yoy) && (
+                <div className="flex gap-2 mt-1">
+                  {mom && (
+                    <span className="text-xs font-semibold" style={{ color: mom.pct >= 0 ? 'var(--pos)' : 'var(--neg)' }}>
+                      {mom.pct >= 0 ? '↑' : '↓'}{Math.abs(mom.pct).toFixed(1)}% MoM
+                    </span>
+                  )}
+                  {yoy && (
+                    <span className="text-xs font-semibold" style={{ color: yoy.pct >= 0 ? 'var(--pos)' : 'var(--neg)' }}>
+                      {yoy.pct >= 0 ? '↑' : '↓'}{Math.abs(yoy.pct).toFixed(1)}% YoY
+                    </span>
+                  )}
+                </div>
+              )}
             </div>
           ))}
           <div className="rounded-2xl border p-4" style={{

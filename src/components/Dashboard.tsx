@@ -17,6 +17,7 @@ import { X, Save } from 'lucide-react';
 import BudgetSettingsModal from './BudgetSettingsModal';
 import CategoryDrillDown from './CategoryDrillDown';
 import { CATEGORY_COLORS } from '../constants/categories';
+import { computeDelta, fetchWealthDeltas, type WealthDeltasResponse } from '../lib/wealth-delta';
 
 type Expense = {
   id: number;
@@ -159,6 +160,7 @@ function Dashboard({ expenses, subscriptions, monthlySummary, currentMonth, curr
   const [showTransferForm, setShowTransferForm] = useState(false);
   const [savingFinancials, setSavingFinancials] = useState(false);
   const [liveWealth, setLiveWealth] = useState<{ sip: number; stocks: number; total: number } | null>(null);
+  const [wealthDeltas, setWealthDeltas] = useState<WealthDeltasResponse | null>(null);
   const [previousMonthExpenses, setPreviousMonthExpenses] = useState<Expense[]>(prevMonthExpenses ?? []);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const lastScrapeTimeRef = useRef<number>(
@@ -306,6 +308,10 @@ function Dashboard({ expenses, subscriptions, monthlySummary, currentMonth, curr
       .catch(() => {});
   }, [stockRefreshTick]);
 
+  useEffect(() => {
+    fetchWealthDeltas(currentMonth, currentYear).then(setWealthDeltas);
+  }, [currentMonth, currentYear]);
+
   const yearlySavings = useMemo(() => {
     const now = new Date();
     const isThisYear = currentYear === now.getFullYear();
@@ -372,6 +378,20 @@ function Dashboard({ expenses, subscriptions, monthlySummary, currentMonth, curr
   const portfolioTotal = (isCurrentMonth && livePortfolio !== null) ? livePortfolio : dbPortfolio;
   const displaySIP = (isCurrentMonth && liveWealth) ? liveWealth.sip : currentSIP;
   const displayShares = (isCurrentMonth && liveWealth) ? liveWealth.stocks : currentShares;
+
+  const sipMoM = computeDelta(displaySIP, wealthDeltas?.sip.prevMonth);
+  const sipYoY = computeDelta(displaySIP, wealthDeltas?.sip.prevYear);
+  const sharesMoM = computeDelta(displayShares, wealthDeltas?.stocks.prevMonth);
+  const sharesYoY = computeDelta(displayShares, wealthDeltas?.stocks.prevYear);
+
+  // Combined investments (SIP + Shares) delta — only when both legs of the prior
+  // snapshot exist, so a fund added mid-year doesn't read as a fake 100% swing.
+  const investPrevMonth = (wealthDeltas?.sip.prevMonth != null && wealthDeltas?.stocks.prevMonth != null)
+    ? wealthDeltas.sip.prevMonth + wealthDeltas.stocks.prevMonth : null;
+  const investPrevYear = (wealthDeltas?.sip.prevYear != null && wealthDeltas?.stocks.prevYear != null)
+    ? wealthDeltas.sip.prevYear + wealthDeltas.stocks.prevYear : null;
+  const investMoM = computeDelta(portfolioTotal, investPrevMonth);
+  const investYoY = computeDelta(portfolioTotal, investPrevYear);
 
   // BANK BALANCE definition: "Liquid Cash Available" = live sum of tracked bank
   // accounts, but ONLY for the active budget month (the latest month with a
@@ -624,6 +644,20 @@ function Dashboard({ expenses, subscriptions, monthlySummary, currentMonth, curr
             <div className="dash-stat-small" style={{ fontSize: 16, marginTop: 4, color: 'var(--ink)', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
               {privacyMode ? PRIVACY_MASK : formatCurrency(portfolioTotal)}
             </div>
+            {!privacyMode && (investMoM || investYoY) && (
+              <div style={{ display: 'flex', gap: 6, marginTop: 4 }}>
+                {investMoM && (
+                  <span className={`delta-pill ${investMoM.abs >= 0 ? 'pos' : 'neg'}`}>
+                    {investMoM.abs >= 0 ? '↑' : '↓'} {Math.abs(investMoM.pct).toFixed(1)}% MoM
+                  </span>
+                )}
+                {investYoY && (
+                  <span className={`delta-pill ${investYoY.abs >= 0 ? 'pos' : 'neg'}`}>
+                    {investYoY.abs >= 0 ? '↑' : '↓'} {Math.abs(investYoY.pct).toFixed(1)}% YoY
+                  </span>
+                )}
+              </div>
+            )}
           </div>
           <div className="hr" />
           <div className="stat-bar-row">
@@ -862,8 +896,8 @@ function Dashboard({ expenses, subscriptions, monthlySummary, currentMonth, curr
 
           {[
             { label: 'FD', value: monthlySummary?.savings_fd, dot: '#3b82f6' },
-            { label: 'SIP', value: displaySIP, dot: '#8b5cf6' },
-            { label: 'Shares', value: displayShares, dot: '#f59e0b' },
+            { label: 'SIP', value: displaySIP, dot: '#8b5cf6', mom: sipMoM, yoy: sipYoY },
+            { label: 'Shares', value: displayShares, dot: '#f59e0b', mom: sharesMoM, yoy: sharesYoY },
             { label: 'NPS', value: monthlySummary?.savings_nps, dot: '#6366f1' },
             { label: 'PF', value: monthlySummary?.savings_pf, dot: '#10b981' },
             { label: 'Interest', value: monthlySummary?.interest_income, dot: '#f97316' },
@@ -875,6 +909,20 @@ function Dashboard({ expenses, subscriptions, monthlySummary, currentMonth, curr
                 <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)', fontVariantNumeric: 'tabular-nums' }}>
                   {privacyMode ? PRIVACY_MASK : formatCurrency(Number(item.value || 0))}
                 </div>
+                {!privacyMode && (item.mom || item.yoy) && (
+                  <div style={{ display: 'flex', gap: 6, marginTop: 1 }}>
+                    {item.mom && (
+                      <span style={{ fontSize: 9.5, fontWeight: 600, color: item.mom.pct >= 0 ? 'var(--pos)' : 'var(--neg)' }}>
+                        {item.mom.pct >= 0 ? '↑' : '↓'}{Math.abs(item.mom.pct).toFixed(1)}% MoM
+                      </span>
+                    )}
+                    {item.yoy && (
+                      <span style={{ fontSize: 9.5, fontWeight: 600, color: item.yoy.pct >= 0 ? 'var(--pos)' : 'var(--neg)' }}>
+                        {item.yoy.pct >= 0 ? '↑' : '↓'}{Math.abs(item.yoy.pct).toFixed(1)}% YoY
+                      </span>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           ))}

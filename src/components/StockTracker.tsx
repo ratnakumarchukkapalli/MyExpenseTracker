@@ -10,6 +10,7 @@ import {
   RefreshCw, AlertCircle, CheckCircle, BarChart2,
 } from 'lucide-react';
 import { formatCurrency } from '@/lib/formatters';
+import { computeDelta, fetchWealthDeltas, type WealthDeltasResponse } from '@/lib/wealth-delta';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -718,6 +719,7 @@ const StockTracker = ({ currentMonth = new Date().getMonth() + 1, currentYear = 
     errors?: { ticker: string }[]; error?: string;
   } | null>(null);
   const autoRefreshedRef = useRef(false);
+  const [wealthDeltas, setWealthDeltas] = useState<WealthDeltasResponse | null>(null);
 
   const loadHoldings = useCallback(async () => {
     setLoading(true);
@@ -742,6 +744,10 @@ const StockTracker = ({ currentMonth = new Date().getMonth() + 1, currentYear = 
   useEffect(() => {
     loadHoldings();
   }, [loadHoldings]);
+
+  useEffect(() => {
+    fetchWealthDeltas(currentMonth, currentYear).then(setWealthDeltas);
+  }, [currentMonth, currentYear]);
 
   useEffect(() => {
     if (loading || holdings.length === 0) return;
@@ -804,6 +810,8 @@ const StockTracker = ({ currentMonth = new Date().getMonth() + 1, currentYear = 
   const totalGain = totalCurrentValue - totalInvestedPriced;
   const totalGainPct = totalInvestedPriced > 0 ? (totalGain / totalInvestedPriced) * 100 : 0;
   const unpricedCount = holdings.length - priced.length;
+  const stocksMoM = computeDelta(totalCurrentValue, wealthDeltas?.stocks.prevMonth);
+  const stocksYoY = computeDelta(totalCurrentValue, wealthDeltas?.stocks.prevYear);
 
   // Day-change is inherently a "today" concept — meaningless for a past month.
   const dayChangePriced = isCurrentMonth ? priced.filter(h => h.prev_close != null) : [];
@@ -1000,8 +1008,22 @@ const StockTracker = ({ currentMonth = new Date().getMonth() + 1, currentYear = 
             {!isCurrentMonth && (
               <p className="text-xs mt-1" style={{ color: 'var(--ink-faint)' }}>Frozen · month-end</p>
             )}
+            {(stocksMoM || stocksYoY) && (
+              <div className="flex gap-2 mt-1">
+                {stocksMoM && (
+                  <span className="text-xs font-semibold" style={{ color: stocksMoM.pct >= 0 ? 'var(--pos)' : 'var(--neg)' }}>
+                    {stocksMoM.pct >= 0 ? '↑' : '↓'}{Math.abs(stocksMoM.pct).toFixed(1)}% MoM
+                  </span>
+                )}
+                {stocksYoY && (
+                  <span className="text-xs font-semibold" style={{ color: stocksYoY.pct >= 0 ? 'var(--pos)' : 'var(--neg)' }}>
+                    {stocksYoY.pct >= 0 ? '↑' : '↓'}{Math.abs(stocksYoY.pct).toFixed(1)}% YoY
+                  </span>
+                )}
+              </div>
+            )}
           </div>
-          <div className="rounded-2xl border shadow-sm p-5" style={{ 
+          <div className="rounded-2xl border shadow-sm p-5" style={{
             background: priced.length > 0 ? (totalGain >= 0 ? 'var(--pos-bg)' : 'var(--neg-bg)') : 'var(--pane)',
             borderColor: priced.length > 0 ? (totalGain >= 0 ? 'var(--pos-soft)' : 'var(--neg-soft)') : 'var(--hairline)',
             opacity: priced.length > 0 ? 1 : 0.6
