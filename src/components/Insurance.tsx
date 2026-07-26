@@ -404,7 +404,9 @@ const Insurance = () => {
 
   const loadPolicies = async () => {
     try {
-      const res = await fetch('/api/insurance');
+      // no-store: must be fresh right after add/update/delete/pay, otherwise the
+      // route's 5-minute Cache-Control serves a stale list and edits look lost.
+      const res = await fetch('/api/insurance', { cache: 'no-store' });
       const data = await res.json();
       setPolicies(data || []);
     } catch (err) {
@@ -416,7 +418,11 @@ const Insurance = () => {
 
   const handleAdd = async (policy: any) => {
     try {
-      await fetch('/api/insurance', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(policy) });
+      const res = await fetch('/api/insurance', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(policy) });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error?.formErrors?.join(', ') || err.error || 'Failed to add policy');
+      }
       await loadPolicies();
       setShowForm(false);
     } catch (err: any) {
@@ -426,7 +432,11 @@ const Insurance = () => {
 
   const handleUpdate = async (policy: any) => {
     try {
-      await fetch(`/api/insurance/${editingPolicy.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(policy) });
+      const res = await fetch(`/api/insurance/${editingPolicy.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(policy) });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error?.formErrors?.join(', ') || err.error || 'Failed to update policy');
+      }
       await loadPolicies();
       setEditingPolicy(null);
       setShowForm(false);

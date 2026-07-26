@@ -16,7 +16,7 @@ export const InsuranceSchema = z.object({
   nominee: z.string().max(200).nullable().optional(),
   vehicle_reg: z.string().max(50).nullable().optional(),
   notes: z.string().max(1000).nullable().optional(),
-  status: z.enum(["active", "inactive"]).default("active"),
+  status: z.enum(["active", "inactive", "expired", "lapsed"]).default("active"),
   owner: z.string().max(100).default("self"),
 });
 
