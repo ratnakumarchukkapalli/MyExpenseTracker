@@ -12,6 +12,7 @@ import {
   LayoutDashboard,
   LogOut,
   Moon,
+  PiggyBank,
   Plus,
   Receipt,
   Shield,
@@ -37,6 +38,7 @@ const Insurance = dynamic(() => import('./Insurance'));
 const MonthlyReport = dynamic(() => import('./MonthlyReport'));
 const Analytics = dynamic(() => import('./Analytics'));
 const YearEndProjection = dynamic(() => import('./YearEndProjection'));
+const RetirementPlanner = dynamic(() => import('./RetirementPlanner'));
 const SIPTracker = dynamic(() => import('./SIPTracker'));
 const StockTracker = dynamic(() => import('./StockTracker'));
 const LogoutConfirmModal = dynamic(() => import('./LogoutConfirmModal'));
@@ -150,7 +152,8 @@ type ViewId =
   | 'reports'
   | 'projection'
   | 'sip'
-  | 'stocks';
+  | 'stocks'
+  | 'retirement';
 
 const NAV_SECTIONS: Array<{
   label: string;
@@ -176,6 +179,7 @@ const NAV_SECTIONS: Array<{
     items: [
       { id: 'sip', label: 'SIP Tracker', icon: TrendingUp },
       { id: 'stocks', label: 'Stocks', icon: BarChart2 },
+      { id: 'retirement', label: 'Retirement', icon: PiggyBank },
     ],
   },
   {
@@ -211,11 +215,7 @@ function AppShell({ initialData, serverMonth, serverYear }: AppShellProps) {
     if (typeof window === 'undefined') return false;
     return window.localStorage.getItem('darkMode') === 'true';
   });
-  const [privacyMode, setPrivacyMode] = useState(() => {
-    if (typeof window === 'undefined') return true;
-    const stored = window.localStorage.getItem('privacyMode');
-    return stored === null ? true : stored === 'true';
-  });
+  const [privacyMode, setPrivacyMode] = useState(true);
   const [mounted, setMounted] = useState(false);
   const [currentView, setCurrentView] = useState<ViewId>('dashboard');
   const [currentMonth, setCurrentMonth] = useState(now.getMonth() + 1);
@@ -226,11 +226,13 @@ function AppShell({ initialData, serverMonth, serverYear }: AppShellProps) {
     const savedView = window.localStorage.getItem('activeView');
     const savedMonth = window.localStorage.getItem('selectedMonth');
     const savedYear = window.localStorage.getItem('selectedYear');
+    const savedPrivacy = window.localStorage.getItem('privacyMode');
 
     if (savedView) setCurrentView(savedView as ViewId);
     if (savedMonth) setCurrentMonth(Number(savedMonth));
     if (savedYear) setCurrentYear(Number(savedYear));
-    
+    if (savedPrivacy !== null) setPrivacyMode(savedPrivacy === 'true');
+
     setMounted(true);
   }, []);
   const [expenses, setExpenses] = useState<Expense[]>((initialData?.expenses as Expense[]) ?? []);
@@ -874,6 +876,7 @@ function AppShell({ initialData, serverMonth, serverYear }: AppShellProps) {
                 {mountedTabs.has('sip') && <div style={{ display: currentView === 'sip' ? undefined : 'none' }}><SIPTracker currentMonth={currentMonth} currentYear={currentYear} onPortfolioUpdate={triggerRefresh} frozenSip={monthlySummary?.savings_sip} /></div>}
                 {mountedTabs.has('stocks') && <div style={{ display: currentView === 'stocks' ? undefined : 'none' }}><StockTracker currentMonth={currentMonth} currentYear={currentYear} onPortfolioUpdate={triggerRefresh} onPricesRefreshed={() => setStockRefreshTick(t => t + 1)} frozenShares={monthlySummary?.savings_shares} /></div>}
                 {mountedTabs.has('insurance') && <div style={{ display: currentView === 'insurance' ? undefined : 'none' }}><Insurance /></div>}
+                {mountedTabs.has('retirement') && <div style={{ display: currentView === 'retirement' ? undefined : 'none' }}><RetirementPlanner /></div>}
               </>
             )}
           </main>
