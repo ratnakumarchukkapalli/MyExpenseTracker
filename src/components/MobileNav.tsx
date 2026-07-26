@@ -1,12 +1,13 @@
 'use client';
 
 import React, { useState } from 'react';
-import { 
-  LayoutDashboard, 
-  Receipt, 
-  Plus, 
-  TrendingUp, 
-  BarChart2, 
+import {
+  LayoutDashboard,
+  Receipt,
+  Plus,
+  TrendingUp,
+  BarChart2,
+  PieChart,
   MoreHorizontal,
   X,
   Calendar,
@@ -32,6 +33,7 @@ const MobileNav: React.FC<MobileNavProps> = ({ currentView, onViewChange, onQuic
   ];
 
   const moreItems = [
+    { id: 'analytics', label: 'Analytics', icon: PieChart },
     { id: 'subscriptions', label: 'Subscriptions', icon: Calendar },
     { id: 'loans', label: 'Loans & EMIs', icon: Landmark },
     { id: 'insurance', label: 'Insurance', icon: Shield },
