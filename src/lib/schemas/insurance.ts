@@ -18,6 +18,8 @@ export const InsuranceSchema = z.object({
   notes: z.string().max(1000).nullable().optional(),
   status: z.enum(["active", "inactive", "expired", "lapsed"]).default("active"),
   owner: z.string().max(100).default("self"),
+  // Account the premium is debited from when "Pay Now" is used; null = no default.
+  bank_account_id: z.number().int().positive().nullable().optional(),
 });
 
 export type InsuranceInput = z.infer<typeof InsuranceSchema>;

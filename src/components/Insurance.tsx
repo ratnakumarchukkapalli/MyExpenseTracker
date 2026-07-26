@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   Shield, Plus, Edit2, Trash2, AlertTriangle, ChevronDown, ChevronUp,
-  Car, Heart, User, X, Check,
+  Car, Heart, User, X, Check, RotateCcw,
 } from 'lucide-react';
 
 // ── Helpers ────────────────────────────────────────────────────────────────
@@ -59,16 +59,18 @@ const EMPTY_FORM = {
   sum_insured: '', premium_amount: '', premium_mode: 'yearly',
   start_date: '', end_date: '', next_due_date: '',
   nominee: '', vehicle_reg: '', notes: '', status: 'active', owner: 'self',
+  bank_account_id: '',
 };
 
 // ── PolicyCard ─────────────────────────────────────────────────────────────
 
-function PolicyCard({ policy, onEdit, onDelete, onMarkPaid, payingId }: any) {
+function PolicyCard({ policy, onEdit, onDelete, onMarkPaid, onUndoPaid, payingId, undoingId, bankAccounts = [] }: any) {
   const [showNotes, setShowNotes] = useState(false);
   const days = getDaysUntil(policy.next_due_date);
   const cfg = TYPE_CONFIG[policy.type] || TYPE_CONFIG.Life;
   const TypeIcon = cfg.icon;
   const nomineeIssue = hasNomineeIssue(policy);
+  const debitAccount = bankAccounts.find((a: any) => a.id === policy.bank_account_id);
 
   let dueBadge = null;
   if (days !== null) {
@@ -108,11 +110,22 @@ function PolicyCard({ policy, onEdit, onDelete, onMarkPaid, payingId }: any) {
             <button
               onClick={() => onMarkPaid(policy.id)}
               disabled={payingId === policy.id}
-              title="Mark as paid"
+              title={`Mark as paid — logs a ${formatCurrencyLocal(policy.premium_amount)} expense${debitAccount ? ` from ${debitAccount.name}` : ''}`}
               className="p-1.5 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-wait"
               style={{ color: 'var(--pos)' }}
             >
               <Check className={`h-3.5 w-3.5 ${payingId === policy.id ? 'animate-pulse' : ''}`} />
+            </button>
+          )}
+          {policy.last_paid_date && (
+            <button
+              onClick={() => onUndoPaid(policy.id)}
+              disabled={undoingId === policy.id}
+              title="Undo last payment — removes the expense it created"
+              className="p-1.5 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-wait"
+              style={{ color: 'var(--ink-faint)' }}
+            >
+              <RotateCcw className={`h-3.5 w-3.5 ${undoingId === policy.id ? 'animate-pulse' : ''}`} />
             </button>
           )}
           <button onClick={() => onEdit(policy)} className="p-1.5 rounded-lg transition-colors" style={{ color: 'var(--ink-faint)' }}>
@@ -159,6 +172,16 @@ function PolicyCard({ policy, onEdit, onDelete, onMarkPaid, payingId }: any) {
         )}
       </div>
 
+      {(debitAccount || policy.last_paid_date) && (
+        <div className="mb-2">
+          <p className="text-xs mb-0.5" style={{ color: 'var(--ink-faint)' }}>Auto-debit</p>
+          <p className="text-sm" style={{ color: 'var(--ink-soft)' }}>
+            {debitAccount ? debitAccount.name : 'No default account'}
+            {policy.last_paid_date && ` · last paid ${formatDateLocal(policy.last_paid_date)}`}
+          </p>
+        </div>
+      )}
+
       {policy.type === 'Vehicle' && policy.vehicle_reg && (
         <div className="mb-2">
           <p className="text-xs mb-0.5" style={{ color: 'var(--ink-faint)' }}>Vehicle Reg</p>
@@ -181,7 +204,7 @@ function PolicyCard({ policy, onEdit, onDelete, onMarkPaid, payingId }: any) {
 
 // ── PolicyForm ─────────────────────────────────────────────────────────────
 
-function PolicyForm({ policy, onSubmit, onCancel, defaultOwner }: any) {
+function PolicyForm({ policy, onSubmit, onCancel, defaultOwner, bankAccounts = [] }: any) {
   const [form, setForm] = useState(policy ? {
     name: policy.name || '', type: policy.type || 'Life', insurer: policy.insurer || '',
     policy_number: policy.policy_number || '', sum_insured: policy.sum_insured || '',
@@ -190,6 +213,7 @@ function PolicyForm({ policy, onSubmit, onCancel, defaultOwner }: any) {
     next_due_date: policy.next_due_date || '', nominee: policy.nominee || '',
     vehicle_reg: policy.vehicle_reg || '', notes: policy.notes || '',
     status: policy.status || 'active', owner: policy.owner || 'self',
+    bank_account_id: policy.bank_account_id ? String(policy.bank_account_id) : '',
   } : { ...EMPTY_FORM, owner: defaultOwner || 'self' });
 
   const set = (field: string, value: string) => setForm((f: any) => ({ ...f, [field]: value }));
@@ -197,7 +221,12 @@ function PolicyForm({ policy, onSubmit, onCancel, defaultOwner }: any) {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.name.trim() || !form.insurer.trim()) { alert('Name and Insurer are required.'); return; }
-    onSubmit({ ...form, sum_insured: parseFloat(form.sum_insured) || 0, premium_amount: parseFloat(form.premium_amount) || 0 });
+    onSubmit({
+      ...form,
+      sum_insured: parseFloat(form.sum_insured) || 0,
+      premium_amount: parseFloat(form.premium_amount) || 0,
+      bank_account_id: form.bank_account_id ? Number(form.bank_account_id) : null,
+    });
   };
 
   const inputClass = 'w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 transition-all text-sm';
@@ -313,6 +342,18 @@ function PolicyForm({ policy, onSubmit, onCancel, defaultOwner }: any) {
             </div>
           </div>
 
+          {bankAccounts.length > 0 && (
+            <div>
+              <label className={labelClass}>Paid From (default account)</label>
+              <select className={inputClass + ' cursor-pointer'} value={form.bank_account_id} onChange={e => set('bank_account_id', e.target.value)}>
+                <option value="">No default (won&apos;t debit a specific account)</option>
+                {bankAccounts.map((a: any) => (
+                  <option key={a.id} value={a.id}>{a.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
+
           {form.type === 'Vehicle' && (
             <div>
               <label className={labelClass}>Vehicle Registration Number</label>
@@ -348,7 +389,7 @@ function PolicyForm({ policy, onSubmit, onCancel, defaultOwner }: any) {
 }
 // ── PoliciesView ───────────────────────────────────────────────────────────
 
-function PoliciesView({ policies, onEdit, onDelete, onMarkPaid, payingId }: any) {
+function PoliciesView({ policies, onEdit, onDelete, onMarkPaid, onUndoPaid, payingId, undoingId, bankAccounts }: any) {
   const grouped = TYPE_ORDER.reduce((acc: Record<string, any[]>, type) => {
     acc[type] = policies.filter((p: any) => p.type === type);
     return acc;
@@ -380,7 +421,17 @@ function PoliciesView({ policies, onEdit, onDelete, onMarkPaid, payingId }: any)
             </div>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               {list.map((policy: any) => (
-                <PolicyCard key={policy.id} policy={policy} onEdit={onEdit} onDelete={onDelete} onMarkPaid={onMarkPaid} payingId={payingId} />
+                <PolicyCard
+                  key={policy.id}
+                  policy={policy}
+                  onEdit={onEdit}
+                  onDelete={onDelete}
+                  onMarkPaid={onMarkPaid}
+                  onUndoPaid={onUndoPaid}
+                  payingId={payingId}
+                  undoingId={undoingId}
+                  bankAccounts={bankAccounts}
+                />
               ))}
             </div>
           </div>
@@ -392,13 +443,22 @@ function PoliciesView({ policies, onEdit, onDelete, onMarkPaid, payingId }: any)
 
 // ── Insurance (main page) ──────────────────────────────────────────────────
 
-const Insurance = () => {
+interface InsuranceProps {
+  bankAccounts?: { id: number; name: string }[];
+  currentMonth?: number;
+  currentYear?: number;
+  /** Fired after a premium is paid or undone so the shell refetches expenses + summary. */
+  onPay?: () => void;
+}
+
+const Insurance = ({ bankAccounts = [], currentMonth, currentYear, onPay }: InsuranceProps) => {
   const [policies, setPolicies] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingPolicy, setEditingPolicy] = useState<any>(null);
   const [activeTab, setActiveTab] = useState<'self' | 'family'>('self');
   const [payingId, setPayingId] = useState<number | null>(null);
+  const [undoingId, setUndoingId] = useState<number | null>(null);
 
   useEffect(() => { loadPolicies(); }, []);
 
@@ -456,17 +516,55 @@ const Insurance = () => {
   };
 
   const handleMarkPaid = async (id: number) => {
-    if (payingId) return;
+    if (payingId || undoingId) return;
+    const policy = policies.find(p => p.id === id);
+    const debitAccount = bankAccounts.find(a => a.id === policy?.bank_account_id);
+    const confirmMsg = `Pay ${formatCurrencyLocal(policy?.premium_amount || 0)} for ${policy?.name}?\n\n`
+      + `This logs an expense${debitAccount ? ` and debits ${debitAccount.name}` : ' (no account will be debited — set a default in Edit)'}.`;
+    if (!window.confirm(confirmMsg)) return;
+
     setPayingId(id);
     try {
-      const res = await fetch(`/api/insurance/${id}/pay`, { method: 'POST' });
+      const res = await fetch(`/api/insurance/${id}/pay`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        // Mirrors the loans/subscriptions pay calls: file the expense under the
+        // month being viewed, not literal today.
+        body: JSON.stringify({ month: currentMonth, year: currentYear }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Failed to record payment');
+      }
       const result = await res.json();
       await loadPolicies();
-      alert(`Payment recorded. Next due: ${result.newDueDate}`);
+      onPay?.();
+      alert(`Payment recorded. Next due: ${result.newDueDate ?? '—'}`);
     } catch (err: any) {
       alert('Failed to mark as paid: ' + err.message);
     } finally {
       setPayingId(null);
+    }
+  };
+
+  const handleUndoPaid = async (id: number) => {
+    if (payingId || undoingId) return;
+    const policy = policies.find(p => p.id === id);
+    if (!window.confirm(`Undo the last payment for ${policy?.name}? This removes the expense it created and reverts the due date.`)) return;
+
+    setUndoingId(id);
+    try {
+      const res = await fetch(`/api/insurance/${id}/pay`, { method: 'DELETE' });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Failed to undo payment');
+      }
+      await loadPolicies();
+      onPay?.();
+    } catch (err: any) {
+      alert('Failed to undo payment: ' + err.message);
+    } finally {
+      setUndoingId(null);
     }
   };
 
@@ -698,7 +796,10 @@ const Insurance = () => {
         onEdit={(p: any) => { setEditingPolicy(p); setShowForm(true); }}
         onDelete={handleDelete}
         onMarkPaid={handleMarkPaid}
+        onUndoPaid={handleUndoPaid}
         payingId={payingId}
+        undoingId={undoingId}
+        bankAccounts={bankAccounts}
       />
 
       {showForm && (
@@ -707,6 +808,7 @@ const Insurance = () => {
           onSubmit={editingPolicy ? handleUpdate : handleAdd}
           onCancel={() => { setShowForm(false); setEditingPolicy(null); }}
           defaultOwner={activeTab === 'family' ? 'dad' : 'self'}
+          bankAccounts={bankAccounts}
         />
       )}
     </div>
