@@ -30,10 +30,24 @@ export async function POST(
   if (!card) return Response.json({ error: "Not found" }, { status: 404 });
 
   const amount = parsed.data.amount;
-  const now = new Date();
-  const paidDate = now.toISOString().split("T")[0];
-  const paidMonth = now.getMonth() + 1;
-  const paidYear = now.getFullYear();
+
+  // Mirrors ExpenseForm's defaultDate rule / subscriptions' pay route: if the
+  // caller is viewing a month other than the real current one (e.g. paying
+  // during the salary-transition week while already on next month's tab),
+  // file it under that viewed month instead of literal "today" — otherwise
+  // it silently lands in the wrong month's spend.
+  const today = new Date();
+  const { month: viewedMonth, year: viewedYear } = parsed.data;
+  const hasViewedMonth = Number.isInteger(viewedMonth) && Number.isInteger(viewedYear);
+  const isViewingRealCurrentMonth =
+    viewedMonth === today.getMonth() + 1 && viewedYear === today.getFullYear();
+
+  const paidDate =
+    hasViewedMonth && !isViewingRealCurrentMonth
+      ? `${viewedYear}-${String(viewedMonth).padStart(2, "0")}-01`
+      : today.toISOString().split("T")[0];
+  const paidMonth = hasViewedMonth && !isViewingRealCurrentMonth ? viewedMonth! : today.getMonth() + 1;
+  const paidYear = hasViewedMonth && !isViewingRealCurrentMonth ? viewedYear! : today.getFullYear();
 
   const { error: insertError } = await supabase.from("expenses").insert({
     user_id: user.id,

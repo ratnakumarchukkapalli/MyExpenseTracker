@@ -19,9 +19,11 @@ interface Props {
   cards: CreditCardData[];
   bankAccounts?: BankAccountOption[];
   onChange: () => void;
+  currentMonth: number;
+  currentYear: number;
 }
 
-function CreditCards({ cards, bankAccounts = [], onChange }: Props) {
+function CreditCards({ cards, bankAccounts = [], onChange, currentMonth, currentYear }: Props) {
   const [showForm, setShowForm] = useState(false);
   const [editingCard, setEditingCard] = useState<CreditCardData | null>(null);
   const [payingCard, setPayingCard] = useState<CreditCardData | null>(null);
@@ -51,7 +53,12 @@ function CreditCards({ cards, bankAccounts = [], onChange }: Props) {
       const res = await fetch(`/api/credit-cards/${payingCard.id}/pay`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ amount, bank_account_id: payAccountId ? Number(payAccountId) : null }),
+        body: JSON.stringify({
+          amount,
+          bank_account_id: payAccountId ? Number(payAccountId) : null,
+          month: currentMonth,
+          year: currentYear,
+        }),
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));

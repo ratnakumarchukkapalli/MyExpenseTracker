@@ -4,7 +4,7 @@ import { adjustBankAccountBalance } from "@/lib/bank-accounts";
 import { after, NextRequest } from "next/server";
 
 // POST /api/loans/[id]/pay — record this month's EMI as an expense
-export async function POST(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { user, supabase, error } = await requireAuth();
   if (error) return error;
 
@@ -20,10 +20,25 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
 
   if (!loan) return Response.json({ error: "Not found" }, { status: 404 });
 
-  const now = new Date();
-  const paidDate = now.toISOString().split("T")[0];
-  const paidMonth = now.getMonth() + 1;
-  const paidYear = now.getFullYear();
+  // Mirrors ExpenseForm's defaultDate rule / subscriptions' pay route: if the
+  // caller is viewing a month other than the real current one (e.g. paying
+  // during the salary-transition week while already on next month's tab),
+  // file it under that viewed month instead of literal "today" — otherwise
+  // it silently lands in the wrong month's spend.
+  const body = await req.json().catch(() => null);
+  const viewedMonth = Number(body?.month);
+  const viewedYear = Number(body?.year);
+  const today = new Date();
+  const hasViewedMonth = Number.isInteger(viewedMonth) && Number.isInteger(viewedYear);
+  const isViewingRealCurrentMonth =
+    viewedMonth === today.getMonth() + 1 && viewedYear === today.getFullYear();
+
+  const paidDate =
+    hasViewedMonth && !isViewingRealCurrentMonth
+      ? `${viewedYear}-${String(viewedMonth).padStart(2, "0")}-01`
+      : today.toISOString().split("T")[0];
+  const paidMonth = hasViewedMonth && !isViewingRealCurrentMonth ? viewedMonth : today.getMonth() + 1;
+  const paidYear = hasViewedMonth && !isViewingRealCurrentMonth ? viewedYear : today.getFullYear();
   const monthStart = `${paidYear}-${String(paidMonth).padStart(2, "0")}-01`;
   const nextMonthStart = paidMonth === 12
     ? `${paidYear + 1}-01-01`

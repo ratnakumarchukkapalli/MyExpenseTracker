@@ -85,7 +85,11 @@ function Loans({ onShowForm, onEdit, refreshKey, currentMonth, currentYear, onPa
     if (payingId) return;
     setPayingId(loan.id);
     try {
-      const res = await fetch(`/api/loans/${loan.id}/pay`, { method: 'POST' });
+      const res = await fetch(`/api/loans/${loan.id}/pay`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ month: currentMonth, year: currentYear }),
+      });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
         throw new Error(err.error || 'Failed to record payment');
