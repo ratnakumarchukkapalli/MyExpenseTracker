@@ -145,6 +145,50 @@ last_updated   TEXT               -- 'YYYY-MM-DD'
 notes          TEXT               -- broker name
 ```
 
+### stock_sales
+Sale history for realized-P&L reporting and tax. Money columns are NUMERIC, not REAL —
+float4 rounds anything past ~7 significant digits, and real sale credits (₹1,75,480.49)
+live above that threshold.
+```sql
+id             BIGINT PRIMARY KEY
+user_id        UUID NOT NULL
+holding_id     BIGINT             -- FK stock_holdings, ON DELETE SET NULL
+ticker         TEXT NOT NULL      -- denormalized: history survives holding deletion
+company_name   TEXT
+shares_sold    REAL NOT NULL
+sell_price     NUMERIC(15,4) NOT NULL
+sell_date      TEXT NOT NULL      -- 'YYYY-MM-DD'
+avg_buy_price  NUMERIC(15,4) NOT NULL  -- holding.buy_price at sale time
+last_price     NUMERIC(15,4)      -- holding.current_price at sale time (undo + delta audit)
+gross_proceeds NUMERIC(15,2) NOT NULL  -- shares_sold * sell_price
+charges        NUMERIC(15,2) NOT NULL DEFAULT 0
+net_proceeds   NUMERIC(15,2) NOT NULL  -- gross_proceeds - charges
+realized_pnl   NUMERIC(15,2) NOT NULL  -- (sell_price - avg_buy_price) * shares_sold - charges
+broker         TEXT
+notes          TEXT
+reverted_at    TIMESTAMPTZ        -- set by undo; history rows are never deleted
+created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
+```
+
+### stock_sale_allocations
+Where each rupee of a sale's net proceeds went. Exactly one target FK is populated,
+enforced by the `alloc_target_matches_destination` CHECK.
+```sql
+id                 BIGINT PRIMARY KEY
+user_id            UUID NOT NULL
+sale_id            BIGINT NOT NULL    -- FK stock_sales, ON DELETE CASCADE
+destination        TEXT NOT NULL      -- 'bank' | 'sip'
+bank_account_id    BIGINT             -- set iff destination = 'bank'
+sip_fund_id        BIGINT             -- set iff destination = 'sip'
+sip_transaction_id BIGINT             -- the LUMPSUM row created for a SIP leg, for undo
+amount             NUMERIC(15,2) NOT NULL CHECK (amount > 0)
+created_at         TIMESTAMPTZ NOT NULL DEFAULT NOW()
+```
+Both tables have RLS enabled **with** a `FOR ALL USING (auth.uid() = user_id)` policy.
+RLS on without a policy is deny-all — that is what broke `insurance_policies`.
+
+Migration: `scripts/021_stock_sales.sql`
+
 ## Key Business Rules
 1. Never delete from `monthly_summary` — update in place
 2. `cash_equivalents` must be recalculated whenever savings values change

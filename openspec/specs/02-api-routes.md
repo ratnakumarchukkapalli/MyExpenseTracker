@@ -117,6 +117,42 @@ Delete holding.
 ### POST `/api/stocks/refresh-prices`
 Fetch live prices for all holdings from Yahoo Finance server-side proxy.
 
+### POST `/api/stocks/sell`
+Sell N shares of a holding and route the net proceeds across any mix of bank accounts and
+SIP funds in one operation. Body:
+`{ holding_id, shares_sold, sell_price, sell_date, charges, broker?, notes?, allocations[] }`
+where each allocation is `{ destination: 'bank', bank_account_id, amount }` or
+`{ destination: 'sip', sip_fund_id, amount }`.
+
+Validates everything before mutating anything (supabase-js has no transactions):
+holding exists and holds enough shares, every target belongs to the user, **and no target SIP
+fund has a null/zero `current_nav`** — `units = amount / 0` yields `Infinity` and permanently
+corrupts the portfolio total. Allocations must sum to net proceeds (enforced in Zod and the UI).
+
+Order of writes: `stock_sales` row → per-allocation credits (`adjustBankAccountBalance` /
+`recordSipTransaction`) → the holding's `shares` **last**, so a mid-flight failure leaves the
+holding intact rather than destroyed. `buy_price` is never touched: a partial sale at average
+cost does not move average cost.
+
+Cascade in `after()` is **strictly sequential, never `Promise.all`**:
+`syncMonthlyWealthSnapshot(saleMonth, saleYear)` then `resyncCurrentMonthCascade()`.
+The first computes `cash_equivalents` from the still-stale `remaining_amount`, so the bank
+resync must land second to correct it; run in parallel they race two cascades over the same
+`monthly_summary` rows.
+
+### GET `/api/stocks/sell`
+Non-reverted sales, newest first, each with its allocations (labelled with the destination's
+name). Also returns `active_month` so the sell modal can warn on back-dated sales.
+Returns `{ sales, active_month }`.
+
+### DELETE `/api/stocks/sell/[id]`
+Undo a mis-entered sale: reverses every allocation (negative `adjustBankAccountBalance`;
+`reverseSipTransaction` deletes the LUMPSUM row and backs its units/amount off the fund),
+restores `shares` on the holding — re-inserting it from the denormalized ticker /
+`avg_buy_price` / `last_price` if it was fully sold — sets `reverted_at`, then runs the same
+sequential cascade. Restoring `last_price` matters: without it the rebuilt holding has no
+`current_price` and drops out of `savings_shares` entirely.
+
 ## Financial Summary
 
 ### GET/POST `/api/financial-summary`

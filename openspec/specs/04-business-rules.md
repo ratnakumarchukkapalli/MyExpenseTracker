@@ -23,6 +23,23 @@ When adding/editing a SIP transaction or stock holding, the API calls `syncMonth
 2. Updates the current month's `savings_sip` and `savings_shares` in `monthly_summary`.
 3. Cascades these values to future months.
 
+## Realized P&L is Reporting-Only (CRITICAL)
+**A stock sale's realized gain is NEVER added to net worth.** It is stored in `stock_sales.realized_pnl` for tax reporting and the Realized Gains panel, and credited nowhere.
+
+Why: the gain was already carried in net worth as *unrealized* value inside `savings_shares` (`shares × current_price`). Realizing it converts unrealized value into cash — it does not create new value. Crediting `realized_pnl` on top double-counts it.
+
+What actually moves when proceeds are routed:
+- **Bank leg:** `savings_shares` falls by `qty × current_price`; the bank balance rises by the allocated amount, which `resolveOpeningBalance` feeds into `remaining_amount` for the active budget month. Net worth moves by exactly `(sell_price − last_fetched_price) × qty − charges` — the real delta, usually small.
+- **SIP leg:** `savings_shares` falls, `savings_sip` rises by the same rupees. Net worth is flat. Correct — a reallocation, not income.
+
+**Proceeds must never be routed through `salary` or `interest_income`.** That corrupts income analytics, and `remaining_amount` would count the proceeds twice once the wealth snapshot drops. `bank_accounts.current_balance` is the only correct lever.
+
+Allocations must sum exactly to net proceeds (enforced in `StockSaleSchema` and in the modal's Save gate). An undershoot silently deletes net worth; an overshoot invents it.
+
+**NAV guard:** routing into a SIP fund with null/zero `current_nav` computes `units = amount / 0 → Infinity`, which permanently poisons `sip_funds.units` and every portfolio total downstream. `POST /api/stocks/sell` rejects the whole sale with a 400 before any mutation.
+
+Code location: `src/app/api/stocks/sell/route.ts`, `src/lib/schemas/stock-sale.ts`
+
 ## Auto-Sync Guard (CRITICAL)
 The GET API for `monthly-summary` auto-recalculates values IF the data is stale compared to the previous month.
 
@@ -137,5 +154,7 @@ cascadeUpdateFutureMonths(..., { remaining_amount: updatedSummary, ... }); // ob
 - Treat `updateMonthlyExpenseTotal()` return value as a plain number — it returns the full row
 - Use UTC `toISOString()` for expense dates in UI — always use local date or viewed-month date
 - DELETE from `monthly_summary` — update in place
+- Add a stock sale's `realized_pnl` to net worth, or route proceeds via `salary`/`interest_income`
+- Run `syncMonthlyWealthSnapshot` and `resyncCurrentMonthCascade` in parallel — sequential only, snapshot first
 - String-concatenate SQL/Supabase queries — always use parameterized/chained filters
 - Store amounts in lakhs — always full rupees

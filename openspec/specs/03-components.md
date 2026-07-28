@@ -68,13 +68,18 @@ const netWorth = monthlySummary.remaining_amount
 
 **Add Fund**: `AddFundModal` component (inline in SIPTracker.tsx) — manually add a fund without Excel import. Fields: `fund_name`, `fund_type` (active/historical), `sip_amount`, `units`, `invested_value`, `current_nav?`, `scheme_code?`, `folio_number?`. POSTs to `POST /api/sip/funds`.
 
-### StockTracker.tsx (~700 lines)
-**Purpose:** Direct equity holdings — add/edit stocks, view live prices  
+### StockTracker.tsx (~1500 lines)
+**Purpose:** Direct equity holdings — add/edit/sell stocks, view live prices, realized gains  
 **Data sources:**
 - `GET /api/stocks`
 - `POST /api/stocks/refresh-prices` — Yahoo Finance proxy
+- `GET /api/stocks/sell` — sale history + active budget month
 
 **Key behaviour:** On mount, fetches live prices if any holding's `last_updated` is not today. Updates current_price and syncs to `monthly_summary.savings_shares` for CURRENT month only.
+
+**SellStockModal** (per-holding "Sell" button): quantity (capped at shares held), sell price, sell date (defaults to today), charges. Live readout of Gross → Charges → Net proceeds and Realized P&L against avg buy price, with an explicit note that realized P&L is reporting-only and not added to net worth. Repeatable allocation rows pick from every bank account and every SIP fund; SIP options show their NAV and are **disabled** when NAV is missing ("refresh NAV first"). A running "Unallocated: ₹X" line keeps Save disabled until it reaches 0, and a "Sell all → …" preset dumps the full net proceeds into one destination. Warns inline when `sell_date` falls outside the active budget month, since closed months keep their frozen snapshot.
+
+**RealizedGainsPanel** (below the holdings list): per-sale realized P&L with the destinations each sale was routed to, plus FY-wise totals (Apr–Mar, labelled by start year). Undo button per row calls `DELETE /api/stocks/sell/[id]`.
 
 ### ExpenseList.tsx (~600 lines)
 **Purpose:** Paginated expense table with add/edit/delete/copy  

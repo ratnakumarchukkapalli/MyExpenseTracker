@@ -1,4 +1,5 @@
 import { requireAuth, requireAuthFast } from "@/lib/auth-guard";
+import { recordSipTransaction } from "@/lib/sip-transactions";
 import { NextRequest, after } from "next/server";
 
 // GET /api/sip/transactions?fundId=123
@@ -30,41 +31,18 @@ export async function POST(request: NextRequest) {
     return Response.json({ error: "fundId, date, amount, nav, units required" }, { status: 400 });
   }
 
-  // Insert transaction AND fetch fund totals in parallel
-  const [txnResult, fundResult] = await Promise.all([
-    supabase
-      .from("sip_transactions")
-      .insert({
-        user_id:          user.id,
-        fund_id:          body.fundId,
-        transaction_date: body.date,
-        units:            body.units,
-        purchase_nav:     body.nav,
-        amount:           body.amount,
-        transaction_type: body.type ?? "SIP",
-      })
-      .select()
-      .single(),
-    supabase
-      .from("sip_funds")
-      .select("units, invested_value")
-      .eq("user_id", user.id)
-      .eq("id", body.fundId)
-      .single(),
-  ]);
-
-  if (txnResult.error) return Response.json({ error: txnResult.error.message }, { status: 500 });
-
-  // Update fund totals with fetched values
-  if (fundResult.data) {
-    await supabase
-      .from("sip_funds")
-      .update({
-        units:          (fundResult.data.units ?? 0) + body.units,
-        invested_value: (fundResult.data.invested_value ?? 0) + body.amount,
-      })
-      .eq("user_id", user.id)
-      .eq("id", body.fundId);
+  let txnId: number;
+  try {
+    txnId = await recordSipTransaction(supabase, user.id, {
+      fundId: body.fundId,
+      date:   body.date,
+      units:  body.units,
+      nav:    body.nav,
+      amount: body.amount,
+      type:   body.type,
+    });
+  } catch (err) {
+    return Response.json({ error: (err as Error).message }, { status: 500 });
   }
 
   // Chain Reaction: Sync wealth snapshot for the month of the transaction
@@ -77,5 +55,5 @@ export async function POST(request: NextRequest) {
     await syncMonthlyWealthSnapshot(supabase, user.id, m, y);
   });
 
-  return Response.json({ id: txnResult.data.id }, { status: 201 });
+  return Response.json({ id: txnId }, { status: 201 });
 }

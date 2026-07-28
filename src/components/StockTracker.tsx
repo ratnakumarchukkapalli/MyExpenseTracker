@@ -7,7 +7,7 @@ import {
 } from 'recharts';
 import {
   TrendingUp, TrendingDown, Plus, Trash2, X, Edit2, Check,
-  RefreshCw, AlertCircle, CheckCircle, BarChart2,
+  RefreshCw, AlertCircle, CheckCircle, BarChart2, Undo2, IndianRupee,
 } from 'lucide-react';
 import { formatCurrency } from '@/lib/formatters';
 import { computeDelta, fetchWealthDeltas, type WealthDeltasResponse } from '@/lib/wealth-delta';
@@ -531,19 +531,462 @@ const PriceEditor = ({ holding, onPriceUpdate, currentMonth, currentYear, isCurr
   );
 };
 
+// ── Sell Stock Modal ────────────────────────────────────────────────────────
+
+interface BankOption { id: number; name: string; }
+interface FundOption { id: number; fund_name: string; current_nav: number | null; }
+
+interface AllocationRow { key: number; target: string; amount: string; }
+
+interface SellStockModalProps {
+  holding: StockHolding;
+  onClose: () => void;
+  onSold: () => void;
+}
+
+// Net proceeds are matched to allocations at paise precision; anything inside
+// half a paisa is float noise, not a real shortfall.
+const ALLOC_EPSILON = 0.005;
+
+const SellStockModal = ({ holding, onClose, onSold }: SellStockModalProps) => {
+  const [qty, setQty] = useState(String(holding.shares));
+  const [price, setPrice] = useState(holding.current_price?.toFixed(2) ?? '');
+  const [sellDate, setSellDate] = useState(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  });
+  const [charges, setCharges] = useState('');
+  const [broker, setBroker] = useState('');
+  const [notes, setNotes] = useState('');
+  const [rows, setRows] = useState<AllocationRow[]>([{ key: 1, target: '', amount: '' }]);
+  const [banks, setBanks] = useState<BankOption[]>([]);
+  const [funds, setFunds] = useState<FundOption[]>([]);
+  const [activeMonth, setActiveMonth] = useState<{ month: number; year: number } | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+  const nextKey = useRef(2);
+
+  useEffect(() => {
+    Promise.all([
+      fetch('/api/bank-accounts').then(r => r.ok ? r.json() : []),
+      fetch('/api/sip/funds').then(r => r.ok ? r.json() : []),
+      fetch('/api/stocks/sell').then(r => r.ok ? r.json() : null),
+    ]).then(([b, f, s]) => {
+      setBanks(Array.isArray(b) ? b : []);
+      setFunds(Array.isArray(f) ? f : []);
+      if (s?.active_month) setActiveMonth(s.active_month);
+    }).catch(() => {});
+  }, []);
+
+  const qtyNum     = parseFloat(qty) || 0;
+  const priceNum   = parseFloat(price) || 0;
+  const chargesNum = parseFloat(charges) || 0;
+  const gross      = qtyNum * priceNum;
+  const net        = gross - chargesNum;
+  const realized   = (priceNum - holding.buy_price) * qtyNum - chargesNum;
+  const allocated  = rows.reduce((s, r) => s + (parseFloat(r.amount) || 0), 0);
+  const unallocated = net - allocated;
+
+  const fundsWithNav = funds.filter(f => f.current_nav != null && f.current_nav > 0);
+  const targetLabel = (target: string) => {
+    const [kind, rawId] = target.split(':');
+    const id = Number(rawId);
+    return kind === 'bank'
+      ? banks.find(b => b.id === id)?.name ?? ''
+      : funds.find(f => f.id === id)?.fund_name ?? '';
+  };
+
+  const saleMonth = Number(sellDate.split('-')[1]);
+  const saleYear  = Number(sellDate.split('-')[0]);
+  const monthMismatch = activeMonth != null && sellDate.length === 10 &&
+    (saleMonth !== activeMonth.month || saleYear !== activeMonth.year);
+
+  const canSave =
+    qtyNum > 0 && qtyNum <= holding.shares &&
+    priceNum > 0 && net > 0 &&
+    rows.every(r => r.target && (parseFloat(r.amount) || 0) > 0) &&
+    Math.abs(unallocated) < ALLOC_EPSILON;
+
+  const updateRow = (key: number, patch: Partial<AllocationRow>) =>
+    setRows(rs => rs.map(r => (r.key === key ? { ...r, ...patch } : r)));
+
+  const sellAllInto = (target: string) => {
+    if (!target) return;
+    setRows([{ key: nextKey.current++, target, amount: net.toFixed(2) }]);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setSaving(true);
+    try {
+      const allocations = rows.map(r => {
+        const [kind, rawId] = r.target.split(':');
+        const amount = parseFloat(r.amount);
+        return kind === 'bank'
+          ? { destination: 'bank' as const, bank_account_id: Number(rawId), amount }
+          : { destination: 'sip'  as const, sip_fund_id:     Number(rawId), amount };
+      });
+      const res = await fetch('/api/stocks/sell', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          holding_id:  holding.id,
+          shares_sold: qtyNum,
+          sell_price:  priceNum,
+          sell_date:   sellDate,
+          charges:     chargesNum,
+          broker:      broker.trim() || null,
+          notes:       notes.trim() || null,
+          allocations,
+        }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(typeof data.error === 'string' ? data.error : `HTTP ${res.status}`);
+      }
+      onSold();
+      onClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const inputCls = "w-full px-3 py-2 text-sm rounded-xl border border-gray-200 dark:border-surface-700 bg-white dark:bg-surface-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none";
+  const labelCls = "block text-xs font-medium mb-1";
+
+  return (
+    <div className="fixed inset-0 z-[600] flex items-center justify-center p-4 animate-in fade-in duration-200">
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-3xl border shadow-2xl" style={{ background: 'var(--pane)', borderColor: 'var(--hairline)' }}>
+        <div className="flex items-center justify-between p-5 border-b" style={{ borderColor: 'var(--hairline)' }}>
+          <div>
+            <h2 className="text-lg font-bold" style={{ color: 'var(--ink)' }}>
+              Sell {holding.ticker}
+            </h2>
+            <p className="text-xs mt-0.5" style={{ color: 'var(--ink-muted)' }}>
+              {holding.company_name} · {holding.shares} shares held · avg buy ₹{holding.buy_price.toFixed(2)}
+              {holding.current_price != null && ` · last ₹${holding.current_price.toFixed(2)}`}
+            </p>
+          </div>
+          <button onClick={onClose} className="p-2 rounded-xl text-gray-400 hover:bg-gray-100 dark:hover:bg-surface-700 transition-all">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="p-5 space-y-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div>
+              <label className={labelCls} style={{ color: 'var(--ink-soft)' }}>Quantity *</label>
+              <input type="number" value={qty} onChange={e => setQty(e.target.value)}
+                min="0" max={holding.shares} step="any" className={inputCls} required />
+            </div>
+            <div>
+              <label className={labelCls} style={{ color: 'var(--ink-soft)' }}>Sell price *</label>
+              <input type="number" value={price} onChange={e => setPrice(e.target.value)}
+                min="0" step="any" className={inputCls} required />
+            </div>
+            <div>
+              <label className={labelCls} style={{ color: 'var(--ink-soft)' }}>Sell date *</label>
+              <input type="date" value={sellDate} onChange={e => setSellDate(e.target.value)}
+                className={inputCls} required />
+            </div>
+            <div>
+              <label className={labelCls} style={{ color: 'var(--ink-soft)' }}>Charges</label>
+              <input type="number" value={charges} onChange={e => setCharges(e.target.value)}
+                min="0" step="any" placeholder="0.00" className={inputCls} />
+            </div>
+          </div>
+
+          {qtyNum > holding.shares && (
+            <p className="text-xs text-red-600 dark:text-red-400">
+              Only {holding.shares} shares held.
+            </p>
+          )}
+
+          {monthMismatch && (
+            <div className="flex items-start gap-2 px-3 py-2 rounded-xl text-xs bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400">
+              <AlertCircle className="h-3.5 w-3.5 flex-shrink-0 mt-0.5" />
+              <span>
+                This sale is dated outside the active budget month
+                ({new Date(activeMonth!.year, activeMonth!.month - 1).toLocaleString('default', { month: 'long', year: 'numeric' })}).
+                Closed months keep their frozen portfolio snapshot, so that month&apos;s figures won&apos;t move — only the
+                active month and later will reflect it.
+              </span>
+            </div>
+          )}
+
+          {/* Live readout */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 p-4 rounded-2xl" style={{ background: 'var(--accent-bg)' }}>
+            <div>
+              <p className="text-xs" style={{ color: 'var(--ink-muted)' }}>Gross</p>
+              <p className="text-sm font-semibold num" style={{ color: 'var(--ink)' }}>{formatCurrency(gross)}</p>
+            </div>
+            <div>
+              <p className="text-xs" style={{ color: 'var(--ink-muted)' }}>Charges</p>
+              <p className="text-sm font-semibold num" style={{ color: 'var(--ink)' }}>−{formatCurrency(chargesNum)}</p>
+            </div>
+            <div>
+              <p className="text-xs" style={{ color: 'var(--ink-muted)' }}>Net proceeds</p>
+              <p className="text-sm font-bold num" style={{ color: 'var(--ink)' }}>{formatCurrency(net)}</p>
+            </div>
+            <div>
+              <p className="text-xs" style={{ color: 'var(--ink-muted)' }}>Realized P&amp;L</p>
+              <p className={`text-sm font-bold num ${gainClass(realized)}`}>
+                {realized >= 0 ? '+' : '−'}{formatCurrency(Math.abs(realized))}
+              </p>
+            </div>
+          </div>
+          <p className="text-xs" style={{ color: 'var(--ink-faint)' }}>
+            Realized P&amp;L is recorded for tax reporting only — it is not added to net worth, because it was
+            already counted there as unrealized gain.
+          </p>
+
+          {/* Allocations */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--ink-soft)' }}>
+                Route proceeds to
+              </label>
+              <div className="flex items-center gap-2">
+                <select
+                  value=""
+                  onChange={e => sellAllInto(e.target.value)}
+                  disabled={net <= 0}
+                  className="px-2 py-1 text-xs rounded-lg border border-gray-200 dark:border-surface-700 bg-white dark:bg-surface-800 text-gray-600 dark:text-gray-400 outline-none disabled:opacity-50"
+                >
+                  <option value="">Sell all → …</option>
+                  {banks.map(b => <option key={`b${b.id}`} value={`bank:${b.id}`}>{b.name}</option>)}
+                  {fundsWithNav.map(f => <option key={`f${f.id}`} value={`sip:${f.id}`}>{f.fund_name}</option>)}
+                </select>
+                <button type="button"
+                  onClick={() => setRows(rs => [...rs, { key: nextKey.current++, target: '', amount: '' }])}
+                  className="flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-lg text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-all">
+                  <Plus className="h-3 w-3" /> Add destination
+                </button>
+              </div>
+            </div>
+
+            {rows.map(row => (
+              <div key={row.key} className="flex items-center gap-2">
+                <select
+                  value={row.target}
+                  onChange={e => updateRow(row.key, { target: e.target.value })}
+                  className={`${inputCls} flex-1`}
+                >
+                  <option value="">Select destination…</option>
+                  <optgroup label="Bank accounts">
+                    {banks.map(b => <option key={`b${b.id}`} value={`bank:${b.id}`}>{b.name}</option>)}
+                  </optgroup>
+                  <optgroup label="SIP funds">
+                    {funds.map(f => (
+                      <option key={`f${f.id}`} value={`sip:${f.id}`}
+                        disabled={f.current_nav == null || f.current_nav <= 0}>
+                        {f.fund_name}
+                        {f.current_nav != null && f.current_nav > 0
+                          ? ` · NAV ₹${Number(f.current_nav).toFixed(2)}`
+                          : ' · refresh NAV first'}
+                      </option>
+                    ))}
+                  </optgroup>
+                </select>
+                <input
+                  type="number" value={row.amount} min="0" step="any" placeholder="Amount"
+                  onChange={e => updateRow(row.key, { amount: e.target.value })}
+                  className={`${inputCls} w-36`}
+                />
+                <button type="button"
+                  onClick={() => setRows(rs => rs.length > 1 ? rs.filter(r => r.key !== row.key) : rs)}
+                  disabled={rows.length === 1}
+                  className="p-2 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all disabled:opacity-30">
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            ))}
+
+            <div className={`flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium ${
+              Math.abs(unallocated) < ALLOC_EPSILON
+                ? 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400'
+                : 'bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400'
+            }`}>
+              <span>{Math.abs(unallocated) < ALLOC_EPSILON ? 'Fully allocated' : 'Unallocated'}</span>
+              <span className="num font-bold">
+                {Math.abs(unallocated) < ALLOC_EPSILON
+                  ? formatCurrency(0)
+                  : `${unallocated > 0 ? '' : '−'}${formatCurrency(Math.abs(unallocated))}`}
+              </span>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className={labelCls} style={{ color: 'var(--ink-soft)' }}>Broker</label>
+              <input type="text" value={broker} onChange={e => setBroker(e.target.value)}
+                placeholder="Groww" maxLength={100} className={inputCls} />
+            </div>
+            <div>
+              <label className={labelCls} style={{ color: 'var(--ink-soft)' }}>Notes</label>
+              <input type="text" value={notes} onChange={e => setNotes(e.target.value)}
+                maxLength={500} className={inputCls} />
+            </div>
+          </div>
+
+          {error && (
+            <div className="flex items-center gap-2 p-3 rounded-xl text-sm bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400">
+              <AlertCircle className="h-4 w-4 flex-shrink-0" />
+              {error}
+            </div>
+          )}
+
+          <div className="flex gap-3 pt-1">
+            <button type="button" onClick={onClose}
+              className="flex-1 py-3 rounded-2xl border font-semibold text-sm transition-all"
+              style={{ borderColor: 'var(--hairline)', color: 'var(--ink-soft)' }}>
+              Cancel
+            </button>
+            <button type="submit" disabled={!canSave || saving}
+              className="flex-1 py-3 rounded-2xl bg-primary-600 text-white font-bold text-sm shadow-xl shadow-primary-600/20 hover:bg-primary-700 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98]">
+              {saving ? 'Selling…' : 'Confirm sale'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
+// ── Realized Gains Panel ────────────────────────────────────────────────────
+
+interface SaleAllocation {
+  id: number;
+  destination: 'bank' | 'sip';
+  amount: number;
+  label: string;
+}
+
+interface StockSale {
+  id: number;
+  ticker: string;
+  company_name: string | null;
+  shares_sold: number;
+  sell_price: number;
+  sell_date: string;
+  avg_buy_price: number;
+  gross_proceeds: number;
+  charges: number;
+  net_proceeds: number;
+  realized_pnl: number;
+  broker: string | null;
+  allocations: SaleAllocation[];
+}
+
+// Indian financial year: Apr 1 – Mar 31, labelled by its start year (FY2026-27).
+const financialYear = (isoDate: string) => {
+  const [y, m] = isoDate.split('-').map(Number);
+  const startYear = m >= 4 ? y : y - 1;
+  return `FY${startYear}-${String((startYear + 1) % 100).padStart(2, '0')}`;
+};
+
+const RealizedGainsPanel = ({ sales, onUndo }: { sales: StockSale[]; onUndo: (id: number) => void }) => {
+  if (sales.length === 0) return null;
+
+  const byFY = new Map<string, number>();
+  for (const s of sales) {
+    const fy = financialYear(s.sell_date);
+    byFY.set(fy, (byFY.get(fy) ?? 0) + Number(s.realized_pnl));
+  }
+  const fyRows = [...byFY.entries()].sort((a, b) => b[0].localeCompare(a[0]));
+
+  return (
+    <div className="rounded-2xl border shadow-sm overflow-hidden" style={{ background: 'var(--pane)', borderColor: 'var(--hairline)' }}>
+      <div className="flex items-center justify-between p-5 pb-3">
+        <div>
+          <h2 className="text-sm font-semibold" style={{ color: 'var(--ink)' }}>Realized Gains</h2>
+          <p className="text-xs mt-0.5" style={{ color: 'var(--ink-muted)' }}>
+            Booked P&amp;L on sold shares · reporting only, not counted in net worth
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2 justify-end">
+          {fyRows.map(([fy, total]) => (
+            <div key={fy} className="px-3 py-1.5 rounded-xl text-right" style={{ background: total >= 0 ? 'var(--pos-bg)' : 'var(--neg-bg)' }}>
+              <p className="text-[10px] font-medium uppercase tracking-wide" style={{ color: 'var(--ink-muted)' }}>{fy}</p>
+              <p className={`text-sm font-bold num ${gainClass(total)}`}>
+                {total >= 0 ? '+' : '−'}{formatCurrency(Math.abs(total))}
+              </p>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="overflow-x-auto">
+        <table className="w-full text-xs">
+          <thead>
+            <tr style={{ color: 'var(--ink-muted)' }}>
+              <th className="text-left font-medium px-5 py-2">Stock</th>
+              <th className="text-right font-medium px-3 py-2">Qty</th>
+              <th className="text-right font-medium px-3 py-2">Buy → Sell</th>
+              <th className="text-right font-medium px-3 py-2">Net proceeds</th>
+              <th className="text-right font-medium px-3 py-2">Realized P&amp;L</th>
+              <th className="text-left font-medium px-3 py-2">Routed to</th>
+              <th className="px-3 py-2" />
+            </tr>
+          </thead>
+          <tbody>
+            {sales.map(s => (
+              <tr key={s.id} className="border-t" style={{ borderColor: 'var(--hairline)' }}>
+                <td className="px-5 py-3">
+                  <span className="font-semibold" style={{ color: 'var(--ink)' }}>{s.ticker}</span>
+                  <span className="block" style={{ color: 'var(--ink-faint)' }}>{s.sell_date}</span>
+                </td>
+                <td className="px-3 py-3 text-right num" style={{ color: 'var(--ink-soft)' }}>{s.shares_sold}</td>
+                <td className="px-3 py-3 text-right num" style={{ color: 'var(--ink-soft)' }}>
+                  ₹{Number(s.avg_buy_price).toFixed(2)} → ₹{Number(s.sell_price).toFixed(2)}
+                </td>
+                <td className="px-3 py-3 text-right num font-medium" style={{ color: 'var(--ink)' }}>
+                  {formatCurrency(Number(s.net_proceeds))}
+                </td>
+                <td className={`px-3 py-3 text-right num font-bold ${gainClass(Number(s.realized_pnl))}`}>
+                  {Number(s.realized_pnl) >= 0 ? '+' : '−'}{formatCurrency(Math.abs(Number(s.realized_pnl)))}
+                </td>
+                <td className="px-3 py-3" style={{ color: 'var(--ink-soft)' }}>
+                  {s.allocations.map(a => (
+                    <span key={a.id} className="block whitespace-nowrap">
+                      {a.label} · <span className="num">{formatCurrency(Number(a.amount))}</span>
+                    </span>
+                  ))}
+                </td>
+                <td className="px-3 py-3 text-right">
+                  <button onClick={() => onUndo(s.id)}
+                    className="p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all"
+                    title="Undo this sale">
+                    <Undo2 className="h-3.5 w-3.5" />
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+};
+
 // ── Stock Card ──────────────────────────────────────────────────────────────
 
 interface StockCardProps {
   holding: StockHolding;
   onDelete: (id: number) => void;
   onEdit: (h: StockHolding) => void;
+  onSell: (h: StockHolding) => void;
   onPriceUpdate: () => void;
   currentMonth: number;
   currentYear: number;
   isCurrentMonth: boolean;
 }
 
-const StockCard = ({ holding, onDelete, onEdit, onPriceUpdate, currentMonth, currentYear, isCurrentMonth }: StockCardProps) => {
+const StockCard = ({ holding, onDelete, onEdit, onSell, onPriceUpdate, currentMonth, currentYear, isCurrentMonth }: StockCardProps) => {
   const invested = holding.shares * holding.buy_price;
   const currentValue = holding.current_price != null ? holding.shares * holding.current_price : null;
   const gainAmt = currentValue != null ? currentValue - invested : null;
@@ -589,6 +1032,13 @@ const StockCard = ({ holding, onDelete, onEdit, onPriceUpdate, currentMonth, cur
             </p>
           </div>
           <div className="flex items-center gap-1 flex-shrink-0">
+            <button onClick={() => onSell(holding)}
+              className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold rounded-lg border transition-all"
+              style={{ borderColor: 'var(--hairline)', color: 'var(--ink-soft)' }}
+              title="Sell shares and route the proceeds">
+              <IndianRupee className="h-3 w-3" />
+              Sell
+            </button>
             <button onClick={() => onEdit(holding)}
               className="p-1.5 rounded-lg text-gray-400 hover:text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-all"
               title="Edit holding">
@@ -712,6 +1162,8 @@ const StockTracker = ({ currentMonth = new Date().getMonth() + 1, currentYear = 
   const [error, setError] = useState<string | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingHolding, setEditingHolding] = useState<StockHolding | null>(null);
+  const [sellingHolding, setSellingHolding] = useState<StockHolding | null>(null);
+  const [sales, setSales] = useState<StockSale[]>([]);
   const [showChart, setShowChart] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [refreshStatus, setRefreshStatus] = useState<{
@@ -741,9 +1193,21 @@ const StockTracker = ({ currentMonth = new Date().getMonth() + 1, currentYear = 
     }
   }, []);
 
+  const loadSales = useCallback(async () => {
+    try {
+      const res = await fetch('/api/stocks/sell');
+      if (!res.ok) return;
+      const data = await res.json();
+      setSales(Array.isArray(data?.sales) ? data.sales : []);
+    } catch {
+      // Sale history is supplementary — a failure here must not blank the page.
+    }
+  }, []);
+
   useEffect(() => {
     loadHoldings();
-  }, [loadHoldings]);
+    loadSales();
+  }, [loadHoldings, loadSales]);
 
   useEffect(() => {
     fetchWealthDeltas(currentMonth, currentYear).then(setWealthDeltas);
@@ -772,6 +1236,27 @@ const StockTracker = ({ currentMonth = new Date().getMonth() + 1, currentYear = 
       loadHoldings();
     } catch (err) {
       console.error('Delete failed:', err);
+    }
+  };
+
+  const handleSold = () => {
+    loadHoldings();
+    loadSales();
+    onPortfolioUpdate?.();
+  };
+
+  const handleUndoSale = async (saleId: number) => {
+    if (!window.confirm('Undo this sale? Shares are restored and the proceeds are pulled back out of every destination.')) return;
+    try {
+      const res = await fetch(`/api/stocks/sell/${saleId}`, { method: 'DELETE' });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(typeof data.error === 'string' ? data.error : `HTTP ${res.status}`);
+      }
+      handleSold();
+    } catch (err) {
+      console.error('Undo failed:', err);
+      setError(err instanceof Error ? err.message : String(err));
     }
   };
 
@@ -1116,6 +1601,7 @@ const StockTracker = ({ currentMonth = new Date().getMonth() + 1, currentYear = 
               holding={h}
               onDelete={handleDelete}
               onEdit={setEditingHolding}
+              onSell={setSellingHolding}
               onPriceUpdate={() => { loadHoldings(); onPortfolioUpdate?.(); }}
               currentMonth={currentMonth}
               currentYear={currentYear}
@@ -1124,6 +1610,8 @@ const StockTracker = ({ currentMonth = new Date().getMonth() + 1, currentYear = 
           ))}
         </div>
       )}
+
+      <RealizedGainsPanel sales={sales} onUndo={handleUndoSale} />
 
       {/* Modals */}
       {showAddModal && (
@@ -1141,6 +1629,13 @@ const StockTracker = ({ currentMonth = new Date().getMonth() + 1, currentYear = 
           onSave={loadHoldings}
           currentMonth={currentMonth}
           currentYear={currentYear}
+        />
+      )}
+      {sellingHolding && (
+        <SellStockModal
+          holding={sellingHolding}
+          onClose={() => setSellingHolding(null)}
+          onSold={handleSold}
         />
       )}
     </div>
