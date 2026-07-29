@@ -316,24 +316,36 @@ function Dashboard({ expenses, subscriptions, monthlySummary, currentMonth, curr
     fetchWealthDeltas(currentMonth, currentYear).then(setWealthDeltas);
   }, [currentMonth, currentYear]);
 
+  // The yearly series feeds the net-worth MoM chip, so its live-month entry has to
+  // be built from exactly the same inputs as the headline figure — live bank total
+  // for cash, live portfolio for SIP/stocks — and applied to the ACTIVE BUDGET
+  // month, not the calendar month.
+  //
+  // Keyed off the calendar month it produced a MoM that looked plausible while
+  // both operands were wrong: on 29 Jul 2026 it stamped August's live portfolio
+  // onto July's row (erasing a holding July still owned at close) and compared it
+  // against an August row carrying ledger `cash`, which excludes proceeds already
+  // sitting in the bank. The two errors nearly cancelled — +1,15,446 against a
+  // true +1,13,129 — which is exactly why it went unnoticed.
   const yearlySavings = useMemo(() => {
-    const now = new Date();
-    const isThisYear = currentYear === now.getFullYear();
-    const thisMonth = now.getMonth() + 1;
+    const liveMonth = activeBudgetMonth ?? {
+      month: new Date().getMonth() + 1,
+      year: new Date().getFullYear(),
+    };
+    if (currentYear !== liveMonth.year) return rawYearlyRows;
+
+    const accounts = bankAccounts ?? [];
+    const liveBankTotal = accounts.reduce((sum, a) => sum + Number(a.current_balance || 0), 0);
 
     return rawYearlyRows.map(row => {
-      if (isThisYear && row.month === thisMonth && liveWealth) {
-        return {
-          ...row,
-          sip: liveWealth.sip,
-          shares: liveWealth.stocks,
-          // Recalculate savings for current month based on live portfolio?
-          // Actually, 'savings' in the row might be different, but for net worth charts we care about components.
-        };
-      }
-      return row;
+      if (row.month !== liveMonth.month) return row;
+      return {
+        ...row,
+        ...(liveWealth ? { sip: liveWealth.sip, shares: liveWealth.stocks } : {}),
+        ...(accounts.length > 0 ? { cash: liveBankTotal } : {}),
+      };
     });
-  }, [rawYearlyRows, liveWealth, currentYear]);
+  }, [rawYearlyRows, liveWealth, currentYear, activeBudgetMonth, bankAccounts]);
 
   const yearlyNetWorth = useMemo(() => {
     const now = new Date();
