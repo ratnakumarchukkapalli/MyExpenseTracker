@@ -940,9 +940,10 @@ interface SIPTrackerProps {
   currentYear?: number;
   onPortfolioUpdate?: () => void;
   frozenSip?: number;
+  activeBudgetMonth?: { month: number; year: number } | null;
 }
 
-const SIPTracker = ({ currentMonth, currentYear, onPortfolioUpdate, frozenSip }: SIPTrackerProps) => {
+const SIPTracker = ({ currentMonth, currentYear, onPortfolioUpdate, frozenSip, activeBudgetMonth }: SIPTrackerProps) => {
   const [funds, setFunds] = useState<SipFund[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -960,7 +961,12 @@ const SIPTracker = ({ currentMonth, currentYear, onPortfolioUpdate, frozenSip }:
   const holdingsFileRef = useRef<HTMLInputElement>(null);
   const capitalGainsFileRef = useRef<HTMLInputElement>(null);
 
-  const isCurrentMonth = currentMonth === new Date().getMonth() + 1 && currentYear === new Date().getFullYear();
+  // "The month that owns live values" — the active budget month, matching Dashboard
+  // and StockTracker. NOT the calendar month; the two diverge for the last week of
+  // every month under the 25th-salary workflow.
+  const isCurrentMonth = activeBudgetMonth
+    ? currentMonth === activeBudgetMonth.month && currentYear === activeBudgetMonth.year
+    : currentMonth === new Date().getMonth() + 1 && currentYear === new Date().getFullYear();
 
   const loadFunds = useCallback(async () => {
     setLoading(true);
