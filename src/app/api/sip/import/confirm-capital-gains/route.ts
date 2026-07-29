@@ -101,12 +101,11 @@ export async function POST(request: NextRequest) {
     })
   );
 
-  const now = new Date();
-  const m = now.getMonth() + 1;
-  const y = now.getFullYear();
+  // Active budget month, not the calendar month — see POST /api/sip/funds.
   after(async () => {
-    const { syncMonthlyWealthSnapshot } = await import("@/lib/monthly-totals");
-    await syncMonthlyWealthSnapshot(supabase, user.id, m, y);
+    const { syncMonthlyWealthSnapshot, getActiveBudgetMonth } = await import("@/lib/monthly-totals");
+    const { month, year } = await getActiveBudgetMonth(supabase, user.id);
+    await syncMonthlyWealthSnapshot(supabase, user.id, month, year);
   });
 
   return Response.json({ saved: txnResults.filter(Boolean).length });

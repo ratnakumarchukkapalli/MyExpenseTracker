@@ -47,12 +47,13 @@ export async function POST(request: NextRequest) {
 
   if (dbError) return Response.json({ error: dbError.message }, { status: 500 });
 
-  const now = new Date();
-  const m = now.getMonth() + 1;
-  const y = now.getFullYear();
+  // Live portfolio values belong to the active budget month, never the calendar
+  // month — the two diverge for the last week of every month under the 25th-salary
+  // workflow, and syncing a closed month overwrites its frozen snapshot.
   after(async () => {
-    const { syncMonthlyWealthSnapshot } = await import("@/lib/monthly-totals");
-    await syncMonthlyWealthSnapshot(supabase, user.id, m, y);
+    const { syncMonthlyWealthSnapshot, getActiveBudgetMonth } = await import("@/lib/monthly-totals");
+    const { month, year } = await getActiveBudgetMonth(supabase, user.id);
+    await syncMonthlyWealthSnapshot(supabase, user.id, month, year);
   });
 
   return Response.json({ id: data.id }, { status: 201 });
