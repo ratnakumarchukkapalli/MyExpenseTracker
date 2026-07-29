@@ -1152,19 +1152,11 @@ interface StockTrackerProps {
   onPortfolioUpdate?: () => void;
   onPricesRefreshed?: () => void;
   frozenShares?: number;
-  activeBudgetMonth?: { month: number; year: number } | null;
 }
 
-const StockTracker = ({ currentMonth = new Date().getMonth() + 1, currentYear = new Date().getFullYear(), onPortfolioUpdate, onPricesRefreshed, frozenShares, activeBudgetMonth }: StockTrackerProps) => {
+const StockTracker = ({ currentMonth = new Date().getMonth() + 1, currentYear = new Date().getFullYear(), onPortfolioUpdate, onPricesRefreshed, frozenShares }: StockTrackerProps) => {
   const { chartColors } = useDarkMode();
-  // "The month that owns live values" — the active budget month, matching Dashboard.
-  // NOT the calendar month: the two diverge for the last week of every month under
-  // the 25th-salary workflow, and on 29 Jul 2026 that made closed July show the live
-  // post-sale total (1,99,960) while its own frozen snapshot — which still includes
-  // the Laurus Labs position July held at close — reads 3,78,553.80.
-  const isCurrentMonth = activeBudgetMonth
-    ? currentMonth === activeBudgetMonth.month && currentYear === activeBudgetMonth.year
-    : currentMonth === new Date().getMonth() + 1 && currentYear === new Date().getFullYear();
+  const isCurrentMonth = currentMonth === new Date().getMonth() + 1 && currentYear === new Date().getFullYear();
   const [holdings, setHoldings] = useState<StockHolding[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
