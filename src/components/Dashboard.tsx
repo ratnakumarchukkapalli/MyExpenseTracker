@@ -187,15 +187,19 @@ function Dashboard({ expenses, subscriptions, monthlySummary, currentMonth, curr
 
   useEffect(() => { setDashMounted(true); }, []);
 
-  // Load live portfolio — only after bootstrap delivers summary for the current month.
+  // Load live portfolio — only for the month that owns live values, i.e. the
+  // active budget month, matching the render gate below. Keyed off the calendar
+  // month this fetched live prices while viewing a month that had already closed.
   // Deps are primitive month/year (not the summary object) to avoid firing on every
   // bootstrap refresh of the same month.
   useEffect(() => {
     if (!monthlySummary) return;
-    const isCurrentMonth =
-      monthlySummary.month === new Date().getMonth() + 1 &&
-      monthlySummary.year === new Date().getFullYear();
-    if (!isCurrentMonth) return;
+    const isLiveMonth = activeBudgetMonth
+      ? monthlySummary.month === activeBudgetMonth.month &&
+        monthlySummary.year === activeBudgetMonth.year
+      : monthlySummary.month === new Date().getMonth() + 1 &&
+        monthlySummary.year === new Date().getFullYear();
+    if (!isLiveMonth) return;
 
     const loadLiveWealth = async () => {
       try {
@@ -244,7 +248,7 @@ function Dashboard({ expenses, subscriptions, monthlySummary, currentMonth, curr
 
     return () => clearInterval(interval);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [monthlySummary?.month, monthlySummary?.year]);
+  }, [monthlySummary?.month, monthlySummary?.year, activeBudgetMonth?.month, activeBudgetMonth?.year]);
 
   // Month-end snapshot: when viewing the previous calendar month within the first 3 days of the
   // new month (day 1 = ideal, 2-3 cover weekends/holidays), snapshot live SIP+Stocks into that
@@ -373,11 +377,21 @@ function Dashboard({ expenses, subscriptions, monthlySummary, currentMonth, curr
   const livePortfolio = liveWealth?.total ?? null;
   const dbPortfolio = currentSIP + currentShares;
 
-  // Use live values only for current month; past months use stored monthly snapshot
-  const isCurrentMonth = currentMonth === new Date().getMonth() + 1 && currentYear === new Date().getFullYear();
-  const portfolioTotal = (isCurrentMonth && livePortfolio !== null) ? livePortfolio : dbPortfolio;
-  const displaySIP = (isCurrentMonth && liveWealth) ? liveWealth.sip : currentSIP;
-  const displayShares = (isCurrentMonth && liveWealth) ? liveWealth.stocks : currentShares;
+  // Live portfolio belongs to exactly one month — the active budget month — the
+  // same month that owns the live bank total below. It was keyed off the CALENDAR
+  // month, which diverges from the budget month for the last week of every month
+  // under the 25th-salary workflow. On 29 Jul 2026 that made closed July render
+  // today's live portfolio: July had held Laurus Labs at its close, the position
+  // was sold on the 28th, and July's net worth read ~1.78L low against its own
+  // stored snapshot. A closed month must show what it closed on.
+  const isCalendarCurrentMonth =
+    currentMonth === new Date().getMonth() + 1 && currentYear === new Date().getFullYear();
+  const isActiveBudgetMonth = activeBudgetMonth
+    ? currentMonth === activeBudgetMonth.month && currentYear === activeBudgetMonth.year
+    : isCalendarCurrentMonth;
+  const portfolioTotal = (isActiveBudgetMonth && livePortfolio !== null) ? livePortfolio : dbPortfolio;
+  const displaySIP = (isActiveBudgetMonth && liveWealth) ? liveWealth.sip : currentSIP;
+  const displayShares = (isActiveBudgetMonth && liveWealth) ? liveWealth.stocks : currentShares;
 
   const sipMoM = computeDelta(displaySIP, wealthDeltas?.sip.prevMonth);
   const sipYoY = computeDelta(displaySIP, wealthDeltas?.sip.prevYear);
@@ -402,9 +416,8 @@ function Dashboard({ expenses, subscriptions, monthlySummary, currentMonth, curr
   // salary can land either side of the month boundary.
   const liveBankCashTotal = (bankAccounts ?? []).reduce((sum, a) => sum + Number(a.current_balance || 0), 0);
   const hasBankAccounts = (bankAccounts ?? []).length > 0;
-  const isActiveBudgetMonth = activeBudgetMonth
-    ? currentMonth === activeBudgetMonth.month && currentYear === activeBudgetMonth.year
-    : isCurrentMonth;
+  // isActiveBudgetMonth is defined once above, alongside the live-portfolio gate,
+  // so cash and portfolio can never disagree about which month is live.
   const currentCash = (isActiveBudgetMonth && hasBankAccounts) ? liveBankCashTotal : getCurrentRemaining(monthlySummary);
 
   // A closed month renders its own end-of-month split from bank_account_balances.
