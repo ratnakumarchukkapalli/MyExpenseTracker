@@ -349,6 +349,20 @@ export async function syncMonthlyWealthSnapshot(
   month: number,
   year: number
 ) {
+  // Choke point for the whole calendar-vs-budget-month bug class. This function
+  // stamps TODAY'S live portfolio into a month, so the only month it may ever
+  // write is the one that owns live values — the active budget month. Every
+  // other month holds a frozen snapshot that must not move.
+  //
+  // Enforced here rather than at each call site because eight separate callers
+  // got it wrong: three still pass a client-supplied month straight through
+  // (stocks POST/PUT/DELETE, sip transactions), so opening the Stocks tab while
+  // viewing a closed month silently overwrote that month's savings_sip and
+  // savings_shares — which is how July repeatedly lost the Laurus Labs position
+  // it held at close. A no-op is always the correct outcome for a closed month.
+  const active = await getActiveBudgetMonth(supabase, userId);
+  if (month !== active.month || year !== active.year) return;
+
   // 1. Fetch live totals
   const [sipResponse, stockResponse, summaryResponse] = await Promise.all([
     supabase.from("sip_funds").select("units, current_nav").eq("user_id", userId),
