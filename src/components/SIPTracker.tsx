@@ -69,19 +69,20 @@ const convertNavDate = (d: string) => {
   return d;
 };
 
+// Throws on failure rather than swallowing it — the caller needs to tell
+// "AMFI call failed" apart from "AMFI call succeeded, nothing new yet" so it
+// can surface the former instead of silently doing nothing every day.
 const fetchAmfiNavMap = async (schemeCodes: string[]) => {
-  try {
-    const res = await fetch('/api/sip/amfi-nav', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ schemeCodes }),
-    });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    return await res.json();
-  } catch (err) {
-    console.error('AMFI fetch error:', err);
-    return {};
+  const res = await fetch('/api/sip/amfi-nav', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ schemeCodes }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || `HTTP ${res.status}`);
   }
+  return await res.json();
 };
 
 const gainClass = (val: number) =>
@@ -977,6 +978,7 @@ const SIPTracker = ({ currentMonth, currentYear, onPortfolioUpdate, frozenSip }:
   const [editingFund, setEditingFund] = useState<SipFund | null>(null);
   const [importing, setImporting] = useState(false);
   const [autoRefreshing, setAutoRefreshing] = useState(false);
+  const [autoRefreshError, setAutoRefreshError] = useState<string | null>(null);
   const [wealthDeltas, setWealthDeltas] = useState<WealthDeltasResponse | null>(null);
   const fundsRef = useRef<SipFund[]>(funds);
   useEffect(() => { fundsRef.current = funds; }, [funds]);
@@ -1017,6 +1019,7 @@ const SIPTracker = ({ currentMonth, currentYear, onPortfolioUpdate, frozenSip }:
     if (codes.length === 0) return;
 
     setAutoRefreshing(true);
+    setAutoRefreshError(null);
     try {
       const navMap = await fetchAmfiNavMap(codes);
       const updates = [];
@@ -1075,7 +1078,11 @@ const SIPTracker = ({ currentMonth, currentYear, onPortfolioUpdate, frozenSip }:
         localStorage.removeItem('lastSipRefreshDate');
       }
     } catch (e) {
-      console.error('Auto-refresh failed:', e);
+      const msg = e instanceof Error ? e.message : 'Unknown error';
+      console.error('Auto-refresh failed:', msg);
+      setAutoRefreshError(msg);
+      // Don't mark today "done" on a failed call — let the hourly retry try again.
+      localStorage.removeItem('lastSipRefreshDate');
     } finally {
       setAutoRefreshing(false);
     }
@@ -1329,6 +1336,15 @@ const SIPTracker = ({ currentMonth, currentYear, onPortfolioUpdate, frozenSip }:
         <div className="flex items-center gap-2 px-4 py-2 bg-primary-50 dark:bg-primary-950/30 border border-primary-100 dark:border-primary-900/30 rounded-xl text-primary-700 dark:text-primary-400 animate-pulse">
           <RefreshCw size={14} className="animate-spin" />
           <span className="text-xs font-medium">Auto-refreshing live NAV prices…</span>
+        </div>
+      )}
+
+      {!autoRefreshing && autoRefreshError && (
+        <div className="flex items-center gap-2 px-4 py-2 bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-900/30 rounded-xl text-red-700 dark:text-red-400">
+          <AlertCircle size={14} />
+          <span className="text-xs font-medium">
+            Live NAV auto-refresh failed: {autoRefreshError} — will retry automatically.
+          </span>
         </div>
       )}
 
