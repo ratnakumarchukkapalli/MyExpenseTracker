@@ -34,18 +34,14 @@ export async function PUT(
 
   if (dbError) return Response.json({ error: dbError.message }, { status: 500 });
 
-  // Chain Reaction: Sync wealth snapshot for the provided month/year
-  const { searchParams } = request.nextUrl;
-  const m = parseInt(searchParams.get("month") || "", 10);
-  const y = parseInt(searchParams.get("year") || "", 10);
-
-  if (m && y) {
-    const { after } = await import("next/server");
-    after(async () => {
-      const { syncMonthlyWealthSnapshot } = await import("@/lib/monthly-totals");
-      await syncMonthlyWealthSnapshot(supabase, user.id, m, y);
-    });
-  }
+  // Chain Reaction: sync live totals into the active budget month, not the
+  // browsed month/year query params — see POST /api/stocks.
+  const { after } = await import("next/server");
+  after(async () => {
+    const { syncMonthlyWealthSnapshot, getActiveBudgetMonth } = await import("@/lib/monthly-totals");
+    const { month, year } = await getActiveBudgetMonth(supabase, user.id);
+    await syncMonthlyWealthSnapshot(supabase, user.id, month, year);
+  });
 
   return Response.json({ success: true });
 }
@@ -70,18 +66,14 @@ export async function DELETE(
 
   if (dbError) return Response.json({ error: dbError.message }, { status: 500 });
 
-  // Chain Reaction: Sync wealth snapshot for the provided month/year
-  const { searchParams } = _request.nextUrl;
-  const m = parseInt(searchParams.get("month") || "", 10);
-  const y = parseInt(searchParams.get("year") || "", 10);
-
-  if (m && y) {
-    const { after } = await import("next/server");
-    after(async () => {
-      const { syncMonthlyWealthSnapshot } = await import("@/lib/monthly-totals");
-      await syncMonthlyWealthSnapshot(supabase, user.id, m, y);
-    });
-  }
+  // Chain Reaction: sync live totals into the active budget month, not the
+  // browsed month/year query params — see POST /api/stocks.
+  const { after } = await import("next/server");
+  after(async () => {
+    const { syncMonthlyWealthSnapshot, getActiveBudgetMonth } = await import("@/lib/monthly-totals");
+    const { month, year } = await getActiveBudgetMonth(supabase, user.id);
+    await syncMonthlyWealthSnapshot(supabase, user.id, month, year);
+  });
 
   return Response.json({ success: true });
 }
