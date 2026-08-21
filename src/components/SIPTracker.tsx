@@ -9,7 +9,7 @@ import {
 import {
   TrendingUp, RefreshCw, Plus, Trash2, X,
   Upload, ChevronDown, ChevronUp, Target, AlertCircle,
-  CheckCircle,
+  CheckCircle, Pencil,
 } from 'lucide-react';
 import { formatCurrency } from '@/lib/formatters';
 import { computeDelta, fetchWealthDeltas, type WealthDeltasResponse } from '@/lib/wealth-delta';
@@ -92,11 +92,12 @@ const gainClass = (val: number) =>
 interface FundCardProps {
   fund: SipFund;
   onDelete: (id: number) => void;
+  onEdit: (fund: SipFund) => void;
   onRefreshNav: () => void;
   isCurrentMonth: boolean;
 }
 
-const FundCard = ({ fund, onDelete, onRefreshNav, isCurrentMonth }: FundCardProps) => {
+const FundCard = ({ fund, onDelete, onEdit, onRefreshNav, isCurrentMonth }: FundCardProps) => {
   const { chartColors } = useDarkMode();
   const [expanded, setExpanded] = useState(false);
   const [transactions, setTransactions] = useState<SipTransaction[]>([]);
@@ -172,7 +173,7 @@ const FundCard = ({ fund, onDelete, onRefreshNav, isCurrentMonth }: FundCardProp
         });
         onRefreshNav();
       } else {
-        throw new Error('No NAV data found for this scheme code');
+        throw new Error('No NAV data found for this scheme code — it may be wrong or the scheme was retired/merged. Click the pencil icon to fix it.');
       }
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Unknown error';
@@ -219,6 +220,13 @@ const FundCard = ({ fund, onDelete, onRefreshNav, isCurrentMonth }: FundCardProp
                 <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? 'animate-spin' : ''}`} />
               </button>
             )}
+            <button
+              onClick={() => onEdit(fund)}
+              title="Edit fund details / fix scheme code"
+              className="p-1.5 rounded-lg text-gray-400 hover:text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-all"
+            >
+              <Pencil className="h-3.5 w-3.5" />
+            </button>
             <button
               onClick={() => onDelete(fund.id)}
               className="p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all"
@@ -290,6 +298,11 @@ const FundCard = ({ fund, onDelete, onRefreshNav, isCurrentMonth }: FundCardProp
                   </span>
                 )}
                 {' · Updated: '}{fund.last_nav_update || 'never'}
+              </span>
+            )}
+            {!fund.scheme_code && fund.fund_type === 'active' && (
+              <span className="text-amber-600 dark:text-amber-400 font-medium">
+                No AMFI code linked — value won&apos;t update. Click ✎ to link one.
               </span>
             )}
             {fund.sip_amount > 0 && (
@@ -834,10 +847,20 @@ const EMPTY_FUND_FORM = {
   folio_number: '', units: '', invested_value: '', current_nav: '', sip_amount: '',
 };
 
-function AddFundModal({ onSubmit, onCancel }: { onSubmit: (data: object) => Promise<void>; onCancel: () => void }) {
-  const [form, setForm] = useState(EMPTY_FUND_FORM);
+function AddFundModal({ fund, onSubmit, onCancel }: { fund?: SipFund; onSubmit: (data: object) => Promise<void>; onCancel: () => void }) {
+  const [form, setForm] = useState(() => fund ? {
+    fund_name: fund.fund_name,
+    fund_type: fund.fund_type,
+    scheme_code: fund.scheme_code ?? '',
+    folio_number: fund.folio_number ?? '',
+    units: String(fund.units ?? ''),
+    invested_value: String(fund.invested_value ?? ''),
+    current_nav: fund.current_nav != null ? String(fund.current_nav) : '',
+    sip_amount: fund.sip_amount != null ? String(fund.sip_amount) : '',
+  } : EMPTY_FUND_FORM);
   const [saving, setSaving] = useState(false);
   const set = (k: string, v: string) => setForm(f => ({ ...f, [k]: v }));
+  const isEdit = !!fund;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -866,7 +889,7 @@ function AddFundModal({ onSubmit, onCancel }: { onSubmit: (data: object) => Prom
         <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100 dark:border-surface-700">
           <div>
             <div className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.12em] mb-1">SIP Tracker</div>
-            <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">Add SIP Fund</h2>
+            <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">{isEdit ? 'Edit SIP Fund' : 'Add SIP Fund'}</h2>
           </div>
           <button onClick={onCancel} className="w-9 h-9 flex items-center justify-center rounded-full bg-gray-100 dark:bg-surface-700 text-gray-500 hover:bg-gray-200 dark:hover:bg-surface-600 transition-all">
             <X size={18} />
@@ -925,8 +948,8 @@ function AddFundModal({ onSubmit, onCancel }: { onSubmit: (data: object) => Prom
               Cancel
             </button>
             <button type="submit" disabled={saving} className="flex-1 py-3 rounded-2xl bg-primary-600 hover:bg-primary-700 text-white font-bold text-sm transition-all flex items-center justify-center gap-2 disabled:opacity-60">
-              <Plus size={16} />
-              {saving ? 'Adding…' : 'Add Fund'}
+              {isEdit ? null : <Plus size={16} />}
+              {isEdit ? (saving ? 'Saving…' : 'Save Changes') : (saving ? 'Adding…' : 'Add Fund')}
             </button>
           </div>
         </form>
@@ -951,6 +974,7 @@ const SIPTracker = ({ currentMonth, currentYear, onPortfolioUpdate, frozenSip }:
   const [holdingsPreview, setHoldingsPreview] = useState<HoldingsImportFund[] | null>(null);
   const [showLogSIP, setShowLogSIP] = useState(false);
   const [showAddFund, setShowAddFund] = useState(false);
+  const [editingFund, setEditingFund] = useState<SipFund | null>(null);
   const [importing, setImporting] = useState(false);
   const [autoRefreshing, setAutoRefreshing] = useState(false);
   const [wealthDeltas, setWealthDeltas] = useState<WealthDeltasResponse | null>(null);
@@ -1179,6 +1203,23 @@ const SIPTracker = ({ currentMonth, currentYear, onPortfolioUpdate, frozenSip }:
       return;
     }
     setShowAddFund(false);
+    await loadFunds();
+    onPortfolioUpdate?.();
+  };
+
+  const handleEditFund = async (data: object) => {
+    if (!editingFund) return;
+    const res = await fetch(`/api/sip/funds/${editingFund.id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      alert('Failed to save fund: ' + (err.error ?? res.statusText));
+      return;
+    }
+    setEditingFund(null);
     await loadFunds();
     onPortfolioUpdate?.();
   };
@@ -1434,7 +1475,7 @@ const SIPTracker = ({ currentMonth, currentYear, onPortfolioUpdate, frozenSip }:
         <div className="space-y-4">
           {activeFunds.length === 0
             ? <p className="text-sm text-gray-400 dark:text-gray-500">No active SIP funds. Import your Holdings Excel to get started.</p>
-            : activeFunds.map(f => <FundCard key={f.id} fund={f} onDelete={handleDelete} onRefreshNav={loadFunds} isCurrentMonth={isCurrentMonth} />)
+            : activeFunds.map(f => <FundCard key={f.id} fund={f} onDelete={handleDelete} onEdit={setEditingFund} onRefreshNav={loadFunds} isCurrentMonth={isCurrentMonth} />)
           }
         </div>
       )}
@@ -1443,7 +1484,7 @@ const SIPTracker = ({ currentMonth, currentYear, onPortfolioUpdate, frozenSip }:
         <div className="space-y-4">
           {histFunds.length === 0
             ? <p className="text-sm text-gray-400 dark:text-gray-500">No historical data. Import a Capital Gains Excel to see past investments.</p>
-            : histFunds.map(f => <FundCard key={f.id} fund={f} onDelete={handleDelete} onRefreshNav={loadFunds} isCurrentMonth={isCurrentMonth} />)
+            : histFunds.map(f => <FundCard key={f.id} fund={f} onDelete={handleDelete} onEdit={setEditingFund} onRefreshNav={loadFunds} isCurrentMonth={isCurrentMonth} />)
           }
         </div>
       )}
@@ -1474,6 +1515,13 @@ const SIPTracker = ({ currentMonth, currentYear, onPortfolioUpdate, frozenSip }:
         <AddFundModal
           onSubmit={handleAddFund}
           onCancel={() => setShowAddFund(false)}
+        />
+      )}
+      {editingFund && (
+        <AddFundModal
+          fund={editingFund}
+          onSubmit={handleEditFund}
+          onCancel={() => setEditingFund(null)}
         />
       )}
     </div>
