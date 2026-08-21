@@ -44,8 +44,11 @@ export async function POST(request: NextRequest) {
       const code = parts[0].trim();
       if (!schemeCodes.includes(code)) continue;
 
-      const nav = parseFloat(parts[4]);
-      const date = convertAmfiDate(parts[5]);
+      // NAV and Date are always the last two fields. AMFI sometimes splits the
+      // scheme name into extra Plan/Option columns (e.g. "...;Direct Plan;Growth;NAV;Date"
+      // vs "...;Scheme Name;NAV;Date"), so a fixed index breaks when the format shifts.
+      const nav = parseFloat(parts[parts.length - 2]);
+      const date = convertAmfiDate(parts[parts.length - 1]);
 
       if (!isNaN(nav) && date) {
         map[code] = { nav, date };
