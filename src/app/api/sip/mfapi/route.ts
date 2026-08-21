@@ -19,8 +19,14 @@ export async function GET(request: NextRequest) {
 
   try {
     const url = `https://api.mfapi.in/${path}`;
-    const res = await fetch(url);
-    
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15000);
+    const res = await fetch(url, {
+      signal: controller.signal,
+      headers: { "User-Agent": "Mozilla/5.0" },
+    });
+    clearTimeout(timeout);
+
     if (!res.ok) {
       return NextResponse.json({ error: `MFAPI returned ${res.status}` }, { status: res.status });
     }

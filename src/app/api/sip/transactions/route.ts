@@ -45,14 +45,17 @@ export async function POST(request: NextRequest) {
     return Response.json({ error: (err as Error).message }, { status: 500 });
   }
 
-  // Chain Reaction: Sync wealth snapshot for the month of the transaction
-  const txnDate = new Date(body.date);
-  const m = txnDate.getMonth() + 1;
-  const y = txnDate.getFullYear();
-
+  // Chain Reaction: sync live totals into the active budget month, not the
+  // transaction's own date. Only the active budget month owns live values —
+  // the two diverge for the last week of every month under the 25th-salary
+  // workflow (see syncSIPToMonthlySummary) — and syncMonthlyWealthSnapshot
+  // recomputes the whole live sip_funds total regardless of which
+  // transaction triggered it, so the target month must be the active one or
+  // the sync silently no-ops and the logged SIP never reaches the dashboard.
   after(async () => {
-    const { syncMonthlyWealthSnapshot } = await import("@/lib/monthly-totals");
-    await syncMonthlyWealthSnapshot(supabase, user.id, m, y);
+    const { syncMonthlyWealthSnapshot, getActiveBudgetMonth } = await import("@/lib/monthly-totals");
+    const { month, year } = await getActiveBudgetMonth(supabase, user.id);
+    await syncMonthlyWealthSnapshot(supabase, user.id, month, year);
   });
 
   return Response.json({ id: txnId }, { status: 201 });

@@ -27,7 +27,13 @@ export async function POST(request: NextRequest) {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 20000);
 
-    const res = await fetch(AMFI_URL, { signal: controller.signal });
+    // AMFI's portal rejects bare/bot-looking requests from server environments
+    // (same class of issue as Yahoo Finance in /api/stocks/refresh-prices) —
+    // without a browser-like User-Agent it can 403 instead of returning the feed.
+    const res = await fetch(AMFI_URL, {
+      signal: controller.signal,
+      headers: { "User-Agent": "Mozilla/5.0", "Accept": "text/plain,*/*" },
+    });
     clearTimeout(timeout);
 
     if (!res.ok) {
