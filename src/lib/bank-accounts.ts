@@ -59,6 +59,15 @@ export async function adjustBankAccountBalance(
  * this snapshot, in the same request). Without the exclusion, its still-unapplied
  * salary would get subtracted anyway, undercounting the closed month by exactly
  * that amount.
+ *
+ * Also finalizes monthly_summary.remaining_amount/cash_equivalents for the
+ * closing month to this same total. While a month is active, the Dashboard
+ * shows live bank total, not the stored ledger figure (previous_month_remaining
+ * + salary − expenses) — so anything that moves a bank balance without an
+ * expense row (a manual balance edit reconciling against a bank statement,
+ * stock-sale proceeds routed to bank) is reflected live but never lands in the
+ * ledger. Left uncorrected, the frozen remaining_amount silently disagrees with
+ * what the month actually showed the whole time it was open.
  */
 export async function snapshotBankBalancesForMonth(
   supabase: SupabaseClient,
@@ -71,24 +80,32 @@ export async function snapshotBankBalancesForMonth(
   const nextMonthStart =
     month === 12 ? `${year + 1}-01-01` : `${year}-${String(month + 1).padStart(2, "0")}-01`;
 
-  const [{ data: accounts }, { data: laterExpenses }, { data: laterSalaries }] = await Promise.all([
-    supabase
-      .from("bank_accounts")
-      .select("id, current_balance, is_salary_account")
-      .eq("user_id", userId),
-    supabase
-      .from("expenses")
-      .select("amount, payment_source, bank_account_id")
-      .eq("user_id", userId)
-      .gte("date", nextMonthStart)
-      .not("bank_account_id", "is", null),
-    supabase
-      .from("monthly_summary")
-      .select("month, year, salary, salary_bank_synced")
-      .eq("user_id", userId)
-      .gt("salary", 0)
-      .eq("salary_bank_synced", true),
-  ]);
+  const [{ data: accounts }, { data: laterExpenses }, { data: laterSalaries }, { data: summaryRow }] =
+    await Promise.all([
+      supabase
+        .from("bank_accounts")
+        .select("id, current_balance, is_salary_account")
+        .eq("user_id", userId),
+      supabase
+        .from("expenses")
+        .select("amount, payment_source, bank_account_id")
+        .eq("user_id", userId)
+        .gte("date", nextMonthStart)
+        .not("bank_account_id", "is", null),
+      supabase
+        .from("monthly_summary")
+        .select("month, year, salary, salary_bank_synced")
+        .eq("user_id", userId)
+        .gt("salary", 0)
+        .eq("salary_bank_synced", true),
+      supabase
+        .from("monthly_summary")
+        .select("savings_fd, savings_sip, savings_shares")
+        .eq("user_id", userId)
+        .eq("month", month)
+        .eq("year", year)
+        .maybeSingle(),
+    ]);
 
   if (!accounts || accounts.length === 0) return;
 
@@ -120,6 +137,26 @@ export async function snapshotBankBalancesForMonth(
   await supabase
     .from("bank_account_balances")
     .upsert(rows, { onConflict: "user_id,bank_account_id,month,year" });
+
+  if (summaryRow) {
+    const totalCash = rows.reduce((sum, r) => sum + r.balance, 0);
+    const cash_equivalents =
+      totalCash +
+      Number(summaryRow.savings_fd || 0) +
+      Number(summaryRow.savings_sip || 0) +
+      Number(summaryRow.savings_shares || 0);
+
+    await supabase
+      .from("monthly_summary")
+      .update({
+        remaining_amount: totalCash,
+        cash_equivalents,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("user_id", userId)
+      .eq("month", month)
+      .eq("year", year);
+  }
 }
 
 /**
