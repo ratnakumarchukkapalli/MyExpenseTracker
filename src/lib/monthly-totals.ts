@@ -330,7 +330,15 @@ export async function cascadeUpdateFutureMonths(
     currentShares = Number(update.savings_shares ?? row.savings_shares ?? 0);
     currentNPS = Number(update.savings_nps ?? row.savings_nps ?? 0);
     currentPF = Number(update.savings_pf ?? row.savings_pf ?? 0);
-    currentSodexo = Number(update.sodexo_balance ?? row.sodexo_balance ?? 0);
+    // A carry-forward row has no spend of its own — update.sodexo_balance is
+    // already the correct net figure to hand onward. A real (non-carry-forward)
+    // row's sodexo_balance is left untouched above (its own recorded total),
+    // so its own sodexo_spent still needs netting out before it becomes the
+    // next month's opening balance — otherwise that month's Sodexo spend never
+    // leaves the chain and gets carried forward as if unspent.
+    currentSodexo = isCarryForwardMonth
+      ? Number(update.sodexo_balance ?? 0)
+      : Math.max(0, Number(row.sodexo_balance ?? 0) - Number(row.sodexo_spent ?? 0));
   }
 
   if (updates.length > 0) {

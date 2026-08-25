@@ -59,7 +59,8 @@ export async function GET(_req: NextRequest, { params }: RouteParams) {
     const isStaleFD = isCarryForward && (Number(row.savings_fd) !== Number(prev?.savings_fd ?? 0));
     const isStaleNPS = isCarryForward && (Number(row.savings_nps) !== Number(prev?.savings_nps ?? 0));
     const isStalePF = isCarryForward && (Number(row.savings_pf) !== Number(prev?.savings_pf ?? 0));
-    const isStaleSodexo = isCarryForward && (Number(row.sodexo_balance) !== Number(prev?.sodexo_balance ?? 0));
+    const expectedSodexoCarry = Math.max(0, Number(prev?.sodexo_balance ?? 0) - Number(prev?.sodexo_spent ?? 0));
+    const isStaleSodexo = isCarryForward && (Number(row.sodexo_balance) !== expectedSodexoCarry);
 
     if (isStaleOpening || isStaleSIP || isStaleStocks || isStaleFD || isStaleNPS || isStalePF || isStaleSodexo) {
       // Auto-sync stale values
@@ -80,7 +81,7 @@ export async function GET(_req: NextRequest, { params }: RouteParams) {
         updateData.savings_fd = Number(prev?.savings_fd ?? 0);
         updateData.savings_nps = Number(prev?.savings_nps ?? 0);
         updateData.savings_pf = Number(prev?.savings_pf ?? 0);
-        updateData.sodexo_balance = Math.max(0, Number(prev?.sodexo_balance ?? 0) - Number(prev?.sodexo_spent ?? 0));
+        updateData.sodexo_balance = expectedSodexoCarry;
       }
       
       updateData.cash_equivalents = (updateData.remaining_amount ?? row.remaining_amount) + 

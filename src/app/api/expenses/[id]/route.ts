@@ -94,6 +94,10 @@ export async function PUT(
           savings_shares: summary.savings_shares,
           savings_nps: summary.savings_nps,
           savings_pf: summary.savings_pf,
+          sodexo_balance: Math.max(
+            0,
+            Number(summary?.sodexo_balance ?? 0) - Number(summary?.sodexo_spent ?? 0)
+          ),
         });
       })
     );
@@ -148,6 +152,10 @@ export async function DELETE(
       savings_shares: updatedSummary.savings_shares,
       savings_nps: updatedSummary.savings_nps,
       savings_pf: updatedSummary.savings_pf,
+      sodexo_balance: Math.max(
+        0,
+        Number(updatedSummary?.sodexo_balance ?? 0) - Number(updatedSummary?.sodexo_spent ?? 0)
+      ),
     });
   });
 

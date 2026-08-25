@@ -80,6 +80,10 @@ export async function POST(request: NextRequest) {
       savings_shares: Number(updatedSummary?.savings_shares ?? 0),
       savings_nps: Number(updatedSummary?.savings_nps ?? 0),
       savings_pf: Number(updatedSummary?.savings_pf ?? 0),
+      sodexo_balance: Math.max(
+        0,
+        Number(updatedSummary?.sodexo_balance ?? 0) - Number(updatedSummary?.sodexo_spent ?? 0)
+      ),
     });
   });
 
