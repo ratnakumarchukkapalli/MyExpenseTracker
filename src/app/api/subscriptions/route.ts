@@ -1,7 +1,6 @@
 import { requireAuth, requireAuthFast } from "@/lib/auth-guard";
 import { SubscriptionSchema } from "@/lib/schemas/subscription";
-import { autoAdvanceSubscriptions } from "@/lib/subscriptions";
-import { after, NextRequest } from "next/server";
+import { NextRequest } from "next/server";
 
 // GET /api/subscriptions
 export async function GET() {
@@ -16,9 +15,7 @@ export async function GET() {
 
   if (dbError) return Response.json({ error: dbError.message }, { status: 500 });
 
-  const updated = await autoAdvanceSubscriptions(supabase, user.id, rows ?? []);
-
-  return Response.json(updated, {
+  return Response.json(rows ?? [], {
     headers: { "Cache-Control": "private, max-age=30, stale-while-revalidate=120" },
   });
 }

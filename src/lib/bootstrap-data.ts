@@ -1,6 +1,4 @@
 import type { SupabaseClient, User } from "@supabase/supabase-js";
-import { after } from "next/server";
-import { advanceSubscriptionsLocally, persistSubscriptionAdvances } from "./subscriptions";
 import { getActiveBudgetMonth } from "./monthly-totals";
 
 export type BootstrapData = {
@@ -130,11 +128,7 @@ export async function fetchBootstrapData(
 
   let subscriptions: unknown[] = [];
   if (!light && subscriptionsRes.data) {
-    const result = advanceSubscriptionsLocally(subscriptionsRes.data);
-    subscriptions = result.subscriptions;
-    if (result.toUpdate.length > 0) {
-      after(() => persistSubscriptionAdvances(supabase, user.id, result.toUpdate));
-    }
+    subscriptions = subscriptionsRes.data;
   }
 
   let yearlyRows: BootstrapData["yearlyRows"] = [];
