@@ -279,7 +279,9 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       supabase,
       user.id,
       priorActiveMonth.month,
-      priorActiveMonth.year
+      priorActiveMonth.year,
+      d.month,
+      d.year
     );
   }
 

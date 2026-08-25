@@ -51,12 +51,22 @@ export async function adjustBankAccountBalance(
  * mutates both balances without writing an audit row, so a transfer made after
  * the month has closed silently shifts that month's recorded split. Snapshot at
  * close (the caller does) and the window for that is near zero.
+ *
+ * `excludeMonth`/`excludeYear` skip one later month from the salary-removal
+ * step — the caller uses this for the month it is upserting *right now*: that
+ * row already carries the new salary and `salary_bank_synced` by the time this
+ * runs, but its credit hasn't hit `current_balance` yet (that happens after
+ * this snapshot, in the same request). Without the exclusion, its still-unapplied
+ * salary would get subtracted anyway, undercounting the closed month by exactly
+ * that amount.
  */
 export async function snapshotBankBalancesForMonth(
   supabase: SupabaseClient,
   userId: string,
   month: number,
-  year: number
+  year: number,
+  excludeMonth?: number,
+  excludeYear?: number
 ) {
   const nextMonthStart =
     month === 12 ? `${year + 1}-01-01` : `${year}-${String(month + 1).padStart(2, "0")}-01`;
@@ -92,6 +102,7 @@ export async function snapshotBankBalancesForMonth(
 
   const salaryToRemove = (laterSalaries ?? [])
     .filter((r) => r.year > year || (r.year === year && r.month > month))
+    .filter((r) => !(r.month === excludeMonth && r.year === excludeYear))
     .reduce((sum, r) => sum + Number(r.salary), 0);
 
   const rows = accounts.map((a) => ({
