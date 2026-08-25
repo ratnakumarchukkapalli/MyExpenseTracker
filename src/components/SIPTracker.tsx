@@ -938,11 +938,12 @@ function AddFundModal({ onSubmit, onCancel }: { onSubmit: (data: object) => Prom
 interface SIPTrackerProps {
   currentMonth?: number;
   currentYear?: number;
+  activeBudgetMonth?: { month: number; year: number } | null;
   onPortfolioUpdate?: () => void;
   frozenSip?: number;
 }
 
-const SIPTracker = ({ currentMonth, currentYear, onPortfolioUpdate, frozenSip }: SIPTrackerProps) => {
+const SIPTracker = ({ currentMonth, currentYear, activeBudgetMonth, onPortfolioUpdate, frozenSip }: SIPTrackerProps) => {
   const [funds, setFunds] = useState<SipFund[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -960,7 +961,14 @@ const SIPTracker = ({ currentMonth, currentYear, onPortfolioUpdate, frozenSip }:
   const holdingsFileRef = useRef<HTMLInputElement>(null);
   const capitalGainsFileRef = useRef<HTMLInputElement>(null);
 
-  const isCurrentMonth = currentMonth === new Date().getMonth() + 1 && currentYear === new Date().getFullYear();
+  // Keyed to the active budget month, not the calendar month: NAV refreshes always
+  // write into getActiveBudgetMonth() (see sync-portfolio.ts) regardless of which
+  // tab is open, so the editable tab must match that or refreshing here would
+  // silently update a different month than the one being viewed. Falls back to
+  // the calendar month only if the active-month fetch hasn't resolved yet.
+  const isCurrentMonth = activeBudgetMonth
+    ? currentMonth === activeBudgetMonth.month && currentYear === activeBudgetMonth.year
+    : currentMonth === new Date().getMonth() + 1 && currentYear === new Date().getFullYear();
 
   const loadFunds = useCallback(async () => {
     setLoading(true);

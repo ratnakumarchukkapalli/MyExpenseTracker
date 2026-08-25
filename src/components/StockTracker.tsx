@@ -1149,14 +1149,22 @@ const ChartTooltip = ({ active, payload }: TooltipProps) => {
 interface StockTrackerProps {
   currentMonth?: number;
   currentYear?: number;
+  activeBudgetMonth?: { month: number; year: number } | null;
   onPortfolioUpdate?: () => void;
   onPricesRefreshed?: () => void;
   frozenShares?: number;
 }
 
-const StockTracker = ({ currentMonth = new Date().getMonth() + 1, currentYear = new Date().getFullYear(), onPortfolioUpdate, onPricesRefreshed, frozenShares }: StockTrackerProps) => {
+const StockTracker = ({ currentMonth = new Date().getMonth() + 1, currentYear = new Date().getFullYear(), activeBudgetMonth, onPortfolioUpdate, onPricesRefreshed, frozenShares }: StockTrackerProps) => {
   const { chartColors } = useDarkMode();
-  const isCurrentMonth = currentMonth === new Date().getMonth() + 1 && currentYear === new Date().getFullYear();
+  // Keyed to the active budget month, not the calendar month: price refreshes
+  // always write into getActiveBudgetMonth() (see sync-portfolio.ts) regardless
+  // of which tab is open, so the editable tab must match that or refreshing here
+  // would silently update a different month than the one being viewed. Falls
+  // back to the calendar month only if the active-month fetch hasn't resolved yet.
+  const isCurrentMonth = activeBudgetMonth
+    ? currentMonth === activeBudgetMonth.month && currentYear === activeBudgetMonth.year
+    : currentMonth === new Date().getMonth() + 1 && currentYear === new Date().getFullYear();
   const [holdings, setHoldings] = useState<StockHolding[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
