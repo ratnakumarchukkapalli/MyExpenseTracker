@@ -8,6 +8,7 @@ import {
   ChevronRight,
   Eye,
   EyeOff,
+  Home,
   Landmark,
   LayoutDashboard,
   LogOut,
@@ -33,6 +34,7 @@ const Subscriptions = dynamic(() => import('./Subscriptions'));
 const SubscriptionForm = dynamic(() => import('./SubscriptionForm'));
 const Loans = dynamic(() => import('./Loans'));
 const LoanForm = dynamic(() => import('./LoanForm'));
+const HomeLoanHistory = dynamic(() => import('./HomeLoanHistory'));
 const CreditCards = dynamic(() => import('./CreditCards'));
 const Insurance = dynamic(() => import('./Insurance'));
 const MonthlyReport = dynamic(() => import('./MonthlyReport'));
@@ -148,6 +150,7 @@ type ViewId =
   | 'analytics'
   | 'subscriptions'
   | 'loans'
+  | 'homeLoanHistory'
   | 'insurance'
   | 'reports'
   | 'projection'
@@ -172,6 +175,7 @@ const NAV_SECTIONS: Array<{
     items: [
       { id: 'subscriptions', label: 'Subscriptions', icon: Calendar },
       { id: 'loans', label: 'Loans & EMIs', icon: Landmark },
+      { id: 'homeLoanHistory', label: 'Home Loan History', icon: Home },
     ],
   },
   {
@@ -868,6 +872,12 @@ function AppShell({ initialData, serverMonth, serverYear }: AppShellProps) {
                     <div className="mt-6">
                       <CreditCards cards={creditCards} bankAccounts={bankAccounts} onChange={triggerRefresh} currentMonth={currentMonth} currentYear={currentYear} />
                     </div>
+                  </div>
+                )}
+
+                {mountedTabs.has('homeLoanHistory') && (
+                  <div style={{ display: currentView === 'homeLoanHistory' ? undefined : 'none' }}>
+                    <HomeLoanHistory />
                   </div>
                 )}
 
