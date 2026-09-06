@@ -54,20 +54,29 @@ export async function GET(_req: NextRequest, { params }: RouteParams) {
     const isStaleOpening = isCarryForward && (Number(row.previous_month_remaining) !== expectedOpening);
     const isStaleSIP = isCarryForward && (Number(row.savings_sip) !== Number(prev?.savings_sip ?? 0));
     const isStaleStocks = isCarryForward && (Number(row.savings_shares) !== Number(prev?.savings_shares ?? 0));
-    
+
     // For manual fields, we only sync if it's a pure carry-forward month
     const isStaleFD = isCarryForward && (Number(row.savings_fd) !== Number(prev?.savings_fd ?? 0));
     const isStaleNPS = isCarryForward && (Number(row.savings_nps) !== Number(prev?.savings_nps ?? 0));
     const isStalePF = isCarryForward && (Number(row.savings_pf) !== Number(prev?.savings_pf ?? 0));
+
+    // Sodexo carry is gated on its OWN activity, not on salary/expenses — the
+    // salary account and the Sodexo card are independent tracks, so a month
+    // that already has salary recorded (advancing the active budget month)
+    // but hasn't touched Sodexo yet must still keep pulling the true carry
+    // (prev balance minus prev spend) forward whenever the prior month's
+    // Sodexo spending changes later. Otherwise the carry freezes stale the
+    // moment salary lands, even though no one has "used" this month's card yet.
     const expectedSodexoCarry = Math.max(0, Number(prev?.sodexo_balance ?? 0) - Number(prev?.sodexo_spent ?? 0));
-    const isStaleSodexo = isCarryForward && (Number(row.sodexo_balance) !== expectedSodexoCarry);
+    const isSodexoUntouched = Number(row.sodexo_credit ?? 0) === 0 && Number(row.sodexo_spent ?? 0) === 0;
+    const isStaleSodexo = isSodexoUntouched && (Number(row.sodexo_balance) !== expectedSodexoCarry);
 
     if (isStaleOpening || isStaleSIP || isStaleStocks || isStaleFD || isStaleNPS || isStalePF || isStaleSodexo) {
       // Auto-sync stale values
-      const newRemaining = isStaleOpening 
+      const newRemaining = isStaleOpening
         ? (expectedOpening + Number(row.salary) + Number(row.interest_income) - Number(row.total_expenses))
         : Number(row.remaining_amount);
-        
+
       const updateData: any = {
         savings_sip: Number(prev?.savings_sip ?? 0),
         savings_shares: Number(prev?.savings_shares ?? 0),
@@ -81,9 +90,11 @@ export async function GET(_req: NextRequest, { params }: RouteParams) {
         updateData.savings_fd = Number(prev?.savings_fd ?? 0);
         updateData.savings_nps = Number(prev?.savings_nps ?? 0);
         updateData.savings_pf = Number(prev?.savings_pf ?? 0);
+      }
+      if (isStaleSodexo) {
         updateData.sodexo_balance = expectedSodexoCarry;
       }
-      
+
       updateData.cash_equivalents = (updateData.remaining_amount ?? row.remaining_amount) + 
         (updateData.savings_fd ?? row.savings_fd) + 
         (updateData.savings_sip ?? row.savings_sip) + 

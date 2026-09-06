@@ -265,9 +265,17 @@ export async function cascadeUpdateFutureMonths(
   for (let i = 0; i < maxMonths; i++) {
     const row = futureRows[i];
     
-    // Heuristic: If a month is "fresh" (no salary/expenses logged yet), 
+    // Heuristic: If a month is "fresh" (no salary/expenses logged yet),
     // it's a carry-forward candidate for investment values too.
     const isCarryForwardMonth = Number(row.salary) === 0 && Number(row.total_expenses) === 0;
+
+    // Sodexo carry is gated on its OWN activity, not salary/expenses — the
+    // salary account and the Sodexo card are independent tracks. A month can
+    // already have salary recorded (advancing the active budget month) while
+    // still being untouched on the Sodexo side, and must keep pulling the
+    // true carry forward whenever an earlier month's Sodexo spend changes.
+    const isSodexoCarryForwardMonth =
+      Number(row.sodexo_credit ?? 0) === 0 && Number(row.sodexo_spent ?? 0) === 0;
 
     const salaryAlreadyInOpeningBalance = openingIsLiveBankTotal && Boolean(row.salary_bank_synced);
 
@@ -309,6 +317,8 @@ export async function cascadeUpdateFutureMonths(
       if (currentFD !== undefined) update.savings_fd = currentFD;
       if (currentNPS !== undefined) update.savings_nps = currentNPS;
       if (currentPF !== undefined) update.savings_pf = currentPF;
+    }
+    if (isSodexoCarryForwardMonth) {
       if (currentSodexo !== undefined) update.sodexo_balance = currentSodexo;
       update.sodexo_credit = 0;
     }
@@ -330,15 +340,11 @@ export async function cascadeUpdateFutureMonths(
     currentShares = Number(update.savings_shares ?? row.savings_shares ?? 0);
     currentNPS = Number(update.savings_nps ?? row.savings_nps ?? 0);
     currentPF = Number(update.savings_pf ?? row.savings_pf ?? 0);
-    // A carry-forward row has no spend of its own — update.sodexo_balance is
-    // already the correct net figure to hand onward. A real (non-carry-forward)
-    // row's sodexo_balance is left untouched above (its own recorded total),
-    // so its own sodexo_spent still needs netting out before it becomes the
-    // next month's opening balance — otherwise that month's Sodexo spend never
-    // leaves the chain and gets carried forward as if unspent.
-    currentSodexo = isCarryForwardMonth
-      ? Number(update.sodexo_balance ?? 0)
-      : Math.max(0, Number(row.sodexo_balance ?? 0) - Number(row.sodexo_spent ?? 0));
+    currentSodexo = Math.max(
+      0,
+      Number(update.sodexo_balance ?? row.sodexo_balance ?? 0) -
+        (isSodexoCarryForwardMonth ? 0 : Number(row.sodexo_spent ?? 0))
+    );
   }
 
   if (updates.length > 0) {
