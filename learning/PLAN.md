@@ -16,15 +16,21 @@
 ## Current Status
 
 ```
-PHASE    : Phase 1 — Linear Regression
-TOPIC    : trend line + forecasting + year-end balance prediction
-STATUS   : IN PROGRESS
-BEAD     : MyExpenseTracker-k4t
-STUDY    : learning/phases/phase-1-regression.md  (HTML: phase-1-regression.html)
-NEXT     : Theory captured: vectors, dot product, features/weights, bias trick, SSE,
-           why-squared, loss bowl, universal ML recipe, slope=cov/var meaning.
-           Pending: R² intuition → numpy implementation → sklearn verify →
-           POST /ml/trend → Next.js proxy → run on real Supabase data.
+PHASE    : Phase 6 — RAG + Local LLM (fast-tracked ahead of Phases 2-5)
+TOPIC    : embeddings, similarity, pgvector/HNSW, hybrid retrieval, query
+           routing, RAGAS, LangFuse
+STATUS   : IN PROGRESS — step-by-step, concept before code, one step at a time
+BEAD     : MyExpenseTracker-7vl (children .1–.8, see study folder for map)
+STUDY    : learning/phases/phase-6-rag/  (one file per concept/step)
+NEXT     : Step 1 concept done (embeddings, cosine similarity, dot-product
+           bridge to Phase 1, why HNSW). Migration drafted
+           (scripts/022_rag_pgvector.sql), not yet applied. Next: step 2,
+           embedding pipeline (LM Studio, nomic-embed-text).
+
+PAUSED   : Phase 1 — Linear Regression (MyExpenseTracker-k4t). Theory
+           captured (vectors, dot product, bias trick, SSE, loss bowl,
+           slope=cov/var); numpy/sklearn implementation + /ml/trend
+           endpoint still pending. Resume after Phase 6.
 ```
 
 ---
