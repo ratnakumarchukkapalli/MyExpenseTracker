@@ -79,6 +79,31 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   // Update monthly summary so the cash balance reflects this expense
   const updatedSummary = await updateMonthlyExpenseTotal(supabase, user.id, paidMonth, paidYear);
 
+  // Home Loan History (see scripts/023, 024) is a separate read-only reference
+  // table, not fed by expenses in general — but for these two specific loans
+  // it mirrors what a paid EMI actually was, so keep it in sync automatically
+  // when the button is used. Failure here must never block the real payment.
+  const HOME_LOAN_HISTORY_FIELD: Record<string, "main_emi" | "service_charge"> = {
+    "Home loan": "main_emi",
+    "Homeloan-Insurance": "service_charge",
+  };
+  const historyField = HOME_LOAN_HISTORY_FIELD[loan.name];
+  if (historyField) {
+    try {
+      await supabase.from("home_loan_history").upsert(
+        {
+          user_id: user.id,
+          month: monthStart,
+          lender: "IDBI Bank",
+          [historyField]: Number(loan.amount),
+        },
+        { onConflict: "user_id,month,lender" }
+      );
+    } catch (historyError) {
+      console.error("Failed to sync home_loan_history (non-fatal):", historyError);
+    }
+  }
+
   after(async () => {
     await cascadeUpdateFutureMonths(supabase, user.id, paidMonth, paidYear, {
       remaining_amount: Number(updatedSummary?.remaining_amount ?? 0),
