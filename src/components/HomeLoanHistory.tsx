@@ -60,8 +60,10 @@ function HomeLoanHistory() {
       acc[r.lender] = (acc[r.lender] || 0) + rowTotal(r);
       return acc;
     }, {});
-    const months = new Set(rows.map((r) => r.month)).size;
-    return { totalPaid, totalRefund, byLender, months };
+    const sortedMonths = Array.from(new Set(rows.map((r) => r.month))).sort();
+    const months = sortedMonths.length;
+    const lastMonth = sortedMonths[sortedMonths.length - 1];
+    return { totalPaid, totalRefund, byLender, months, lastMonth };
   }, [rows]);
 
   const contribution = useMemo(() => {
@@ -69,7 +71,11 @@ function HomeLoanHistory() {
     const ownContribution = summary.totalPaid - fromOthers;
     const ownPct = summary.totalPaid > 0 ? (ownContribution / summary.totalPaid) * 100 : 0;
     const othersPct = 100 - ownPct;
-    return { fromOthers, ownContribution, ownPct, othersPct };
+    const lastContributionDate = contributions.reduce<string | null>(
+      (latest, c) => (!latest || c.contributed_date > latest ? c.contributed_date : latest),
+      null
+    );
+    return { fromOthers, ownContribution, ownPct, othersPct, lastContributionDate };
   }, [contributions, summary.totalPaid]);
 
   if (loading) {
@@ -90,8 +96,8 @@ function HomeLoanHistory() {
         <div>
           <h2 className="text-lg font-bold text-gray-900 dark:text-white">Home Loan Payment History</h2>
           <p className="text-sm text-gray-500 dark:text-gray-400">
-            Reconstructed from Kotak bank statements, Jan 2023 – Aug 2026. Read-only reference — does not affect
-            expenses, monthly totals, or reports.
+            Reconstructed from Kotak bank statements, Jan 2023{summary.lastMonth ? ` – ${formatMonth(summary.lastMonth)}` : ''}.
+            Read-only reference — does not affect expenses, monthly totals, or reports.
           </p>
         </div>
       </div>
@@ -151,6 +157,13 @@ function HomeLoanHistory() {
           <span>You: {contribution.ownPct.toFixed(1)}%</span>
           <span>Krishna Kishore: {contribution.othersPct.toFixed(1)}%</span>
         </div>
+        {contribution.lastContributionDate && (
+          <p className="text-xs text-gray-400 dark:text-gray-500 mt-3">
+            Krishna Kishore&rsquo;s contributions are recorded through {formatMonth(contribution.lastContributionDate)}.
+            Home loan payments made after that (via the Loans tracker) count entirely toward your own share until a
+            newer contribution is added.
+          </p>
+        )}
       </div>
 
       {/* Table */}
